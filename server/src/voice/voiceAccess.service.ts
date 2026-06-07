@@ -99,10 +99,13 @@ async function mayJoinBlackjackWaitingRoom(userId: string, roomId: string): Prom
 }
 
 async function mayJoinWaitingChannel(
-  _socket: Socket,
+  socket: Socket,
   userId: string,
   roomId: string,
 ): Promise<boolean> {
+  if (socket.rooms.has(roomId) || socket.rooms.has(`belote-room:${roomId}`)) {
+    return true
+  }
   if (await mayJoinPokerWaitingRoom(userId, roomId)) return true
   if (await mayJoinBeloteWaitingRoom(userId, roomId)) return true
   if (await mayJoinBlackjackWaitingRoom(userId, roomId)) return true

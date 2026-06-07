@@ -1329,7 +1329,19 @@
       "ba3": "Fondo 3",
       "ba4": "Fondo 4"
     },
-    "rateGameCta": "Valorar el juego"
+    "rateGameCta": "Valorar el juego",
+    "tabAccount": "Cuenta",
+    "deleteAccountTitle": "Eliminar mi cuenta",
+    "deleteAccountHint": "Irreversible: se borrarán todos tus datos.",
+    "deleteAccountBody": "Tu perfil, estadísticas, amigos, historial y fichas se eliminarán permanentemente. Las cuentas locales deben confirmar la contraseña; las de Google deben volver a escribir su usuario.",
+    "deleteAccountPasswordLabel": "Contraseña actual",
+    "deleteAccountPasswordPlaceholder": "Obligatoria para cuentas con correo / contraseña",
+    "deleteAccountUsernameLabel": "Vuelve a escribir tu usuario ({{username}}) para confirmar",
+    "deleteAccountCta": "Eliminar definitivamente mi cuenta",
+    "deleteAccountLoading": "Eliminando…",
+    "deleteAccountConfirm": "¿Eliminar definitivamente la cuenta « {{username}} »? Esta acción no se puede deshacer.",
+    "deleteAccountError": "No se pudo eliminar la cuenta.",
+    "deleteAccountNotLoggedIn": "Debes iniciar sesión para eliminar tu cuenta."
   },
   "adminConsole": {
     "loginTitle": "Consola de administración",
@@ -1376,6 +1388,8 @@
     "suspend7": "Suspender 7 d.",
     "ban": "Banear",
     "reactivate": "Reactivar",
+    "deleteUser": "Eliminar",
+    "deleteUserConfirm": "¿Eliminar definitivamente la cuenta « {{username}} » y todos sus datos?",
     "searchPlaceholder": "Filtrar (nombre, correo, id…)",
     "filterHint": "La búsqueda se aplica tras una breve pausa.",
     "filterHintTournaments": "Búsqueda tras una pausa: nombre del torneo, id, usuario creador.",

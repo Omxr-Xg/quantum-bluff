@@ -329,6 +329,25 @@ export function AdminConsole() {
     return () => window.clearInterval(id);
   }, [fetchReportUnread]);
 
+  const deleteUser = async (userId: string, username: string) => {
+    if (!window.confirm(t("adminConsole.deleteUserConfirm", { username }))) return;
+    setError(null);
+    try {
+      const res = await fetch(apiUrl(`/api/admin/console/users/${encodeURIComponent(userId)}`), {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
+        return;
+      }
+      await load();
+    } catch {
+      setError(t("adminConsole.networkError"));
+    }
+  };
+
   const patchUser = async (userId: string, action: "suspend" | "ban" | "reactivate") => {
     setError(null);
     try {
@@ -870,6 +889,14 @@ export function AdminConsole() {
                           onClick={() => void patchUser(u.id, "reactivate")}
                         >
                           {t("adminConsole.reactivate")}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-2 py-1 text-xs text-red-200 hover:bg-red-950"
+                          onClick={() => void deleteUser(u.id, u.username)}
+                        >
+                          <Trash2 className="h-3 w-3" aria-hidden />
+                          {t("adminConsole.deleteUser")}
                         </button>
                       </div>
                     </td>

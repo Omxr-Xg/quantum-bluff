@@ -113,6 +113,7 @@ export type ReferralInvite = {
   status: 'PENDING' | 'COMPLETED'
   createdAt: string
   rewardedAt: string | null
+  chipsEarned: number
 }
 
 export type AchievementCategory =

@@ -211,6 +211,7 @@ if (jwtSecret.length < 32) {
 const databaseUrl = getRequiredEnv('DATABASE_URL')
 /** Limite connexions pg (Supabase pooler : garder bas, ex. 5–8 par instance Render). */
 const databasePoolMax = getPositiveIntegerEnv('DATABASE_POOL_MAX', isProduction ? 8 : 10)
+const databaseConnectTimeoutMs = getPositiveIntegerEnv('DATABASE_CONNECT_TIMEOUT_MS', 30_000)
 const redisUrl = getOptionalEnv('REDIS_URL')
 const redisHost = getOptionalEnv('REDIS_HOST', isProduction ? undefined : 'localhost')
 
@@ -292,6 +293,7 @@ export const env = {
   trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   databaseUrl,
   databasePoolMax,
+  databaseConnectTimeoutMs,
   redisUrl,
   redisHost: redisHost ?? 'localhost',
   redisPort: getPositiveIntegerEnv('REDIS_PORT', 6379),

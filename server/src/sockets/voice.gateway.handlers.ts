@@ -2,9 +2,9 @@ import type { Server, Socket } from 'socket.io'
 import { prisma } from '../config/database.js'
 import {
   areFriends,
-  assertMayJoinVoiceChannel,
   isBlockedEitherWay,
 } from '../voice/voiceAccess.service.js'
+import { assertMayJoinVoiceChannelCached } from '../voice/voiceAccessCache.js'
 import {
   activateCall,
   clearCallRingTimeout,
@@ -48,16 +48,15 @@ import {
 } from '../voice/voiceSession.registry.js'
 import type { VoiceMigrateHint } from '../voice/voice.types.js'
 import { getCachedUserProfile } from '../utils/userProfileCache.js'
+import { isDbConnectionError, withDbRetry } from '../utils/dbRetry.js'
+import { rootLogger } from '../observability/logger.js'
 import { emitVoiceEventToUser } from '../voice/voiceCallDelivery.js'
 
 type VoiceSocket = Socket & { userId?: string; voiceChannelId?: string }
 
 async function usernameFor(userId: string): Promise<string> {
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { username: true },
-  })
-  return u?.username ?? 'Joueur'
+  const profile = await getCachedUserProfile(userId)
+  return profile.username
 }
 
 async function voiceCallTargetProfile(userId: string): Promise<{
@@ -137,7 +136,9 @@ async function joinChannel(
     return
   }
 
-  const access = await assertMayJoinVoiceChannel(socket, userId, parsed)
+  const access = await withDbRetry(() =>
+    assertMayJoinVoiceChannelCached(socket, userId, parsed),
+  )
   if (!access.ok) {
     socket.emit('VOICE_ERROR', { code: access.code })
     return
@@ -167,7 +168,7 @@ async function joinChannel(
     }
   }
 
-  const name = await usernameFor(userId)
+  const name = await withDbRetry(() => usernameFor(userId))
   const prev = prior ? getVoiceChannel(prior)?.get(userId) : undefined
   await addVoiceSocket(channelId, userId, name, socket.id, { preserveSettings: prev })
   socket.join(socketRoomKey(channelId))
@@ -188,7 +189,17 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         if (!channelId) return
         await joinChannel(io, socket, channelId, { replace: data?.replace ?? true })
       } catch (err) {
+        if (isDbConnectionError(err)) {
+          rootLogger.warn({
+            msg: 'voice_join_db_unavailable',
+            userId: socket.userId,
+            detail: err instanceof Error ? err.message : String(err),
+          })
+          socket.emit('VOICE_ERROR', { code: 'DB_UNAVAILABLE', retryable: true })
+          return
+        }
         console.error('[voice] VOICE_JOIN', err)
+        socket.emit('VOICE_ERROR', { code: 'VOICE_JOIN_FAILED' })
       }
     },
   )

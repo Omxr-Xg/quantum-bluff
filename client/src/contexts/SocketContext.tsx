@@ -206,6 +206,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       if (typeof data.chips === 'number' && Number.isFinite(data.chips)) {
         updateUserBalance(Math.max(0, Math.floor(data.chips)))
       }
+      if (data.source === 'referral') {
+        store.dispatch(api.util.invalidateTags(['Friend', 'Referral']))
+      }
       window.dispatchEvent(new CustomEvent('user-rewards-updated', { detail: data }))
     }
 

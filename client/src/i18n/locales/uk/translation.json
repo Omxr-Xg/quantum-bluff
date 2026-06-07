@@ -1338,7 +1338,19 @@
       "ba3": "Тло 3",
       "ba4": "Тло 4"
     },
-    "rateGameCta": "Оцінити гру"
+    "rateGameCta": "Оцінити гру",
+    "tabAccount": "Обліковий запис",
+    "deleteAccountTitle": "Видалити мій обліковий запис",
+    "deleteAccountHint": "Незворотно — усі ваші дані буде стерто.",
+    "deleteAccountBody": "Ваш профіль, статистика, друзі, історія та фішки будуть видалені назавжди. Локальні облікові записи мають підтвердити пароль; Google — повторити нік.",
+    "deleteAccountPasswordLabel": "Поточний пароль",
+    "deleteAccountPasswordPlaceholder": "Обов’язково для облікових записів e-mail / пароль",
+    "deleteAccountUsernameLabel": "Повторіть нік ({{username}}) для підтвердження",
+    "deleteAccountCta": "Видалити обліковий запис назавжди",
+    "deleteAccountLoading": "Видалення…",
+    "deleteAccountConfirm": "Видалити обліковий запис « {{username}} » назавжди? Це незворотно.",
+    "deleteAccountError": "Не вдалося видалити обліковий запис.",
+    "deleteAccountNotLoggedIn": "Потрібно увійти, щоб видалити обліковий запис."
   },
   "adminConsole": {
     "loginTitle": "Адмін-консоль",
@@ -1385,6 +1397,8 @@
     "suspend7": "7 дн.",
     "ban": "Бан",
     "reactivate": "Розблокувати",
+    "deleteUser": "Видалити",
+    "deleteUserConfirm": "Видалити обліковий запис « {{username}} » і всі дані назавжди?",
     "searchPlaceholder": "Фільтр (ім’я, пошта, id…)",
     "filterHint": "Пошук застосовується після короткої паузи.",
     "filterHintTournaments": "Пошук після паузи: назва турніру, id, ім’я автора.",

@@ -1,6 +1,10 @@
-import { Eye, Bell, X, Palette, Volume2, ChevronDown, Sparkles, Music2, Waves, Star } from "lucide-react";
+import { Eye, Bell, X, Palette, Volume2, ChevronDown, Sparkles, Music2, Waves, Star, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
+import { apiUrl } from "../utils/apiBase";
+import { getAuthItem } from "../utils/authStorage";
+import { clearAuthStorage, getUsername } from "../utils/userProfile";
 import { useAccessibility } from "../contexts/AccessibilityContext";
 import { useAudio } from "../contexts/MusicContext";
 import {
@@ -41,6 +45,7 @@ export function SettingsMenu({
   hideAestheticTab = false,
 }: SettingsMenuProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const {
     highContrast,
     toggleHighContrast,
@@ -66,6 +71,10 @@ export function SettingsMenu({
   } = useAudio();
   const initialVisibleTab = hideAestheticTab && initialTab === "aesthetic" ? "audio" : initialTab;
   const [tab, setTab] = useState<SettingsTab>(initialVisibleTab);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmUsername, setDeleteConfirmUsername] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -88,6 +97,46 @@ export function SettingsMenu({
   const close = () => {
     playSfx("modalClose");
     onClose();
+  };
+
+  const handleDeleteAccount = async () => {
+    const username = getUsername();
+    if (!window.confirm(t("settings.deleteAccountConfirm", { username }))) return;
+
+    const token = getAuthItem("token");
+    if (!token) {
+      setDeleteError(t("settings.deleteAccountNotLoggedIn"));
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const body: { password?: string; confirmUsername?: string } = {};
+      if (deletePassword.trim()) body.password = deletePassword;
+      if (deleteConfirmUsername.trim()) body.confirmUsername = deleteConfirmUsername.trim();
+
+      const res = await fetch(apiUrl("/api/auth/account"), {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setDeleteError(data.error ?? t("settings.deleteAccountError"));
+        return;
+      }
+      clearAuthStorage();
+      close();
+      navigate("/auth", { replace: true });
+    } catch {
+      setDeleteError(t("settings.deleteAccountError"));
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const renderTabButton = (id: SettingsTab, label: string) => (
@@ -140,6 +189,7 @@ export function SettingsMenu({
           {!hideAestheticTab && renderTabButton("aesthetic", t("settings.tabAesthetic"))}
           {renderTabButton("audio", t("settings.tabAudio"))}
           {renderTabButton("accessibility", t("settings.tabAccessibility"))}
+          {renderTabButton("account", t("settings.tabAccount"))}
         </div>
 
         <CustomScrollArea className="relative z-10 min-h-0 flex-1" contentClassName="space-y-6 p-5 pr-7 sm:p-6 sm:pr-8">
@@ -303,6 +353,69 @@ export function SettingsMenu({
                   <span className="w-12 text-right text-sm tabular-nums text-cyan-100">
                     {Math.round(sfxVolume * 100)}%
                   </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "account" && (
+            <div className="space-y-4">
+              <div className={`rounded-xl border border-red-500/30 bg-red-950/25 p-5 ${settingsPanelClass}`}>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-400/30 bg-red-500/15">
+                    <Trash2 className="h-5 w-5 text-red-200" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-red-100">{t("settings.deleteAccountTitle")}</h3>
+                      <p className="text-sm text-red-200/80">{t("settings.deleteAccountHint")}</p>
+                    </div>
+                    <p className="text-sm leading-relaxed text-slate-300">{t("settings.deleteAccountBody")}</p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="mb-1 block text-sm text-slate-300" htmlFor="delete-account-password">
+                          {t("settings.deleteAccountPasswordLabel")}
+                        </label>
+                        <input
+                          id="delete-account-password"
+                          type="password"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-slate-950/55 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-red-400/50 focus:outline-none focus:ring-2 focus:ring-red-400/20"
+                          placeholder={t("settings.deleteAccountPasswordPlaceholder")}
+                          autoComplete="current-password"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm text-slate-300" htmlFor="delete-account-username">
+                          {t("settings.deleteAccountUsernameLabel", { username: getUsername() })}
+                        </label>
+                        <input
+                          id="delete-account-username"
+                          type="text"
+                          value={deleteConfirmUsername}
+                          onChange={(e) => setDeleteConfirmUsername(e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-slate-950/55 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-red-400/50 focus:outline-none focus:ring-2 focus:ring-red-400/20"
+                          placeholder={getUsername()}
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                    {deleteError && (
+                      <p className="text-sm text-red-300" role="alert">
+                        {deleteError}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      disabled={deleteLoading}
+                      onClick={() => void handleDeleteAccount()}
+                      className="inline-flex items-center gap-2 rounded-xl border border-red-500/50 bg-red-900/70 px-4 py-2.5 text-sm font-semibold text-red-50 transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                      {deleteLoading ? t("settings.deleteAccountLoading") : t("settings.deleteAccountCta")}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

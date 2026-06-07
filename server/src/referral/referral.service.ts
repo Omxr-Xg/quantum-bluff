@@ -6,6 +6,7 @@ import { createNotification } from '../notifications/notification.service.js'
 import {
   REFERRAL_REFERRED_CHIPS,
   REFERRAL_REFERRER_CHIPS,
+  type ApplyReferralResult,
   type ReferralInviteRow,
   type ReferralMeResponse,
 } from './referral.types.js'
@@ -24,6 +25,25 @@ class ReferralError extends Error {
 
 export function isReferralError(err: unknown): err is ReferralError {
   return err instanceof ReferralError
+}
+
+function orderedUserPair(a: string, b: string): [string, string] {
+  return a < b ? [a, b] : [b, a]
+}
+
+async function ensureReferralFriendship(
+  tx: Pick<typeof prisma, 'friendship'>,
+  referrerId: string,
+  referredUserId: string,
+): Promise<void> {
+  const [user1Id, user2Id] = orderedUserPair(referrerId, referredUserId)
+  const existing = await tx.friendship.findFirst({
+    where: { user1Id, user2Id },
+    select: { id: true },
+  })
+  if (!existing) {
+    await tx.friendship.create({ data: { user1Id, user2Id } })
+  }
 }
 
 export async function ensureUserReferralCode(userId: string): Promise<string> {
@@ -84,14 +104,15 @@ export async function listReferralInvites(userId: string): Promise<ReferralInvit
     status: r.status,
     createdAt: r.createdAt.toISOString(),
     rewardedAt: r.referrerRewardedAt?.toISOString() ?? null,
+    chipsEarned: r.status === 'COMPLETED' ? REFERRAL_REFERRER_CHIPS : 0,
   }))
 }
 
 async function completeReferralRewards(
   referralId: string,
   io?: Server,
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+): Promise<ApplyReferralResult | null> {
+  const result = await prisma.$transaction(async (tx): Promise<ApplyReferralResult | null> => {
     const referral = await tx.referral.findUnique({
       where: { id: referralId },
       include: {
@@ -99,7 +120,7 @@ async function completeReferralRewards(
         referred: { select: { id: true, chips: true, username: true } },
       },
     })
-    if (!referral || referral.status === 'COMPLETED') return
+    if (!referral || referral.status === 'COMPLETED') return null
 
     const referrerBefore = referral.referrer.chips
     const referredBefore = referral.referred.chips
@@ -133,6 +154,8 @@ async function completeReferralRewards(
       roundId: referral.id,
     })
 
+    await ensureReferralFriendship(tx, referral.referrerId, referral.referredUserId)
+
     await tx.referral.update({
       where: { id: referralId },
       data: {
@@ -141,49 +164,63 @@ async function completeReferralRewards(
         referredRewardedAt: now,
       },
     })
+
+    return {
+      referralId: referral.id,
+      referrerId: referral.referrerId,
+      referredUserId: referral.referredUserId,
+      referredUsername: referral.referred.username,
+      referrerUsername: referral.referrer.username,
+      referredChips: referredAfter,
+      referrerChips: referrerAfter,
+    }
   })
 
-  const referral = await prisma.referral.findUnique({
-    where: { id: referralId },
-    select: { referrerId: true, referredUserId: true },
-  })
-  if (!referral) return
-
-  const [referrer, referred] = await Promise.all([
-    prisma.user.findUnique({ where: { id: referral.referrerId }, select: { chips: true } }),
-    prisma.user.findUnique({ where: { id: referral.referredUserId }, select: { chips: true } }),
-  ])
+  if (!result) return null
 
   if (io) {
-    if (referrer) {
-      emitUserRewardsUpdated(io, referral.referrerId, {
-        chips: referrer.chips,
-        source: 'referral',
-      })
-    }
-    if (referred) {
-      emitUserRewardsUpdated(io, referral.referredUserId, {
-        chips: referred.chips,
-        source: 'referral',
-      })
-    }
+    emitUserRewardsUpdated(io, result.referrerId, {
+      chips: result.referrerChips,
+      source: 'referral',
+    })
+    emitUserRewardsUpdated(io, result.referredUserId, {
+      chips: result.referredChips,
+      source: 'referral',
+    })
   }
 
-  await createNotification(referral.referrerId, 'REFERRAL', {
-    messageKey: 'referral.referrerReward',
+  await createNotification(result.referrerId, 'REFERRAL', {
+    role: 'referrer',
+    username: result.referredUsername,
     chips: REFERRAL_REFERRER_CHIPS,
   })
-  await createNotification(referral.referredUserId, 'REFERRAL', {
-    messageKey: 'referral.referredReward',
+  await createNotification(result.referredUserId, 'REFERRAL', {
+    role: 'referred',
+    username: result.referrerUsername,
     chips: REFERRAL_REFERRED_CHIPS,
   })
+
+  void import('../achievements/achievement.service.js').then(async ({ checkAchievements }) => {
+    const friendCountFor = async (uid: string) =>
+      prisma.friendship.count({
+        where: { OR: [{ user1Id: uid }, { user2Id: uid }] },
+      })
+    const [referrerCount, referredCount] = await Promise.all([
+      friendCountFor(result.referrerId),
+      friendCountFor(result.referredUserId),
+    ])
+    await checkAchievements(result.referrerId, { type: 'FRIEND_ADDED', friendsCount: referrerCount })
+    await checkAchievements(result.referredUserId, { type: 'FRIEND_ADDED', friendsCount: referredCount })
+  })
+
+  return result
 }
 
 export async function applyReferralCode(
   referredUserId: string,
   rawCode: string,
   io?: Server,
-): Promise<{ ok: true }> {
+): Promise<ApplyReferralResult> {
   const code = normalizeReferralCode(rawCode)
   if (!code || code.length < 4) {
     throw new ReferralError(400, 'INVALID_CODE', 'Code de parrainage invalide')
@@ -216,21 +253,24 @@ export async function applyReferralCode(
     },
   })
 
-  await completeReferralRewards(referral.id, io)
-  return { ok: true }
+  const result = await completeReferralRewards(referral.id, io)
+  if (!result) {
+    throw new ReferralError(500, 'REFERRAL_REWARD_FAILED', 'Impossible de créditer le parrainage')
+  }
+  return result
 }
 
 export async function applyReferralOnRegister(
   referredUserId: string,
   rawCode: string | undefined,
   io?: Server,
-): Promise<void> {
-  if (!rawCode?.trim()) return
+): Promise<ApplyReferralResult | null> {
+  if (!rawCode?.trim()) return null
   try {
-    await applyReferralCode(referredUserId, rawCode, io)
+    return await applyReferralCode(referredUserId, rawCode, io)
   } catch (err) {
     if (isReferralError(err) && (err.code === 'CODE_NOT_FOUND' || err.code === 'SELF_REFERRAL')) {
-      return
+      return null
     }
     throw err
   }

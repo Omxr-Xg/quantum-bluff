@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Club, Diamond, CircleDot, Calendar } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -86,6 +86,8 @@ export function Auth() {
   
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const referralFromUrl = (searchParams.get("ref") ?? "").trim() || undefined;
   const from = (location.state as { from?: string } | null)?.from ?? "/lobby";
 
   const dobBounds = useMemo(() => {
@@ -227,6 +229,7 @@ export function Auth() {
         dateOfBirth,
         secretQuestionId,
         secretAnswer: secretAnswer.trim(),
+        ...(referralFromUrl ? { referralCode: referralFromUrl } : {}),
       }).unwrap();
       removeAuthItem("userid");
       removeAuthItem("role");

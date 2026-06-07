@@ -14,6 +14,7 @@ import { forceCloseBeloteGame } from '../sockets/belote.gateway.handlers.js'
 import { getGameIo } from '../sockets/gameIo.registry.js'
 import type { ActiveGame } from '../shared/activeGames.js'
 import * as giftCodesService from '../giftCodes/giftCodes.service.js'
+import { deleteUserAccount, UserDeletionError } from '../services/userDeletion.service.js'
 const router = Router()
 
 router.use(adminConsoleAuthMiddleware)
@@ -210,6 +211,24 @@ router.patch('/users/:id', async (req, res) => {
   }
 
   return res.json({ ok: true, bannedUntil })
+})
+
+/** Supprime définitivement un compte joueur et toutes ses données. */
+router.delete('/users/:id', async (req, res) => {
+  const id = req.params.id
+  if (!id || id === env.adminConsoleJwtUserId) {
+    return res.status(400).json({ error: 'Cible invalide' })
+  }
+  try {
+    await deleteUserAccount(id)
+    return res.json({ ok: true })
+  } catch (e) {
+    if (e instanceof UserDeletionError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[adminConsole] delete user', e)
+    return res.status(500).json({ error: 'Suppression impossible' })
+  }
 })
 
 const setUserPasswordBody = z.object({

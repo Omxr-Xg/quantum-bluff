@@ -27,6 +27,7 @@ import { rateLimitWithMetrics } from '../observability/index.js'
 import { isFreeTopupPromoCode } from '../config/balanceResetPromo.js'
 import { adminConsoleAuthMiddleware } from '../middleware/adminConsole.middleware.js'
 import * as giftCodesService from '../giftCodes/giftCodes.service.js'
+import { deleteUserAccount, UserDeletionError } from '../services/userDeletion.service.js'
 
 function normalizeRateLimitIdentity(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -313,12 +314,21 @@ router.post('/register', registerLimiter, async (req, res) => {
     const token = generateToken({ userId: user.id })
     const g = await getGamificationBundle(prisma, user.id)
 
+    let chipsAfterRegister = user.chips
     try {
       const { applyReferralOnRegister } = await import('../referral/referral.service.js')
       const io = req.app.get('io') as import('socket.io').Server | undefined
-      await applyReferralOnRegister(user.id, referralCode, io)
+      const referralResult = await applyReferralOnRegister(user.id, referralCode, io)
+      if (referralResult) {
+        chipsAfterRegister = referralResult.referredChips
+      }
     } catch (refErr) {
       console.warn('[AUTH] Parrainage à l\'inscription:', refErr)
+      const refreshed = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { chips: true },
+      })
+      if (refreshed) chipsAfterRegister = refreshed.chips
     }
 
     await prisma.emailRegistrationAgeBlocklist.deleteMany({ where: { email: emailKey } }).catch(() => {})
@@ -329,7 +339,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         id: user.id,
         email: user.email,
         username: user.username,
-        chips: user.chips,
+        chips: chipsAfterRegister,
         level: g?.level ?? user.level,
         experience: g?.experience ?? user.experience,
         xpToNext: g?.xpToNext ?? 0,
@@ -1049,6 +1059,66 @@ router.post('/admin/gift-codes', adminConsoleAuthMiddleware, async (req, res) =>
     return res.status(400).json({
       error: e instanceof Error ? e.message : 'Création impossible',
     })
+  }
+})
+
+const deleteAccountSchema = z.object({
+  password: z.string().optional(),
+  confirmUsername: z.string().trim().optional(),
+})
+
+/** Suppression définitive du compte connecté (paramètres joueur). */
+router.delete('/account', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const parsed = deleteAccountSchema.safeParse(req.body ?? {})
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Données invalides' })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, password: true, authProvider: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const isOAuth = user.authProvider !== 'LOCAL'
+    if (isOAuth) {
+      const confirm = parsed.data.confirmUsername?.trim() ?? ''
+      if (confirm.toLowerCase() !== user.username.toLowerCase()) {
+        return res.status(400).json({ error: 'Confirmez votre pseudo pour supprimer le compte.' })
+      }
+    } else {
+      const password = parsed.data.password ?? ''
+      if (!password) {
+        return res.status(400).json({ error: 'Mot de passe requis pour supprimer le compte.' })
+      }
+      const ok = await bcrypt.compare(password, user.password)
+      if (!ok) {
+        return res.status(401).json({ error: 'Mot de passe incorrect.' })
+      }
+    }
+
+    await deleteUserAccount(userId)
+
+    const token = extractBearerToken(req.headers.authorization)
+    if (token) {
+      try {
+        await addToBlacklist(token)
+      } catch {
+        /* token déjà invalide */
+      }
+    }
+
+    return res.json({ ok: true })
+  } catch (e) {
+    if (e instanceof UserDeletionError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[AUTH] delete account', e)
+    return res.status(500).json({ error: 'Suppression impossible' })
   }
 })
 

@@ -35,7 +35,13 @@ function formatNotificationMessage(
         name: String(p.achievementId ?? p.name ?? "—"),
       });
     case "REFERRAL":
-      return t("growthNotifications.referral", {
+      if (p.role === "referrer") {
+        return t("growthNotifications.referralReferrer", {
+          username: String(p.username ?? "—"),
+          chips: notificationChipsLabel(p),
+        });
+      }
+      return t("growthNotifications.referralReferred", {
         chips: notificationChipsLabel(p),
       });
     case "DAILY_REWARD":

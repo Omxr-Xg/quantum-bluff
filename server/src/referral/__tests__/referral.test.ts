@@ -74,7 +74,7 @@ describe('referral.service', () => {
       const payload = await getReferralMe('user-1')
       expect(payload.referralCode).toBe('REFCODE1')
       expect(payload.invitesCount).toBe(2)
-      expect(payload.chipsEarned).toBe(500)
+      expect(payload.chipsEarned).toBe(1000)
       expect(payload.referralLink).toContain('ref=REFCODE1')
     })
   })

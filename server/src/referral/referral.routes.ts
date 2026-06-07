@@ -7,6 +7,7 @@ import {
   isReferralError,
   listReferralInvites,
 } from './referral.service.js'
+import { REFERRAL_REFERRED_CHIPS } from './referral.types.js'
 
 const router = express.Router()
 router.use(authMiddleware)
@@ -45,8 +46,13 @@ router.use(authMiddleware)
       if (!userId) return res.status(401).json({ error: 'Non authentifié' })
       const code = typeof req.body?.code === 'string' ? req.body.code : ''
       const io = req.app.get('io') as Server | undefined
-      await applyReferralCode(userId, code, io)
-      return res.json({ ok: true })
+      const result = await applyReferralCode(userId, code, io)
+      return res.json({
+        ok: true,
+        chips: result.referredChips,
+        referrerUsername: result.referrerUsername,
+        referralBonus: REFERRAL_REFERRED_CHIPS,
+      })
     } catch (err) {
       if (isReferralError(err)) {
         return res.status(err.statusCode).json({ error: err.message, code: err.code })

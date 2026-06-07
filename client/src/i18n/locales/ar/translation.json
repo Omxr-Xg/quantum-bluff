@@ -1338,7 +1338,19 @@
       "ba3": "خلفية 3",
       "ba4": "خلفية 4"
     },
-    "rateGameCta": "قيّم اللعبة"
+    "rateGameCta": "قيّم اللعبة",
+    "tabAccount": "الحساب",
+    "deleteAccountTitle": "حذف حسابي",
+    "deleteAccountHint": "لا رجعة فيه — سيتم مسح جميع بياناتك.",
+    "deleteAccountBody": "سيتم حذف ملفك الشخصي وإحصائياتك وأصدقائك وسجلك والرقائق نهائياً. الحسابات المحلية تتطلب كلمة المرور؛ حسابات Google تتطلب إعادة كتابة اسم المستخدم.",
+    "deleteAccountPasswordLabel": "كلمة المرور الحالية",
+    "deleteAccountPasswordPlaceholder": "مطلوبة لحسابات البريد / كلمة المرور",
+    "deleteAccountUsernameLabel": "أعد كتابة اسم المستخدم ({{username}}) للتأكيد",
+    "deleteAccountCta": "حذف حسابي نهائياً",
+    "deleteAccountLoading": "جارٍ الحذف…",
+    "deleteAccountConfirm": "حذف الحساب « {{username}} » نهائياً؟ لا يمكن التراجع.",
+    "deleteAccountError": "تعذّر حذف الحساب.",
+    "deleteAccountNotLoggedIn": "يجب تسجيل الدخول لحذف حسابك."
   },
   "adminConsole": {
     "loginTitle": "لوحة الإدارة",
@@ -1385,6 +1397,8 @@
     "suspend7": "تعليق 7 يوم",
     "ban": "حظر",
     "reactivate": "إعادة تفعيل",
+    "deleteUser": "حذف",
+    "deleteUserConfirm": "حذف الحساب « {{username}} » وجميع بياناته نهائياً؟",
     "searchPlaceholder": "تصفية (اسم، بريد، معرّف…)",
     "filterHint": "يتم تطبيق البحث بعد توقف الكتابة قليلاً.",
     "filterHintTournaments": "بحث بعد توقف قصير: اسم البطولة، المعرّف، اسم المنشئ.",

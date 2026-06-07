@@ -9,7 +9,8 @@ const pool = new pg.Pool({
   connectionString: env.databaseUrl,
   max: env.databasePoolMax,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 15_000,
+  connectionTimeoutMillis: env.databaseConnectTimeoutMs,
+  keepAlive: true,
 })
 
 export const pgPool = pool
