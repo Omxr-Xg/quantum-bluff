@@ -29,17 +29,18 @@ async function checkDatabaseSize() {
 
 // 2. Fonction principale de nettoyage (Archivage/Purge)
 async function performCleanup() {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const retentionDays = 180;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - retentionDays);
 
   console.log(`[DA4-CLEANUP] Début du cycle de maintenance...`);
 
   try {
     // Nettoyage des différentes tables historiques
     const [hist, actions, results] = await Promise.all([
-      prisma.gameHistory.deleteMany({ where: { createdAt: { lt: thirtyDaysAgo } } }),
-      prisma.gameAction.deleteMany({ where: { timestamp: { lt: thirtyDaysAgo } } }),
-      prisma.gameResult.deleteMany({ where: { endedAt: { lt: thirtyDaysAgo } } })
+      prisma.gameHistory.deleteMany({ where: { createdAt: { lt: cutoff } } }),
+      prisma.gameAction.deleteMany({ where: { timestamp: { lt: cutoff } } }),
+      prisma.gameResult.deleteMany({ where: { endedAt: { lt: cutoff } } })
     ]);
 
     const totalDeleted = hist.count + actions.count + results.count;
@@ -47,6 +48,11 @@ async function performCleanup() {
     
     // Après le nettoyage, on vérifie la taille pour voir le gain
     await checkDatabaseSize();
+    void import('../season/season.service.js').then(({ syncSeasonStatuses }) =>
+      syncSeasonStatuses().catch((err) =>
+        console.error('[DA4-CLEANUP] syncSeasonStatuses', err),
+      ),
+    );
     await cleanupOrphanBlackjackRuntime();
     await cleanupStaleBlackjackRooms();
     await cleanupOrphanPokerRuntime();

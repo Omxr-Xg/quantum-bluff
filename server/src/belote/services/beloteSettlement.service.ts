@@ -165,6 +165,21 @@ export async function settleBeloteGame(
 
   await closeBelotePlaySession(roomId, gameId)
 
+  for (const s of settlements) {
+    if (s.won) {
+      void import('../../achievements/achievement.service.js').then(async ({ checkAchievements }) => {
+        const stats = await prisma.belotePlayerStats.findUnique({
+          where: { userId: s.userId },
+          select: { wins: true },
+        })
+        await checkAchievements(s.userId, { type: 'BELOTE_WIN', wins: stats?.wins ?? 0 })
+      })
+      void import('../../season/season.service.js').then(({ incrementSeasonScore }) =>
+        incrementSeasonScore(s.userId, { beloteWins: 1 }),
+      )
+    }
+  }
+
   if (io) {
     io.to(`belote-game:${gameId}`).emit('BELOTE_GAME_END', {
       gameId,

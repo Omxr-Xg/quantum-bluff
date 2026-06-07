@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, Spade, Heart, Calendar } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
@@ -22,6 +22,8 @@ export function Register() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [register, { isLoading, error }] = useRegisterMutation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referralCode = (searchParams.get("ref") ?? "").trim() || undefined;
 
   const dobBounds = useMemo(() => {
     const today = new Date();
@@ -58,6 +60,7 @@ export function Register() {
       dateOfBirth,
       secretQuestionId,
       secretAnswer: secretAnswer.trim(),
+      ...(referralCode ? { referralCode } : {}),
     }).unwrap()
 
     console.log("Inscription réussie:", response)

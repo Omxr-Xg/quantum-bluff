@@ -21,6 +21,7 @@ export const registerSchema = z.object({
     .min(1)
     .max(SECRET_QUESTIONS_COUNT),
   secretAnswer: z.string().min(2).max(200),
+  referralCode: z.string().min(4).max(16).optional(),
 });
 
 export const loginSchema = z.object({

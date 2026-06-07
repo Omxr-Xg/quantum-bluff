@@ -2,7 +2,7 @@ import type { Server } from 'socket.io'
 
 export type UserRewardsUpdatedPayload = {
   chips: number
-  source: 'daily_login' | 'daily_challenge'
+  source: 'daily_login' | 'daily_challenge' | 'referral' | 'achievement'
   challengeCode?: string
 }
 

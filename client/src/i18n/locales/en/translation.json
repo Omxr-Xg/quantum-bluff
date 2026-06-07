@@ -7,6 +7,12 @@
     "slogan": "Every victory starts with a bluff.",
     "loadingDefaultMessage": "Loading…"
   },
+  "cookieConsent": {
+    "title": "Cookies and analytics",
+    "message": "We use cookies for analytics and advertising. You can accept or learn more in our privacy policy.",
+    "learnMore": "Learn more",
+    "accept": "Accept"
+  },
   "networkOverlay": {
     "serverUnreachableTitle": "No connection to the server",
     "serverUnreachableHint": "Check your internet connection or that the backend is running.",
@@ -925,7 +931,13 @@
     "next": "Next",
     "empty": "No entries",
     "error": "Could not load leaderboard",
-    "back": "Back"
+    "back": "Back",
+    "scopeAllTime": "All-time",
+    "scopeSeason": "{{name}}",
+    "scopeSeasonGeneric": "Season",
+    "colSeasonXp": "Season XP",
+    "seasonDates": "{{start}} – {{end}}",
+    "noActiveSeason": "No active season right now"
   },
   "voice": {
     "panelTitle": "Voice chat",
@@ -1356,7 +1368,165 @@
     "editSection": "Edit profile",
     "editContent": "Click 'Edit profile' to change your username, email and avatar.",
     "streakSection": "Win streaks",
-    "streakContent": "Track your current and best win streaks."
+    "streakContent": "Track your current and best win streaks.",
+    "linkAchievements": "Achievements",
+    "linkShop": "Shop",
+    "linkHistory": "History & stats"
+  },
+  "referral": {
+    "title": "Invite friends",
+    "subtitle": "Share your code and earn chips when friends join.",
+    "yourCode": "Your code",
+    "inviteLink": "Invite link",
+    "copyCode": "Copy code",
+    "copyLink": "Copy link",
+    "invitesCount": "Invites",
+    "chipsEarned": "Chips earned",
+    "error": "Could not load referral info"
+  },
+  "achievements": {
+    "title": "Achievements",
+    "subtitle": "Unlock rewards by playing and socializing.",
+    "backToProfile": "Back to profile",
+    "unlocked": "Unlocked",
+    "error": "Could not load achievements",
+    "chips": "chips",
+    "cosmeticReward": "Cosmetic",
+    "category": {
+      "LOGIN": "Login",
+      "SOCIAL": "Social",
+      "POKER": "Poker",
+      "BELOTE": "Belote",
+      "CASINO": "Casino",
+      "RECORDS": "Records"
+    },
+    "item": {
+      "login_streak_7": { "name": "Weekly regular", "desc": "Log in 7 days in a row" },
+      "login_streak_30": { "name": "Dedicated player", "desc": "Log in 30 days in a row" },
+      "first_friend": { "name": "First friend", "desc": "Add your first friend" },
+      "friends_10": { "name": "Social butterfly", "desc": "Reach 10 friends" },
+      "first_voice_call": { "name": "On the line", "desc": "Complete a voice call" },
+      "first_jackpot": { "name": "Jackpot!", "desc": "Win a casino jackpot" },
+      "casino_games_100": { "name": "Casino regular", "desc": "Play 100 casino games" },
+      "belote_wins_10": { "name": "Belote rookie", "desc": "Win 10 belote games" },
+      "belote_wins_100": { "name": "Belote master", "desc": "Win 100 belote games" },
+      "belote_king": { "name": "Belote king", "desc": "Dominate the belote table" },
+      "poker_first_win": { "name": "First pot", "desc": "Win your first poker game" },
+      "poker_hands_100": { "name": "Grinder", "desc": "Play 100 poker hands" },
+      "poker_hands_1000": { "name": "Veteran", "desc": "Play 1,000 poker hands" },
+      "first_bluff": { "name": "Bluffer", "desc": "Win with a successful bluff" },
+      "millionaire": { "name": "Millionaire", "desc": "Hold 1,000,000 chips" },
+      "blackjack_king": { "name": "Blackjack king", "desc": "Hit a big blackjack win" }
+    }
+  },
+  "shop": {
+    "title": "Cosmetics shop",
+    "subtitle": "Customize your profile with banners, frames, and titles.",
+    "backToProfile": "Back to profile",
+    "tab": {
+      "BANNER": "Banners",
+      "AVATAR_FRAME": "Frames",
+      "TITLE": "Titles"
+    },
+    "buy": "Buy {{price}}",
+    "equip": "Equip",
+    "equipped": "Equipped",
+    "notPurchasable": "Unlock via achievements",
+    "purchaseError": "Purchase failed",
+    "equipError": "Could not equip item",
+    "rarity": {
+      "common": "Common",
+      "uncommon": "Uncommon",
+      "rare": "Rare",
+      "epic": "Epic",
+      "legendary": "Legendary"
+    }
+  },
+  "cosmetic": {
+    "banner": {
+      "quantumBlue": "Quantum Blue",
+      "royalGold": "Royal Gold",
+      "neonCasino": "Neon Casino",
+      "darkLegend": "Dark Legend",
+      "crimsonPoker": "Crimson Poker"
+    },
+    "frame": {
+      "bronze": "Bronze Frame",
+      "silver": "Silver Frame",
+      "gold": "Gold Frame",
+      "diamond": "Diamond Frame",
+      "quantum": "Quantum Frame"
+    },
+    "title": {
+      "bluffer": "Bluffer",
+      "regular": "Regular",
+      "strategist": "Strategist",
+      "veteran": "Veteran",
+      "expert": "Expert",
+      "elite": "Elite",
+      "master": "Master",
+      "champion": "Champion",
+      "legend": "Legend",
+      "millionaire": "Millionaire"
+    }
+  },
+  "history": {
+    "title": "History & analytics",
+    "backToProfile": "Back to profile",
+    "tabHistory": "Match history",
+    "tabAnalytics": "Analytics",
+    "mode": {
+      "all": "All",
+      "poker": "Poker",
+      "belote": "Belote",
+      "casino": "Casino",
+      "tournament": "Tournament"
+    },
+    "period": {
+      "7d": "7 days",
+      "30d": "30 days",
+      "90d": "90 days",
+      "all": "All time"
+    },
+    "empty": "No history yet",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "page": "Page {{page}}",
+    "chipsTimeline": "Chip balance over time",
+    "gainsByGame": "Gains by game type",
+    "gainsPercent": "Gain share (%)",
+    "records": "Personal records",
+    "gameType": {
+      "poker": "Poker",
+      "belote": "Belote",
+      "casino": "Casino",
+      "tournament": "Tournament",
+      "other": "Other"
+    },
+    "record": {
+      "biggestWin": "Biggest win",
+      "biggestPot": "Biggest pot",
+      "longestWinStreak": "Win streak",
+      "biggestJackpot": "Biggest jackpot",
+      "beloteWins": "Belote wins",
+      "pokerWins": "Poker wins",
+      "currentChips": "Current chips"
+    }
+  },
+  "growthNotifications": {
+    "title": "Activity",
+    "pageTitle": "All notifications",
+    "back": "Back",
+    "empty": "No notifications",
+    "viewAll": "View all",
+    "markAllRead": "Mark all read",
+    "achievement": "Achievement unlocked: {{name}}",
+    "referral": "Referral reward: +{{chips}} chips",
+    "dailyReward": "Daily reward: +{{chips}} chips",
+    "seasonEnded": "Season ended: {{season}}",
+    "friendOnline": "{{username}} is online",
+    "invitation": "Invitation from {{username}}",
+    "generic": "New notification"
   },
   "editProfile": {
     "backToProfile": "Back to profile",

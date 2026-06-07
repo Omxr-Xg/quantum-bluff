@@ -256,6 +256,30 @@ router.post('/spin', authMiddleware, async (req, res) => {
       )
     }
 
+    void import('../achievements/achievement.service.js').then(async ({ checkAchievements }) => {
+      const stats = await prisma.casinoStats.findUnique({
+        where: { userId },
+        select: {
+          slotSpins: true,
+          rouletteSpins: true,
+          blackjackHandsPlayed: true,
+          blackjackBiggestWin: true,
+        },
+      })
+      const totalGames =
+        (stats?.slotSpins ?? 0) +
+        (stats?.rouletteSpins ?? 0) +
+        (stats?.blackjackHandsPlayed ?? 0)
+      await checkAchievements(userId, {
+        type: 'CASINO_SPIN',
+        totalGames,
+        blackjackBiggestWin: stats?.blackjackBiggestWin ?? 0,
+      })
+      if (result.winAmount > result.bet * 5) {
+        await checkAchievements(userId, { type: 'CASINO_JACKPOT' })
+      }
+    })
+
     return res.json(result)
   } catch (e) {
     if (idemKey && !idemCommitted) await abortIdempotentAction(idemKey)

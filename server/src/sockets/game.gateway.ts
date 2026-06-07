@@ -2088,6 +2088,52 @@ export class GameGateway {
     const pot = game.state.showdownPot ?? 0;
     if (!winnerId) return;
 
+    const handKey = game.state.handId
+      ? `${game.id}:${game.state.handId}`
+      : `${game.id}:${Date.now()}`;
+    const boardCards = (game.state.communityCards ?? []).map((c: { rank?: string; suit?: string }) =>
+      `${c.rank ?? ""}${c.suit ?? ""}`,
+    );
+    const winnerPlayer = game.state.players.find((p) => p.id === winnerId);
+
+    try {
+      await prisma.gameResult.upsert({
+        where: { gameId: handKey },
+        create: {
+          gameId: handKey,
+          winnerId,
+          winnerName: winnerPlayer?.name ?? "Joueur",
+          pot,
+          hands: {
+            handId: game.state.handId ?? null,
+            tableGameId: game.id,
+            players: game.state.players.map((p) => ({
+              id: p.id,
+              name: p.name,
+              won: winnerIds.includes(p.id),
+            })),
+          },
+          startedAt: new Date(),
+          endedAt: new Date(),
+        },
+        update: {
+          pot,
+          endedAt: new Date(),
+        },
+      });
+      await prisma.gameHistory.create({
+        data: {
+          tableId: game.id,
+          gameId: handKey,
+          board: boardCards,
+          pot,
+          winnerId,
+        },
+      });
+    } catch (histErr) {
+      console.error("[Stats] Erreur persistance historique poker", histErr);
+    }
+
     for (const player of game.state.players) {
       const isWinner = player.id === winnerId;
       const isWinningPlayer = winnerIds.includes(player.id);
@@ -2104,32 +2150,50 @@ export class GameGateway {
         const xpAmount = isWinner
           ? XP_POKER_SHOWDOWN_WIN
           : XP_POKER_SHOWDOWN_LOSS;
+        let handsAfter = 0;
+        let winsAfter = 0;
         await prisma.$transaction(async (tx) => {
-          await tx.playerStats.upsert({
+          const prev = await tx.playerStats.findUnique({
+            where: { playerId: player.id },
+            select: { winStreak: true, lossStreak: true, totalHands: true, totalWins: true },
+          });
+          const nextWinStreak = isWinner ? (prev?.winStreak ?? 0) + 1 : 0;
+          const nextLossStreak = isWinner ? 0 : (prev?.lossStreak ?? 0) + 1;
+          const updated = await tx.playerStats.upsert({
             where: { playerId: player.id },
             create: {
               playerId: player.id,
               totalGames: 1,
               totalWins: isWinner ? 1 : 0,
               totalLosses: isWinner ? 0 : 1,
+              totalHands: participatedInHand ? 1 : 0,
               totalChipsWon: chipsWon,
               totalChipsLost: chipsLost,
               biggestWin: chipsWon,
               biggestPot: pot,
+              winStreak: nextWinStreak,
+              lossStreak: nextLossStreak,
             },
             update: {
               totalGames: { increment: 1 },
+              ...(participatedInHand ? { totalHands: { increment: 1 } } : {}),
               ...(isWinner
                 ? {
                     totalWins: { increment: 1 },
                     totalChipsWon: { increment: chipsWon },
+                    winStreak: nextWinStreak,
+                    lossStreak: 0,
                   }
                 : {
                     totalLosses: { increment: 1 },
                     totalChipsLost: { increment: chipsLost },
+                    winStreak: 0,
+                    lossStreak: nextLossStreak,
                   }),
             },
           });
+          handsAfter = updated.totalHands;
+          winsAfter = updated.totalWins;
           await awardXpInTransaction(tx, player.id, xpAmount);
           if (participatedInHand) {
             await incrementMultiplayerPlayCount(player.id, isPracticeBotGameId(game.id), tx);
@@ -2144,6 +2208,19 @@ export class GameGateway {
             );
           }
         });
+        if (participatedInHand) {
+          void import("../achievements/achievement.service.js").then(({ checkAchievements }) => {
+            void checkAchievements(player.id, { type: "POKER_HAND", handsPlayed: handsAfter });
+            if (isWinner) {
+              void checkAchievements(player.id, { type: "POKER_WIN", wins: winsAfter });
+            }
+          });
+          if (isWinner) {
+            void import("../season/season.service.js").then(({ incrementSeasonScore }) =>
+              incrementSeasonScore(player.id, { pokerWins: 1 }),
+            );
+          }
+        }
       } catch (err) {
         console.error("[Stats] Erreur upsert pour", player.id, err);
       }

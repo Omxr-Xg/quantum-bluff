@@ -31,10 +31,34 @@ function optionalUserId(req: express.Request): string | undefined {
 
 router.get('/', async (req, res) => {
   const category = String(req.query.category ?? 'xp').toLowerCase()
+  const seasonParam = req.query.season != null ? String(req.query.season) : null
   const { limit, offset } = parseLimitOffset(req.query)
   const userId = optionalUserId(req)
 
   try {
+    if (seasonParam) {
+      const { getSeasonLeaderboard, getActiveSeason } = await import('../season/season.service.js')
+      let seasonId = seasonParam
+      if (seasonParam === 'active') {
+        const active = await getActiveSeason()
+        if (!active) return res.json({ items: [], season: null, totalPlayers: 0 })
+        seasonId = active.id
+      }
+      const items = await getSeasonLeaderboard(seasonId, limit)
+      return res.json({
+        category: 'season_xp',
+        season: seasonId,
+        items: items.map((r) => ({
+          username: r.username,
+          rank: r.rank,
+          value: r.xpEarned,
+          pokerWins: r.pokerWins,
+          beloteWins: r.beloteWins,
+        })),
+        totalPlayers: items.length,
+      })
+    }
+
     const totalPlayers = await prisma.user.count()
     let items: { username: string; rank: number; value: number; level?: number }[] = []
     let myRank: number | undefined

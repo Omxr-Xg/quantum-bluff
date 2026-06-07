@@ -65,6 +65,12 @@ model User {
   /// Date exacte de la dernière réclamation (audit/debug).
   lastLoginRewardAt     DateTime?
 
+  /// Code de parrainage unique (8 caractères, généré à l'inscription).
+  referralCode       String? @unique
+  equippedBannerId   String?
+  equippedFrameId    String?
+  equippedTitleId    String?
+
   stats     UserStats?
   histories GameHistory[] @relation("WinnerHistory")
 
@@ -123,6 +129,13 @@ model User {
 
   freeRecharge   FreeRecharge?
   giftCodeUsages GiftCodeUsage[]
+
+  referralsGiven    Referral[]         @relation("Referrer")
+  referralReceived  Referral?          @relation("Referred")
+  userAchievements  UserAchievement[]
+  userCosmetics     UserCosmetic[]
+  seasonScores      SeasonScore[]
+  notifications     UserNotification[]
 
   hostedTournaments        Tournament[]          @relation("TournamentHost")
   tournamentPlayers        TournamentPlayer[]
@@ -527,6 +540,8 @@ model PlayerStats {
   biggestWin     Int      @default(0)
   totalChipsWon  Int      @default(0)
   totalChipsLost Int      @default(0)
+  winStreak      Int      @default(0)
+  lossStreak     Int      @default(0)
   updatedAt      DateTime @default(now())
 
   player User @relation(fields: [playerId], references: [id])
@@ -1258,4 +1273,166 @@ model TournamentWinnerBet {
   @@index([tournamentId, predictedWinnerUserId])
   @@index([bettorUserId, placedAt])
   @@map("tournament_winner_bets")
+}
+
+// ============================================
+// PARRAINAGE
+// ============================================
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+}
+
+model Referral {
+  id                 String         @id @default(uuid())
+  referrerId         String
+  referredUserId     String         @unique
+  status             ReferralStatus @default(PENDING)
+  referrerRewardedAt DateTime?
+  referredRewardedAt DateTime?
+  createdAt          DateTime       @default(now())
+
+  referrer User @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred User @relation("Referred", fields: [referredUserId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId])
+  @@index([status])
+  @@map("referrals")
+}
+
+// ============================================
+// ACHIEVEMENTS
+// ============================================
+
+model UserAchievement {
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, achievementId])
+  @@index([achievementId])
+  @@map("user_achievements")
+}
+
+// ============================================
+// COSMÉTIQUES / BOUTIQUE
+// ============================================
+
+enum CosmeticType {
+  BANNER
+  AVATAR_FRAME
+  TITLE
+}
+
+model CosmeticItem {
+  id          String       @id
+  type        CosmeticType
+  nameKey     String
+  priceChips  Int          @default(0)
+  purchasable Boolean      @default(true)
+  rarity      String?
+  /// Classes CSS / gradient JSON pour le rendu sans assets binaires.
+  styleJson   String?
+
+  owners UserCosmetic[]
+
+  @@index([type])
+  @@map("cosmetic_items")
+}
+
+model UserCosmetic {
+  userId     String
+  cosmeticId String
+  acquiredAt DateTime @default(now())
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cosmetic CosmeticItem @relation(fields: [cosmeticId], references: [id], onDelete: Cascade)
+
+  @@id([userId, cosmeticId])
+  @@map("user_cosmetics")
+}
+
+// ============================================
+// SAISONS
+// ============================================
+
+enum SeasonStatus {
+  UPCOMING
+  ACTIVE
+  ENDED
+}
+
+model Season {
+  id        String       @id @default(uuid())
+  number    Int          @unique
+  name      String
+  startsAt  DateTime
+  endsAt    DateTime
+  status    SeasonStatus @default(UPCOMING)
+  createdAt DateTime     @default(now())
+
+  scores SeasonScore[]
+
+  @@index([status])
+  @@map("seasons")
+}
+
+model SeasonScore {
+  id         String @id @default(uuid())
+  seasonId   String
+  userId     String
+  xpEarned   Int    @default(0)
+  pokerWins  Int    @default(0)
+  beloteWins Int    @default(0)
+  updatedAt  DateTime @updatedAt
+
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, userId])
+  @@index([seasonId, xpEarned])
+  @@map("season_scores")
+}
+
+model SeasonRewardClaim {
+  id        String   @id @default(uuid())
+  seasonId  String
+  userId    String
+  tier      String
+  claimedAt DateTime @default(now())
+
+  @@unique([seasonId, userId, tier])
+  @@index([seasonId])
+  @@map("season_reward_claims")
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+enum NotificationType {
+  FRIEND_ONLINE
+  INVITATION
+  DAILY_REWARD
+  ACHIEVEMENT
+  SEASON_ENDED
+  REFERRAL
+}
+
+model UserNotification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("user_notifications")
 }

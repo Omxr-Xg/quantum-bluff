@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { User, TrendingUp, Trophy, Target, DollarSign, Home, Award } from "lucide-react";
-import { useLocation, useNavigate } from "react-router";
+import { User, TrendingUp, Trophy, Target, DollarSign, Home, Award, ShoppingBag, BarChart3 } from "lucide-react";
+import { useLocation, useNavigate, Link } from "react-router";
 import { getUserProfile, PROFILE_CHANGED_EVENT } from "../utils/userProfile";
 import { HelpButton } from "../components/HelpButton";
+import { ReferralSection } from "../components/ReferralSection";
 import { useUser } from "../hooks/useUser";
-import { useGetPlayerStatsQuery } from "../services/api";
+import { useGetPlayerStatsQuery, useGetShopCosmeticsQuery, useGetShopLoadoutQuery } from "../services/api";
 import {
   BADGE_CATALOG,
   GAMIFICATION_CHANGED_EVENT,
@@ -55,6 +56,13 @@ export function Profile() {
     skip: !userId,
     refetchOnMountOrArgChange: true,
   });
+
+  const { data: loadout } = useGetShopLoadoutQuery(undefined, { skip: !userId });
+  const { data: shopData } = useGetShopCosmeticsQuery(undefined, { skip: !userId });
+
+  const equippedTitle = shopData?.items.find((i) => i.id === loadout?.titleId);
+  const equippedFrame = shopData?.items.find((i) => i.id === loadout?.frameId);
+  const equippedBanner = shopData?.items.find((i) => i.id === loadout?.bannerId);
 
   const [gam, setGam] = useState(() => readGamification());
   useEffect(() => {
@@ -158,9 +166,37 @@ export function Profile() {
         </header>
 
         <section className={`mb-5 overflow-hidden p-5 sm:p-7 ${profileGlassCard}`}>
+          {equippedBanner ? (
+            <div
+              className="mb-4 h-16 w-full rounded-xl border border-white/10"
+              style={{
+                background: (() => {
+                  try {
+                    return JSON.parse(equippedBanner.styleJson).gradient as string;
+                  } catch {
+                    return "#334155";
+                  }
+                })(),
+              }}
+            />
+          ) : null}
           <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-start md:text-left">
             <div className="relative shrink-0">
-              <div className="h-28 w-28 overflow-hidden rounded-full border border-blue-200/25 bg-blue-950/55 shadow-[0_0_44px_rgba(59,130,246,0.20)] sm:h-32 sm:w-32">
+              <div
+                className="h-28 w-28 overflow-hidden rounded-full border bg-blue-950/55 shadow-[0_0_44px_rgba(59,130,246,0.20)] sm:h-32 sm:w-32"
+                style={
+                  equippedFrame
+                    ? (() => {
+                        try {
+                          const s = JSON.parse(equippedFrame.styleJson) as { border?: string; glow?: string };
+                          return { borderColor: s.border ?? "#93c5fd", boxShadow: s.glow };
+                        } catch {
+                          return { borderColor: "rgba(191,219,254,0.25)" };
+                        }
+                      })()
+                    : { borderColor: "rgba(191,219,254,0.25)" }
+                }
+              >
                 <img
                   src={profileData.avatar}
                   alt={`${profileData.name}'s avatar`}
@@ -177,6 +213,22 @@ export function Profile() {
 
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-3xl font-bold text-white sm:text-4xl">{profileData.name}</h2>
+              {equippedTitle ? (
+                <p
+                  className="mt-1 text-sm font-semibold"
+                  style={{
+                    color: (() => {
+                      try {
+                        return JSON.parse(equippedTitle.styleJson).color as string;
+                      } catch {
+                        return "#67e8f9";
+                      }
+                    })(),
+                  }}
+                >
+                  {t(equippedTitle.nameKey)}
+                </p>
+              ) : null}
               <p className="mt-1 truncate text-base text-slate-400 sm:text-lg">{profileData.email}</p>
 
               <div className="mt-4 flex flex-wrap justify-center gap-2 md:justify-start">
@@ -196,6 +248,29 @@ export function Profile() {
             </div>
 
             <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+              <div className="flex flex-wrap justify-center gap-2 md:justify-end">
+                <Link
+                  to="/achievements"
+                  className={`flex items-center gap-2 px-4 py-2 text-sm ${profileMutedButton}`}
+                >
+                  <Award className="h-4 w-4" />
+                  {t("profile.linkAchievements")}
+                </Link>
+                <Link
+                  to="/shop"
+                  className={`flex items-center gap-2 px-4 py-2 text-sm ${profileMutedButton}`}
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  {t("profile.linkShop")}
+                </Link>
+                <Link
+                  to="/history"
+                  className={`flex items-center gap-2 px-4 py-2 text-sm ${profileMutedButton}`}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  {t("profile.linkHistory")}
+                </Link>
+              </div>
               <button
                 type="button"
                 onClick={() => navigate("/edit-profile")}
@@ -213,6 +288,8 @@ export function Profile() {
             </div>
           </div>
         </section>
+
+        <ReferralSection />
 
         <section className={`mb-5 p-5 sm:p-6 ${profileGlassCard}`}>
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">

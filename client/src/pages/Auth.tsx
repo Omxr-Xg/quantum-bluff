@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Heart, Club, Diamond, CircleDot, Calendar } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { ClientAuthShellBackground } from "../components/ClientAuthShellBackground";
+import { AuthPublicFooter } from "../components/marketing/AuthPublicFooter";
 import {
   useCheckEmailMutation,
   useLoginMutation,
@@ -354,7 +355,7 @@ export function Auth() {
           : t("auth.createYourAccount");
 
   return (
-    <ClientAuthShellBackground className="p-4 py-10 sm:p-6 sm:py-12">
+    <ClientAuthShellBackground className="!justify-between p-4 py-10 sm:p-6 sm:py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="auth-float-card auth-float-card-a">
           <span>A</span>
@@ -389,7 +390,7 @@ export function Auth() {
         <div className="auth-chip-dot auth-chip-dot-b"><CircleDot className="h-4 w-4" aria-hidden /></div>
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-md">
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center mb-3">
             <QuantumBluffLogo className="w-20 h-20 sm:w-24 sm:h-24 drop-shadow-2xl" />
@@ -932,6 +933,8 @@ export function Auth() {
           <footer className="mt-2.5 text-xs text-slate-500">— {authQuotePick.author}</footer>
         </blockquote>
       </div>
+
+      <AuthPublicFooter />
 
       <style>{`
         @keyframes sh02 { from { opacity: 0; left: 0%; } 50% { opacity: 1; } to { opacity: 0; left: 100%; } }

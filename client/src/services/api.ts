@@ -90,6 +90,137 @@ type UpdateProfileResponse = {
   email: string
 }
 
+export type RegisterPayload = {
+  username: string
+  email: string
+  password: string
+  dateOfBirth: string
+  secretQuestionId: number
+  secretAnswer: string
+  referralCode?: string
+}
+
+export type ReferralMe = {
+  referralCode: string
+  referralLink: string
+  invitesCount: number
+  chipsEarned: number
+}
+
+export type ReferralInvite = {
+  userId: string
+  username: string
+  status: 'PENDING' | 'COMPLETED'
+  createdAt: string
+  rewardedAt: string | null
+}
+
+export type AchievementCategory =
+  | 'LOGIN'
+  | 'SOCIAL'
+  | 'CASINO'
+  | 'BELOTE'
+  | 'POKER'
+  | 'RECORDS'
+
+export type AchievementCatalogItem = {
+  id: string
+  category: AchievementCategory
+  threshold?: number
+  rewardChips?: number
+  rewardCosmeticId?: string
+  unlocked: boolean
+  unlockedAt: string | null
+}
+
+export type CosmeticType = 'BANNER' | 'AVATAR_FRAME' | 'TITLE'
+
+export type ShopCosmetic = {
+  id: string
+  type: CosmeticType
+  nameKey: string
+  priceChips: number
+  purchasable: boolean
+  rarity: string
+  styleJson: string
+  owned: boolean
+  acquiredAt: string | null
+}
+
+export type ShopLoadout = {
+  bannerId: string | null
+  frameId: string | null
+  titleId: string | null
+}
+
+export type PlayerHistoryMode = 'all' | 'poker' | 'belote' | 'casino' | 'tournament'
+
+export type PlayerHistoryItem = {
+  id: string
+  gameType: string
+  summary: string
+  amount: number | null
+  endedAt: string
+  meta?: Record<string, unknown>
+}
+
+export type AnalyticsPeriod = '7d' | '30d' | '90d' | 'all'
+
+export type PlayerAnalytics = {
+  period: AnalyticsPeriod
+  chipsTimeline: { date: string; balance: number }[]
+  xpTimeline: { date: string; xp: number; level: number }[]
+  gainsByGame: Record<string, number>
+  gainsByGamePct: Record<string, number>
+  records: Record<string, number>
+}
+
+export type PlayerGrowthStats = {
+  chips: number
+  level: number
+  experience: number
+  loginStreakCount: number
+  achievementsUnlocked: number
+  poker: Record<string, number>
+  belote: Record<string, number>
+  casino: Record<string, number>
+}
+
+export type SeasonInfo = {
+  id: string
+  number: number
+  name: string
+  startsAt: string
+  endsAt: string
+  status: string
+}
+
+export type SeasonLeaderboardEntry = {
+  rank: number
+  userId: string
+  username: string
+  avatarUrl?: string | null
+  xpEarned: number
+  pokerWins: number
+  beloteWins: number
+}
+
+export type NotificationType =
+  | 'FRIEND_ONLINE'
+  | 'INVITATION'
+  | 'DAILY_REWARD'
+  | 'ACHIEVEMENT'
+  | 'SEASON_ENDED'
+  | 'REFERRAL'
+
+export type AppNotification = {
+  id: string
+  type: NotificationType
+  payload: Record<string, unknown>
+  readAt: string | null
+  createdAt: string
+}
+
 // On configure l'URL et les Headers de base
 const baseQuery = fetchBaseQuery({
   baseUrl: (() => {
@@ -120,7 +251,21 @@ const staggeredBaseQuery = retry(baseQuery, {
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: staggeredBaseQuery,
-  tagTypes: ['User', 'Game', 'Friend', 'FriendRequest', 'FriendMessage', 'FriendLoan', 'BlockedUser'],
+  tagTypes: [
+    'User',
+    'Game',
+    'Friend',
+    'FriendRequest',
+    'FriendMessage',
+    'FriendLoan',
+    'BlockedUser',
+    'Referral',
+    'Achievement',
+    'Shop',
+    'PlayerHistory',
+    'Season',
+    'Notification',
+  ],
   endpoints: (builder) => ({
     login: builder.mutation({
       query: (credentials) => ({
@@ -131,7 +276,10 @@ export const api = createApi({
       invalidatesTags: ['User'],
     }),
 
-    register: builder.mutation({
+    register: builder.mutation<
+      { token: string; user: { id: string; username: string; email: string; chips?: number; avatarUrl?: string | null } },
+      RegisterPayload
+    >({
       query: (userData) => ({
         url: '/auth/register',
         method: 'POST',
@@ -422,6 +570,113 @@ export const api = createApi({
       }),
       invalidatesTags: ['FriendLoan'],
     }),
+
+    getReferralMe: builder.query<ReferralMe, void>({
+      query: () => '/referral/me',
+      providesTags: ['Referral'],
+    }),
+
+    getReferralInvites: builder.query<{ invites: ReferralInvite[] }, void>({
+      query: () => '/referral/invites',
+      providesTags: ['Referral'],
+    }),
+
+    applyReferralCode: builder.mutation<{ ok: boolean }, { code: string }>({
+      query: (body) => ({
+        url: '/referral/apply',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Referral', 'User'],
+    }),
+
+    getMyAchievements: builder.query<
+      { unlocked: { achievementId: string; unlockedAt: string }[]; catalog: AchievementCatalogItem[] },
+      void
+    >({
+      query: () => '/achievements/me',
+      providesTags: ['Achievement'],
+    }),
+
+    getShopCosmetics: builder.query<{ items: ShopCosmetic[] }, void>({
+      query: () => '/shop/cosmetics',
+      providesTags: ['Shop'],
+    }),
+
+    purchaseCosmetic: builder.mutation<{ ok: boolean; cosmeticId: string; chips: number }, string>({
+      query: (id) => ({
+        url: `/shop/cosmetics/${encodeURIComponent(id)}/purchase`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Shop', 'User'],
+    }),
+
+    getShopLoadout: builder.query<ShopLoadout, void>({
+      query: () => '/shop/loadout',
+      providesTags: ['Shop'],
+    }),
+
+    updateShopLoadout: builder.mutation<ShopLoadout, Partial<ShopLoadout>>({
+      query: (body) => ({
+        url: '/shop/loadout',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Shop'],
+    }),
+
+    getPlayerHistory: builder.query<
+      { items: PlayerHistoryItem[]; page: number; limit: number; mode: PlayerHistoryMode },
+      { mode?: PlayerHistoryMode; page?: number; limit?: number }
+    >({
+      query: ({ mode = 'all', page = 1, limit = 20 }) =>
+        `/player/history?mode=${encodeURIComponent(mode)}&page=${page}&limit=${limit}`,
+      providesTags: ['PlayerHistory'],
+    }),
+
+    getPlayerAnalytics: builder.query<PlayerAnalytics, AnalyticsPeriod | void>({
+      query: (period = '30d') => `/player/analytics?period=${encodeURIComponent(period)}`,
+      providesTags: ['PlayerHistory'],
+    }),
+
+    getPlayerGrowthStats: builder.query<PlayerGrowthStats, void>({
+      query: () => '/player/stats',
+      providesTags: ['PlayerHistory'],
+    }),
+
+    getActiveSeason: builder.query<{ season: SeasonInfo | null }, void>({
+      query: () => '/seasons/active',
+      providesTags: ['Season'],
+    }),
+
+    getSeasonLeaderboard: builder.query<{ entries: SeasonLeaderboardEntry[] }, string>({
+      query: (seasonId) => `/seasons/${encodeURIComponent(seasonId)}/leaderboard`,
+      providesTags: (_r, _e, seasonId) => [{ type: 'Season', id: seasonId }],
+    }),
+
+    getNotifications: builder.query<{ items: AppNotification[]; unreadCount: number }, { unreadOnly?: boolean } | void>({
+      query: (arg) => {
+        const unreadOnly = arg && typeof arg === 'object' && arg.unreadOnly
+        return unreadOnly ? '/notifications?unread=1' : '/notifications'
+      },
+      providesTags: ['Notification'],
+    }),
+
+    markNotificationRead: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({
+        url: `/notifications/${encodeURIComponent(id)}/read`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: ['Notification'],
+    }),
+
+    markAllNotificationsRead: builder.mutation<{ ok: boolean; count: number }, void>({
+      query: () => ({
+        url: '/notifications/read-all',
+        method: 'POST',
+      }),
+      invalidatesTags: ['Notification'],
+    }),
   }),
 })
 
@@ -457,4 +712,20 @@ export const {
   useAcceptFriendLoanRequestMutation,
   useRejectFriendLoanRequestMutation,
   useCancelFriendLoanRequestMutation,
+  useGetReferralMeQuery,
+  useGetReferralInvitesQuery,
+  useApplyReferralCodeMutation,
+  useGetMyAchievementsQuery,
+  useGetShopCosmeticsQuery,
+  usePurchaseCosmeticMutation,
+  useGetShopLoadoutQuery,
+  useUpdateShopLoadoutMutation,
+  useGetPlayerHistoryQuery,
+  useGetPlayerAnalyticsQuery,
+  useGetPlayerGrowthStatsQuery,
+  useGetActiveSeasonQuery,
+  useGetSeasonLeaderboardQuery,
+  useGetNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
 } = api

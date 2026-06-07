@@ -156,6 +156,12 @@ export async function awardXpInTransaction(
 
   const newBadges = await unlockBadgesForLevel(tx, userId, newLevel)
 
+  if (delta > 0) {
+    void import('../season/season.service.js').then(({ incrementSeasonScore }) =>
+      incrementSeasonScore(userId, { xp: delta }),
+    )
+  }
+
   return {
     experience: nextExperience,
     level: newLevel,

@@ -109,6 +109,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const voicePreparedChannelRef = useRef<string | null>(null)
   /** Appels récemment terminés — évite de recréer l’UI si un VOICE_ROSTER arrive en retard. */
   const endedCallIdsRef = useRef<Set<string>>(new Set())
+  /** Canal cible en attente de VOICE_ROSTER (retry si NOT_IN_GAME / NOT_IN_WAITING_ROOM). */
+  const pendingVoiceJoinRef = useRef<string | null>(null)
+  const voiceJoinRetryTimersRef = useRef<number[]>([])
   const finishCallSessionRef = useRef<
     (opts?: { emitEnd?: boolean; localOnly?: boolean }) => void
   >(() => undefined)
@@ -208,12 +211,36 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     [socket, userId, teardownMesh],
   )
 
+  const clearVoiceJoinRetries = useCallback(() => {
+    for (const id of voiceJoinRetryTimersRef.current) {
+      window.clearTimeout(id)
+    }
+    voiceJoinRetryTimersRef.current = []
+  }, [])
+
   const joinChannel = useCallback(
     (cid: string, opts?: { replace?: boolean }) => {
       if (!socket || !userId) return
       socket.emit('VOICE_JOIN', { channelId: cid, replace: opts?.replace ?? true })
     },
     [socket, userId],
+  )
+
+  const scheduleVoiceJoinRetries = useCallback(
+    (cid: string) => {
+      pendingVoiceJoinRef.current = cid
+      clearVoiceJoinRetries()
+      joinChannel(cid)
+      for (const delayMs of [400, 900, 1800, 3200]) {
+        const timerId = window.setTimeout(() => {
+          if (pendingVoiceJoinRef.current !== cid) return
+          if (channelIdRef.current === cid && meshRef.current) return
+          joinChannel(cid)
+        }, delayMs)
+        voiceJoinRetryTimersRef.current.push(timerId)
+      }
+    },
+    [joinChannel, clearVoiceJoinRetries],
   )
 
   const switchChannel = useCallback(
@@ -320,23 +347,21 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const joinWaitingRoom = useCallback(
     (roomId: string) => {
       const cid = buildWaitingChannelId(roomId)
-      if (channelIdRef.current === cid) return
+      if (channelIdRef.current === cid && meshRef.current) return
       if (isInCallChannel(channelIdRef.current)) return
-      joinChannel(cid)
-      // join-room socket peut arriver après VOICE_JOIN : second essai court.
-      window.setTimeout(() => {
-        if (channelIdRef.current !== cid) joinChannel(cid)
-      }, 400)
+      scheduleVoiceJoinRetries(cid)
     },
-    [joinChannel, isInCallChannel],
+    [scheduleVoiceJoinRetries, isInCallChannel],
   )
 
   const joinTable = useCallback(
     (gameId: string) => {
       if (isInCallChannel(channelIdRef.current)) return
-      joinChannel(buildTableChannelId(gameId))
+      const cid = buildTableChannelId(gameId)
+      if (channelIdRef.current === cid && meshRef.current) return
+      scheduleVoiceJoinRetries(cid)
     },
-    [joinChannel, isInCallChannel],
+    [scheduleVoiceJoinRetries, isInCallChannel],
   )
 
   const clearOutgoing = useCallback(() => {
@@ -495,12 +520,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const leaveChannelRef = useRef(leaveChannel)
   const prepareActiveVoiceRef = useRef(prepareActiveVoice)
   const ensureCallManagerRef = useRef(ensureCallManager)
+  const clearVoiceJoinRetriesRef = useRef(clearVoiceJoinRetries)
   bindMeshRef.current = bindMesh
   teardownMeshRef.current = teardownMesh
   joinChannelRef.current = joinChannel
   leaveChannelRef.current = leaveChannel
   prepareActiveVoiceRef.current = prepareActiveVoice
   ensureCallManagerRef.current = ensureCallManager
+  clearVoiceJoinRetriesRef.current = clearVoiceJoinRetries
   finishCallSessionRef.current = finishCallSession
 
   useEffect(() => {
@@ -527,6 +554,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       setChannelId(payload.channelId)
       setChannel(payload.channel)
       channelIdRef.current = payload.channelId
+      if (pendingVoiceJoinRef.current === payload.channelId) {
+        pendingVoiceJoinRef.current = null
+        clearVoiceJoinRetriesRef.current()
+      }
       setParticipants(payload.participants)
       setSpeakingUserIds(payload.participants.filter((p) => p.speaking).map((p) => p.userId))
       if (kind === 'call') {
@@ -758,6 +789,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       const oc = outgoingCallRef.current
       if (code === 'NOT_IN_CALL' && oc?.status === 'connected' && oc.channelId) {
         joinChannelRef.current(oc.channelId, { replace: true })
+        return
+      }
+      const pending = pendingVoiceJoinRef.current
+      if (
+        pending &&
+        (code === 'NOT_IN_GAME' || code === 'NOT_IN_WAITING_ROOM')
+      ) {
+        joinChannelRef.current(pending, { replace: true })
       }
     }
 

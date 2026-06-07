@@ -6,6 +6,12 @@
   "app": {
     "slogan": "Chaque victoire commence par un bluff."
   },
+  "cookieConsent": {
+    "title": "Cookies et mesure d'audience",
+    "message": "Nous utilisons des cookies pour la mesure d'audience et la publicité. Vous pouvez accepter ou en savoir plus dans notre politique de confidentialité.",
+    "learnMore": "En savoir plus",
+    "accept": "Accepter"
+  },
   "networkOverlay": {
     "serverUnreachableTitle": "Pas de connexion au serveur",
     "serverUnreachableHint": "Vérifie ta connexion internet ou que le backend est démarré.",
@@ -924,7 +930,13 @@
     "next": "Suivant",
     "empty": "Aucune entrée",
     "error": "Impossible de charger le classement",
-    "back": "Retour"
+    "back": "Retour",
+    "scopeAllTime": "Tout temps",
+    "scopeSeason": "{{name}}",
+    "scopeSeasonGeneric": "Saison",
+    "colSeasonXp": "XP saison",
+    "seasonDates": "{{start}} – {{end}}",
+    "noActiveSeason": "Aucune saison active pour le moment"
   },
   "voice": {
     "panelTitle": "Chat vocal",
@@ -1355,7 +1367,165 @@
     "editSection": "Éditer le profil",
     "editContent": "Cliquez sur 'Éditer le profil' pour modifier votre nom d'utilisateur, votre email et votre avatar.",
     "streakSection": "Séries de victoires",
-    "streakContent": "Suivez votre série actuelle et votre meilleure série de victoires consécutives."
+    "streakContent": "Suivez votre série actuelle et votre meilleure série de victoires consécutives.",
+    "linkAchievements": "Succès",
+    "linkShop": "Boutique",
+    "linkHistory": "Historique & stats"
+  },
+  "referral": {
+    "title": "Inviter des amis",
+    "subtitle": "Partagez votre code et gagnez des jetons quand vos amis s'inscrivent.",
+    "yourCode": "Votre code",
+    "inviteLink": "Lien d'invitation",
+    "copyCode": "Copier le code",
+    "copyLink": "Copier le lien",
+    "invitesCount": "Invitations",
+    "chipsEarned": "Jetons gagnés",
+    "error": "Impossible de charger le parrainage"
+  },
+  "achievements": {
+    "title": "Succès",
+    "subtitle": "Débloquez des récompenses en jouant et en socialisant.",
+    "backToProfile": "Retour au profil",
+    "unlocked": "Débloqués",
+    "error": "Impossible de charger les succès",
+    "chips": "jetons",
+    "cosmeticReward": "Cosmétique",
+    "category": {
+      "LOGIN": "Connexion",
+      "SOCIAL": "Social",
+      "POKER": "Poker",
+      "BELOTE": "Belote",
+      "CASINO": "Casino",
+      "RECORDS": "Records"
+    },
+    "item": {
+      "login_streak_7": { "name": "Régulier", "desc": "Se connecter 7 jours d'affilée" },
+      "login_streak_30": { "name": "Assidu", "desc": "Se connecter 30 jours d'affilée" },
+      "first_friend": { "name": "Premier ami", "desc": "Ajouter votre premier ami" },
+      "friends_10": { "name": "Papillon social", "desc": "Atteindre 10 amis" },
+      "first_voice_call": { "name": "En ligne", "desc": "Effectuer un appel vocal" },
+      "first_jackpot": { "name": "Jackpot !", "desc": "Gagner un jackpot casino" },
+      "casino_games_100": { "name": "Habitué du casino", "desc": "Jouer 100 parties casino" },
+      "belote_wins_10": { "name": "Débutant belote", "desc": "Gagner 10 parties de belote" },
+      "belote_wins_100": { "name": "Maître belote", "desc": "Gagner 100 parties de belote" },
+      "belote_king": { "name": "Roi de la belote", "desc": "Dominer la table belote" },
+      "poker_first_win": { "name": "Premier pot", "desc": "Gagner votre première partie poker" },
+      "poker_hands_100": { "name": "Grindeur", "desc": "Jouer 100 mains de poker" },
+      "poker_hands_1000": { "name": "Vétéran", "desc": "Jouer 1 000 mains de poker" },
+      "first_bluff": { "name": "Bluffeur", "desc": "Gagner avec un bluff réussi" },
+      "millionaire": { "name": "Millionnaire", "desc": "Posséder 1 000 000 jetons" },
+      "blackjack_king": { "name": "Roi du blackjack", "desc": "Réaliser un gros gain au blackjack" }
+    }
+  },
+  "shop": {
+    "title": "Boutique cosmétiques",
+    "subtitle": "Personnalisez votre profil avec bannières, cadres et titres.",
+    "backToProfile": "Retour au profil",
+    "tab": {
+      "BANNER": "Bannières",
+      "AVATAR_FRAME": "Cadres",
+      "TITLE": "Titres"
+    },
+    "buy": "Acheter {{price}}",
+    "equip": "Équiper",
+    "equipped": "Équipé",
+    "notPurchasable": "Débloqué via les succès",
+    "purchaseError": "Achat impossible",
+    "equipError": "Équipement impossible",
+    "rarity": {
+      "common": "Commun",
+      "uncommon": "Peu commun",
+      "rare": "Rare",
+      "epic": "Épique",
+      "legendary": "Légendaire"
+    }
+  },
+  "cosmetic": {
+    "banner": {
+      "quantumBlue": "Quantum Bleu",
+      "royalGold": "Or Royal",
+      "neonCasino": "Casino Néon",
+      "darkLegend": "Légende Sombre",
+      "crimsonPoker": "Poker Cramoisi"
+    },
+    "frame": {
+      "bronze": "Cadre Bronze",
+      "silver": "Cadre Argent",
+      "gold": "Cadre Or",
+      "diamond": "Cadre Diamant",
+      "quantum": "Cadre Quantum"
+    },
+    "title": {
+      "bluffer": "Bluffeur",
+      "regular": "Régulier",
+      "strategist": "Stratège",
+      "veteran": "Vétéran",
+      "expert": "Expert",
+      "elite": "Élite",
+      "master": "Maître",
+      "champion": "Champion",
+      "legend": "Légende",
+      "millionaire": "Millionnaire"
+    }
+  },
+  "history": {
+    "title": "Historique & analyses",
+    "backToProfile": "Retour au profil",
+    "tabHistory": "Historique",
+    "tabAnalytics": "Analyses",
+    "mode": {
+      "all": "Tout",
+      "poker": "Poker",
+      "belote": "Belote",
+      "casino": "Casino",
+      "tournament": "Tournoi"
+    },
+    "period": {
+      "7d": "7 jours",
+      "30d": "30 jours",
+      "90d": "90 jours",
+      "all": "Tout"
+    },
+    "empty": "Aucun historique",
+    "prevPage": "Précédent",
+    "nextPage": "Suivant",
+    "page": "Page {{page}}",
+    "chipsTimeline": "Solde de jetons",
+    "gainsByGame": "Gains par type de jeu",
+    "gainsPercent": "Part des gains (%)",
+    "records": "Records personnels",
+    "gameType": {
+      "poker": "Poker",
+      "belote": "Belote",
+      "casino": "Casino",
+      "tournament": "Tournoi",
+      "other": "Autre"
+    },
+    "record": {
+      "biggestWin": "Plus gros gain",
+      "biggestPot": "Plus gros pot",
+      "longestWinStreak": "Série de victoires",
+      "biggestJackpot": "Plus gros jackpot",
+      "beloteWins": "Victoires belote",
+      "pokerWins": "Victoires poker",
+      "currentChips": "Jetons actuels"
+    }
+  },
+  "growthNotifications": {
+    "title": "Activité",
+    "pageTitle": "Toutes les notifications",
+    "back": "Retour",
+    "empty": "Aucune notification",
+    "viewAll": "Tout voir",
+    "markAllRead": "Tout marquer lu",
+    "achievement": "Succès débloqué : {{name}}",
+    "referral": "Récompense parrainage : +{{chips}} jetons",
+    "dailyReward": "Récompense quotidienne : +{{chips}} jetons",
+    "seasonEnded": "Saison terminée : {{season}}",
+    "friendOnline": "{{username}} est en ligne",
+    "invitation": "Invitation de {{username}}",
+    "generic": "Nouvelle notification"
   },
   "editProfile": {
     "backToProfile": "Retour au profil",

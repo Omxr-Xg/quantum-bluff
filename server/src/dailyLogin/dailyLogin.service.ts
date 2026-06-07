@@ -159,12 +159,22 @@ export async function claimDailyLogin(userId: string): Promise<DailyLoginClaimRe
       },
     })
 
-    return {
+    const result = {
       dayKey,
       streakCount: nextDayIndex,
       rewardTokens,
       chips: updated.chips,
       reset,
     }
+    void import('../achievements/achievement.service.js').then(({ checkAchievements }) =>
+      checkAchievements(userId, { type: 'LOGIN_STREAK', streakCount: nextDayIndex }),
+    )
+    void import('../notifications/notification.service.js').then(({ createNotification }) =>
+      createNotification(userId, 'DAILY_REWARD', {
+        streakCount: nextDayIndex,
+        rewardTokens,
+      }),
+    )
+    return result
   })
 }

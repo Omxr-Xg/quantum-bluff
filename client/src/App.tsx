@@ -29,9 +29,15 @@ import { BlackjackMultiTable } from "./pages/BlackjackMultiTable";
 import { BeloteWaitingRoom } from "./pages/BeloteWaitingRoom";
 import { BeloteGame } from "./pages/BeloteGame";
 import { Leaderboard } from "./pages/Leaderboard";
+import { Achievements } from "./pages/Achievements";
+import { Shop } from "./pages/Shop";
+import { PlayerHistory } from "./pages/PlayerHistory";
+import { Notifications } from "./pages/Notifications";
+import { Register } from "./pages/Register";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
+import { CookieConsentBanner } from "./components/CookieConsentBanner";
 import { VoiceCallIncomingBanner } from "./components/VoiceCallIncomingBanner";
 import { VoiceCallOutgoingModal } from "./components/VoiceCallOutgoingModal";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -134,6 +140,7 @@ function App() {
             <Route path="/news" element={<NewsIndexPage />} />
             <Route path="/news/:slug" element={<NewsArticlePage />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/register" element={<Register />} />
             <Route path="/auth/admin" element={<AdminAuth />} />
 
             <Route path="/admin/console" element={<AdminProtectedRoute><AdminConsole /></AdminProtectedRoute>} />
@@ -167,6 +174,10 @@ function App() {
             <Route path="/hidden-bets-result" element={<ProtectedRoute><HiddenBetsResult /></ProtectedRoute>} />
 
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+            <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
+            <Route path="/shop" element={<ProtectedRoute><Shop /></ProtectedRoute>} />
+            <Route path="/history" element={<ProtectedRoute><PlayerHistory /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
             <Route path="/friends/:friendId" element={<ProtectedRoute><FriendProfile /></ProtectedRoute>} />
@@ -177,6 +188,7 @@ function App() {
 
           </Routes>
         </Layout>
+        <CookieConsentBanner />
         <VoiceCallIncomingBanner />
         <VoiceCallOutgoingModal />
         </VoiceProvider>

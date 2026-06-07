@@ -721,6 +721,20 @@ router.put('/request/:requestId', friendResponseLimiter, async (req, res) => {
             user2Id
           }
         })
+        const friendCountFor = async (uid: string) => {
+          const n = await prisma.friendship.count({
+            where: { OR: [{ user1Id: uid }, { user2Id: uid }] },
+          })
+          return n
+        }
+        void import('../achievements/achievement.service.js').then(async ({ checkAchievements }) => {
+          const [senderCount, receiverCount] = await Promise.all([
+            friendCountFor(request.senderId),
+            friendCountFor(request.receiverId),
+          ])
+          await checkAchievements(request.senderId, { type: 'FRIEND_ADDED', friendsCount: senderCount })
+          await checkAchievements(request.receiverId, { type: 'FRIEND_ADDED', friendsCount: receiverCount })
+        })
       }
 
       const io = req.app.get('io') as Server | undefined

@@ -45,6 +45,15 @@ import dailyLoginRoutes from './dailyLogin/dailyLogin.routes.js'
 import freeRechargeRoutes from './freeRecharge/freeRecharge.routes.js'
 import giftCodesRoutes from './giftCodes/giftCodes.routes.js'
 import walletRoutes from './wallet/wallet.routes.js'
+import referralRoutes from './referral/referral.routes.js'
+import achievementRoutes from './achievements/achievement.routes.js'
+import shopRoutes from './shop/shop.routes.js'
+import seasonRoutes from './season/season.routes.js'
+import playerRoutes from './player/player.routes.js'
+import notificationRoutes from './notifications/notification.routes.js'
+import { ensureCosmeticsSeeded } from './shop/shop.service.js'
+import { ensureSeasonSeeded } from './season/season.service.js'
+import { setNotificationIo } from './notifications/notification.service.js'
 import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 import feedbackRoutes from './routes/feedback.routes.js'
 import playerReportRoutes from './routes/playerReport.routes.js'
@@ -277,6 +286,12 @@ app.use('/api/daily-login', dailyLoginRoutes)
 app.use('/api/free-recharge', freeRechargeRoutes)
 app.use('/api/gift-codes', giftCodesRoutes)
 app.use('/api/wallet', walletRoutes)
+app.use('/api/referral', referralRoutes)
+app.use('/api/achievements', achievementRoutes)
+app.use('/api/shop', shopRoutes)
+app.use('/api/seasons', seasonRoutes)
+app.use('/api/player', playerRoutes)
+app.use('/api/notifications', notificationRoutes)
 // PROD HARDENING : On ne charge les routes sensibles qu'en mode développement
 if (!env.isProduction) {
   app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)
@@ -430,6 +445,13 @@ void pruneInactiveBlackjackWaitingRooms()
   })
 new GameGateway(io)
 setGameIo(io)
+setNotificationIo(io)
+void ensureCosmeticsSeeded().catch((err) => {
+  rootLogger.warn({ msg: 'cosmetics_seed_failed', detail: err instanceof Error ? err.message : String(err) })
+})
+void ensureSeasonSeeded().catch((err) => {
+  rootLogger.warn({ msg: 'season_seed_failed', detail: err instanceof Error ? err.message : String(err) })
+})
 initTournamentScheduler(app)
 
 const PORT = env.port

@@ -191,7 +191,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     })
   }
 
-  let { email, password, username, secretQuestionId, secretAnswer, dateOfBirth } = parsed.data
+  let { email, password, username, secretQuestionId, secretAnswer, dateOfBirth, referralCode } = parsed.data
 
   email = sanitizeHtml(email)
   username = sanitizeHtml(username)
@@ -277,6 +277,14 @@ router.post('/register', registerLimiter, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10)
     const secretAnswerHash = await bcrypt.hash(normalizeSecretAnswer(secretAnswer), 10)
 
+    const { generateReferralCode } = await import('../referral/referralCode.js')
+    let newReferralCode = generateReferralCode()
+    for (let i = 0; i < 8; i++) {
+      const clash = await prisma.user.findFirst({ where: { referralCode: newReferralCode }, select: { id: true } })
+      if (!clash) break
+      newReferralCode = generateReferralCode()
+    }
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -285,6 +293,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         secretQuestionId,
         secretAnswerHash,
         dateOfBirth: gate.dobUtc,
+        referralCode: newReferralCode,
       },
       include: { playerStats: true }
     })
@@ -303,6 +312,14 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     const token = generateToken({ userId: user.id })
     const g = await getGamificationBundle(prisma, user.id)
+
+    try {
+      const { applyReferralOnRegister } = await import('../referral/referral.service.js')
+      const io = req.app.get('io') as import('socket.io').Server | undefined
+      await applyReferralOnRegister(user.id, referralCode, io)
+    } catch (refErr) {
+      console.warn('[AUTH] Parrainage à l\'inscription:', refErr)
+    }
 
     await prisma.emailRegistrationAgeBlocklist.deleteMany({ where: { email: emailKey } }).catch(() => {})
 

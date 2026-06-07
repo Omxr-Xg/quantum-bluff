@@ -549,6 +549,10 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           }
           emitVoiceEventToUser(io, activeCall.creatorId, 'VOICE_CALL_CONNECTED', payload)
           emitVoiceEventToUser(io, userId, 'VOICE_CALL_CONNECTED', payload)
+          void import('../achievements/achievement.service.js').then(({ checkAchievements }) => {
+            void checkAchievements(activeCall.creatorId, { type: 'VOICE_CALL' })
+            void checkAchievements(userId, { type: 'VOICE_CALL' })
+          })
         } else {
           const reason =
             action === 'reject' ? 'rejected' : action === 'block' ? 'blocked' : 'ignored'

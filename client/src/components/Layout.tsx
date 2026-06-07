@@ -57,6 +57,7 @@ import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
 import { InvitationBanner } from "./InvitationBanner";
 import { NotificationCenter } from "./NotificationCenter";
+import { NotificationBell } from "./NotificationBell";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
 import { TopBarProvider } from "../contexts/TopBarContext";
@@ -1334,6 +1335,7 @@ export function Layout({ children }: LayoutProps) {
         </button>
         <LanguageSwitcher buttonClassName={languageButtonClass} className="max-sm:hidden" />
         {gameAccountPill}
+        <NotificationBell />
         <NotificationCenter />
         {quitGameButton}
       </div>
@@ -1359,6 +1361,7 @@ export function Layout({ children }: LayoutProps) {
       <div
         className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-2 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"
       >
+        <NotificationBell />
         <NotificationCenter />
         <button
           type="button"
@@ -1453,6 +1456,7 @@ export function Layout({ children }: LayoutProps) {
           )}
           {isGamePage ? (
             <>
+              <NotificationBell variant="gameHud" />
               <NotificationCenter variant="gameHud" />
               <button
                 type="button"
@@ -1506,6 +1510,7 @@ export function Layout({ children }: LayoutProps) {
                   <div className="flex min-w-0 max-w-[min(100vw-2rem,28rem)] flex-row flex-nowrap items-center gap-1 overflow-x-auto overflow-y-visible scroll-smooth px-0.5 py-2 [touch-action:pan-x] scrollbar-hide sm:max-w-none sm:gap-2">
                 <LanguageSwitcher buttonClassName={languageButtonClass} />
                 {lobbyMoneyAndProfile}
+                <NotificationBell />
                 <NotificationCenter />
                 <button type="button" onClick={() => { playSfx("uiSelect"); setMenuOpen(false); navigate("/leaderboard"); }} className={topNavBtn} title={t("leaderboard.title")}>
                   <Trophy className={topNavIcon} aria-hidden />

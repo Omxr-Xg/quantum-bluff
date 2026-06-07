@@ -10,13 +10,16 @@ import {
   Loader2,
   Spade,
   Trophy,
+  CalendarRange,
 } from "lucide-react";
 import { useUser } from "../hooks/useUser";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
+import { useGetActiveSeasonQuery, useGetSeasonLeaderboardQuery } from "../services/api";
 const PAGE_SIZE = 25;
 
 type MainTab = "general" | "poker" | "casino";
+type LeaderboardScope = "alltime" | "season";
 
 type LeaderboardCategory =
   | "xp"
@@ -59,6 +62,7 @@ export function Leaderboard() {
   const { username: meName } = useUser();
 
   const [mainTab, setMainTab] = useState<MainTab>("general");
+  const [scope, setScope] = useState<LeaderboardScope>("alltime");
   const [pokerMetric, setPokerMetric] = useState<"poker_wins" | "belote_wins" | "chips">("poker_wins");
   const [casinoMetric, setCasinoMetric] = useState<
     "chips" | "slot_biggest" | "roulette_biggest" | "blackjack_biggest"
@@ -77,7 +81,20 @@ export function Leaderboard() {
         ? pokerMetric
         : casinoMetric;
 
+  const { data: activeSeasonData } = useGetActiveSeasonQuery(undefined, {
+    skip: scope !== "season",
+  });
+  const activeSeason = activeSeasonData?.season ?? null;
+  const {
+    data: seasonBoard,
+    isLoading: seasonLoading,
+    error: seasonQueryError,
+  } = useGetSeasonLeaderboardQuery(activeSeason?.id ?? "", {
+    skip: scope !== "season" || !activeSeason?.id,
+  });
+
   const load = useCallback(async () => {
+    if (scope === "season") return;
     setLoading(true);
     setError(null);
     const token = getAuthItem("token");
@@ -106,20 +123,56 @@ export function Leaderboard() {
     } finally {
       setLoading(false);
     }
-  }, [category, offset, t]);
+  }, [category, offset, scope, t]);
 
   useEffect(() => {
+    if (scope === "season") {
+      setLoading(seasonLoading);
+      if (!seasonLoading) {
+        if (seasonQueryError) {
+          setError(t("leaderboard.error"));
+          setItems([]);
+        } else if (seasonBoard?.entries) {
+          setItems(
+            seasonBoard.entries.map((e) => ({
+              username: e.username,
+              rank: e.rank,
+              value: e.xpEarned,
+              level: undefined,
+            })),
+          );
+          setTotalPlayers(seasonBoard.entries.length);
+          const meEntry = seasonBoard.entries.find((e) => e.username === meName);
+          setMyRank(meEntry?.rank);
+          setError(null);
+        } else if (!activeSeason) {
+          setError(t("leaderboard.noActiveSeason"));
+          setItems([]);
+        }
+      }
+      return;
+    }
     void load();
-  }, [load]);
+  }, [load, scope, seasonLoading, seasonBoard, seasonQueryError, activeSeason, meName, t]);
 
   useEffect(() => {
     setOffset(0);
-  }, [mainTab, pokerMetric, casinoMetric]);
+  }, [mainTab, pokerMetric, casinoMetric, scope]);
+
+  useEffect(() => {
+    if (scope === "season") setMainTab("general");
+  }, [scope]);
 
   const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
+  const seasonPagedItems =
+    scope === "season"
+      ? items.slice(offset, offset + PAGE_SIZE)
+      : items;
+
   const valueLabel = (() => {
+    if (scope === "season") return t("leaderboard.colSeasonXp");
     switch (category) {
       case "xp":
         return t("leaderboard.colXp");
@@ -333,13 +386,44 @@ export function Leaderboard() {
         </nav>
 
         <div className="mx-auto w-full max-w-3xl">
+          <div className="mb-6 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setScope("alltime")}
+              className={`rounded-xl px-4 py-2 text-xs font-semibold transition sm:text-sm ${
+                scope === "alltime" ? metricActiveClass : metricIdleClass
+              }`}
+            >
+              {t("leaderboard.scopeAllTime")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setScope("season")}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition sm:text-sm ${
+                scope === "season" ? metricActiveClass : metricIdleClass
+              }`}
+            >
+              <CalendarRange className="h-4 w-4" />
+              {activeSeason ? t("leaderboard.scopeSeason", { name: activeSeason.name }) : t("leaderboard.scopeSeasonGeneric")}
+            </button>
+          </div>
+
+          {scope === "season" && activeSeason ? (
+            <p className="mb-4 text-center text-xs text-slate-400">
+              {t("leaderboard.seasonDates", {
+                start: new Date(activeSeason.startsAt).toLocaleDateString(),
+                end: new Date(activeSeason.endsAt).toLocaleDateString(),
+              })}
+            </p>
+          ) : null}
+
           {myRank != null && (
             <div className="mb-6 rounded-2xl border border-amber-500/35 bg-gradient-to-r from-amber-500/15 via-slate-900/40 to-emerald-900/25 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm sm:px-5 sm:py-4">
               <p className="text-center text-sm font-semibold text-amber-100/95 sm:text-base">{t("leaderboard.yourRank", { rank: myRank })}</p>
             </div>
           )}
 
-          {mainTab === "poker" && (
+          {mainTab === "poker" && scope === "alltime" && (
             <div className="mb-6 flex flex-wrap justify-center gap-2 sm:justify-start">
               <button
                 type="button"
@@ -371,7 +455,7 @@ export function Leaderboard() {
             </div>
           )}
 
-          {mainTab === "casino" && (
+          {mainTab === "casino" && scope === "alltime" && (
             <div className="mb-6 flex flex-wrap justify-center gap-2 sm:justify-start">
               {(
                 [
@@ -413,7 +497,7 @@ export function Leaderboard() {
               <p className="px-4 py-14 text-center text-slate-500">{t("leaderboard.empty")}</p>
             ) : (
               <ul className="divide-y divide-slate-700/50">
-                {items.map((row) => {
+                {seasonPagedItems.map((row) => {
                   const isMe = meName && row.username === meName;
                   return (
                     <li
