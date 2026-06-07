@@ -278,7 +278,16 @@ export const api = createApi({
     }),
 
     register: builder.mutation<
-      { token: string; user: { id: string; username: string; email: string; chips?: number; avatarUrl?: string | null } },
+      {
+        token: string
+        referral?: {
+          applied: true
+          bonusChips: number
+          referrerUsername: string
+          friendAdded: boolean
+        } | null
+        user: { id: string; username: string; email: string; chips?: number; avatarUrl?: string | null }
+      },
       RegisterPayload
     >({
       query: (userData) => ({
@@ -286,7 +295,7 @@ export const api = createApi({
         method: 'POST',
         body: userData,
       }),
-      invalidatesTags: ['User'],
+      invalidatesTags: ['User', 'Friend', 'Referral'],
     }),
 
     checkEmail: builder.mutation<{ exists: boolean }, { email: string }>({

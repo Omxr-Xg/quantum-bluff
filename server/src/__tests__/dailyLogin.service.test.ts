@@ -70,6 +70,14 @@ function mockCreateTx() {
   }
 }
 
+jest.mock('../notifications/notification.service.js', () => ({
+  createNotification: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('../achievements/achievement.service.js', () => ({
+  checkAchievements: jest.fn().mockResolvedValue(undefined),
+}))
+
 var mockPrisma: { $transaction: jest.Mock; user: { findUnique: jest.Mock } }
 jest.mock('../config/database.js', () => {
   const mockUserFindUnique = jest.fn(async ({ where, select }: any) => {

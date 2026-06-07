@@ -34,6 +34,8 @@ module.exports = {
     'src/utils/avatarUrl.ts',
     'src/utils/secretAnswer.ts',
     'src/validation/**/*.ts',
+    'src/referral/**/*.ts',
+    '!src/referral/**/__tests__/**',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'cobertura'],

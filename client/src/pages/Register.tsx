@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, Spade, Heart, Calendar } from "lucide-react";
@@ -8,6 +8,13 @@ import { trackEvent } from "../utils/analytics";
 import { removeAuthItem, setAuthItem } from "../utils/authStorage";
 import { translateRegisterApiError, isoDateUtc } from "../utils/authRegisterErrors";
 import { AuthOAuthDivider, GoogleSignInButton } from "../components/GoogleSignInButton";
+import { socket } from "../services/socket";
+import { fetchBalanceFromServer, updateUserBalance } from "../utils/userProfile";
+import {
+  clearPendingReferralCode,
+  getPendingReferralCode,
+  persistPendingReferralCode,
+} from "../utils/referralStorage";
 
 const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
@@ -25,7 +32,13 @@ export function Register() {
   const [register, { isLoading, error }] = useRegisterMutation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const referralCode = (searchParams.get("ref") ?? "").trim() || undefined;
+  const referralFromUrl = (searchParams.get("ref") ?? "").trim() || undefined;
+
+  useEffect(() => {
+    if (referralFromUrl) persistPendingReferralCode(referralFromUrl);
+  }, [referralFromUrl]);
+
+  const effectiveReferralCode = referralFromUrl ?? getPendingReferralCode();
 
   const dobBounds = useMemo(() => {
     const today = new Date();
@@ -62,26 +75,33 @@ export function Register() {
       dateOfBirth,
       secretQuestionId,
       secretAnswer: secretAnswer.trim(),
-      ...(referralCode ? { referralCode } : {}),
+      ...(effectiveReferralCode ? { referralCode: effectiveReferralCode } : {}),
     }).unwrap()
-
-    console.log("Inscription réussie:", response)
 
     removeAuthItem('userid')
     setAuthItem('token', response.token)
     setAuthItem('userId', String(response.user.id))
     setAuthItem('username', response.user.username)
-    // Mettre à jour le profil local pour l'écran Profile
     setAuthItem('quantum_bluff_username', response.user.username)
     setAuthItem('quantum_bluff_email', response.user.email)
     if (typeof response.user.chips === 'number') {
-      setAuthItem('quantum_bluff_balance', String(response.user.chips))
+      updateUserBalance(response.user.chips)
+    }
+
+    socket.disconnect()
+    socket.auth = { token: response.token }
+    socket.connect()
+
+    await fetchBalanceFromServer({ authoritative: true })
+
+    if (response.referral?.applied || effectiveReferralCode) {
+      clearPendingReferralCode()
     }
 
     window.dispatchEvent(new Event('auth-changed'))
 
     trackEvent('register')
-    if (referralCode) {
+    if (response.referral?.applied) {
       trackEvent('referral_applied')
     }
 

@@ -14,3 +14,8 @@ export function emitUserRewardsUpdated(
 ): void {
   io.to(`user:${userId}`).emit('USER_REWARDS_UPDATED', payload)
 }
+
+/** Rafraîchit la liste amis côté client (parrainage auto-amitié, etc.). */
+export function emitFriendsUpdated(io: Server, userId: string): void {
+  io.to(`user:${userId}`).emit('FRIENDS_UPDATED', { source: 'referral' })
+}

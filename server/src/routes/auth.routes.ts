@@ -315,12 +315,25 @@ router.post('/register', registerLimiter, async (req, res) => {
     const g = await getGamificationBundle(prisma, user.id)
 
     let chipsAfterRegister = user.chips
+    let referralMeta: {
+      applied: true
+      bonusChips: number
+      referrerUsername: string
+      friendAdded: true
+    } | null = null
     try {
       const { applyReferralOnRegister } = await import('../referral/referral.service.js')
+      const { REFERRAL_REFERRED_CHIPS } = await import('../referral/referral.types.js')
       const io = req.app.get('io') as import('socket.io').Server | undefined
       const referralResult = await applyReferralOnRegister(user.id, referralCode, io)
       if (referralResult) {
         chipsAfterRegister = referralResult.referredChips
+        referralMeta = {
+          applied: true,
+          bonusChips: REFERRAL_REFERRED_CHIPS,
+          referrerUsername: referralResult.referrerUsername,
+          friendAdded: true,
+        }
       }
     } catch (refErr) {
       console.warn('[AUTH] Parrainage à l\'inscription:', refErr)
@@ -335,6 +348,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     res.status(201).json({
       token,
+      referral: referralMeta,
       user: {
         id: user.id,
         email: user.email,

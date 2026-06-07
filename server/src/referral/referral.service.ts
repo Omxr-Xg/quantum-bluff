@@ -1,7 +1,8 @@
 import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
-import { emitUserRewardsUpdated } from '../rewards/userRewards.socket.js'
+import { emitFriendsUpdated, emitUserRewardsUpdated } from '../rewards/userRewards.socket.js'
+import { rootLogger } from '../observability/logger.js'
 import { createNotification } from '../notifications/notification.service.js'
 import {
   REFERRAL_REFERRED_CHIPS,
@@ -70,8 +71,28 @@ export async function ensureUserReferralCode(userId: string): Promise<string> {
 }
 
 function buildReferralLink(code: string, publicBaseUrl?: string): string {
-  const base = (publicBaseUrl ?? process.env.PUBLIC_APP_URL ?? 'https://quantumbluff.com').replace(/\/$/, '')
+  const base = (
+    publicBaseUrl ??
+    process.env.CLIENT_URL ??
+    process.env.PUBLIC_APP_URL ??
+    'https://www.quantum-bluff.com'
+  ).replace(/\/$/, '')
   return `${base}/register?ref=${encodeURIComponent(code)}`
+}
+
+async function findReferrerByCode(code: string): Promise<{ id: string } | null> {
+  const exact = await prisma.user.findFirst({
+    where: { referralCode: code },
+    select: { id: true },
+  })
+  if (exact) return exact
+
+  return prisma.user.findFirst({
+    where: {
+      referralCode: { equals: code, mode: 'insensitive' },
+    },
+    select: { id: true },
+  })
 }
 
 export async function getReferralMe(
@@ -137,22 +158,30 @@ async function completeReferralRewards(
       data: { chips: referredAfter },
     })
 
-    await createWalletLedgerMovement(tx, {
-      userId: referral.referrerId,
-      reason: 'REFERRAL_REFERRER_BONUS',
-      balanceBefore: referrerBefore,
-      balanceAfter: referrerAfter,
-      gameType: 'referral',
-      roundId: referral.id,
-    })
-    await createWalletLedgerMovement(tx, {
-      userId: referral.referredUserId,
-      reason: 'REFERRAL_REFERRED_BONUS',
-      balanceBefore: referredBefore,
-      balanceAfter: referredAfter,
-      gameType: 'referral',
-      roundId: referral.id,
-    })
+    try {
+      await createWalletLedgerMovement(tx, {
+        userId: referral.referrerId,
+        reason: 'REFERRAL_REFERRER_BONUS',
+        balanceBefore: referrerBefore,
+        balanceAfter: referrerAfter,
+        gameType: 'referral',
+        roundId: referral.id,
+      })
+      await createWalletLedgerMovement(tx, {
+        userId: referral.referredUserId,
+        reason: 'REFERRAL_REFERRED_BONUS',
+        balanceBefore: referredBefore,
+        balanceAfter: referredAfter,
+        gameType: 'referral',
+        roundId: referral.id,
+      })
+    } catch (ledgerErr) {
+      rootLogger.warn({
+        msg: 'referral_ledger_write_failed',
+        referralId: referral.id,
+        detail: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr),
+      })
+    }
 
     await ensureReferralFriendship(tx, referral.referrerId, referral.referredUserId)
 
@@ -187,6 +216,8 @@ async function completeReferralRewards(
       chips: result.referredChips,
       source: 'referral',
     })
+    emitFriendsUpdated(io, result.referrerId)
+    emitFriendsUpdated(io, result.referredUserId)
   }
 
   await createNotification(result.referrerId, 'REFERRAL', {
@@ -234,10 +265,7 @@ export async function applyReferralCode(
     throw new ReferralError(409, 'ALREADY_REFERRED', 'Un code de parrainage a déjà été appliqué')
   }
 
-  const referrer = await prisma.user.findFirst({
-    where: { referralCode: code },
-    select: { id: true },
-  })
+  const referrer = await findReferrerByCode(code)
   if (!referrer) {
     throw new ReferralError(404, 'CODE_NOT_FOUND', 'Code de parrainage introuvable')
   }
@@ -270,8 +298,19 @@ export async function applyReferralOnRegister(
     return await applyReferralCode(referredUserId, rawCode, io)
   } catch (err) {
     if (isReferralError(err) && (err.code === 'CODE_NOT_FOUND' || err.code === 'SELF_REFERRAL')) {
+      rootLogger.warn({
+        msg: 'referral_register_skipped',
+        referredUserId,
+        code: normalizeReferralCode(rawCode),
+        reason: err.code,
+      })
       return null
     }
+    rootLogger.error({
+      msg: 'referral_register_failed',
+      referredUserId,
+      detail: err instanceof Error ? err.message : String(err),
+    })
     throw err
   }
 }

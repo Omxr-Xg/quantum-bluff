@@ -16,6 +16,12 @@ import {
 import { trackEvent } from "../utils/analytics";
 import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
 import { getAuthItem, removeAuthItem, setAuthItem } from "../utils/authStorage";
+import { fetchBalanceFromServer, updateUserBalance } from "../utils/userProfile";
+import {
+  clearPendingReferralCode,
+  getPendingReferralCode,
+  persistPendingReferralCode,
+} from "../utils/referralStorage";
 import { translateRegisterApiError, isoDateUtc } from "../utils/authRegisterErrors";
 
 // Hook loader
@@ -88,6 +94,10 @@ export function Auth() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const referralFromUrl = (searchParams.get("ref") ?? "").trim() || undefined;
+
+  useEffect(() => {
+    if (referralFromUrl) persistPendingReferralCode(referralFromUrl);
+  }, [referralFromUrl]);
   const from = (location.state as { from?: string } | null)?.from ?? "/lobby";
 
   const dobBounds = useMemo(() => {
@@ -229,7 +239,10 @@ export function Auth() {
         dateOfBirth,
         secretQuestionId,
         secretAnswer: secretAnswer.trim(),
-        ...(referralFromUrl ? { referralCode: referralFromUrl } : {}),
+        ...((() => {
+          const code = referralFromUrl ?? getPendingReferralCode();
+          return code ? { referralCode: code } : {};
+        })()),
       }).unwrap();
       removeAuthItem("userid");
       removeAuthItem("role");
@@ -239,7 +252,7 @@ export function Auth() {
       setAuthItem("quantum_bluff_username", response.user.username);
       setAuthItem("quantum_bluff_email", response.user.email);
       if (typeof response.user.chips === "number") {
-        setAuthItem("quantum_bluff_balance", String(response.user.chips));
+        updateUserBalance(response.user.chips);
       }
       const avatarUrlReg = (response.user as { avatarUrl?: string | null }).avatarUrl;
       if (typeof avatarUrlReg === "string" && avatarUrlReg.trim() !== "") {
@@ -254,9 +267,17 @@ export function Auth() {
       socket.auth = { token: response.token };
       socket.connect();
 
+      await fetchBalanceFromServer({ authoritative: true });
+      if ((response as { referral?: { applied?: boolean } }).referral?.applied) {
+        clearPendingReferralCode();
+      }
+
       window.dispatchEvent(new Event("auth-changed"));
 
       trackEvent("register");
+      if ((response as { referral?: { applied?: boolean } }).referral?.applied) {
+        trackEvent("referral_applied");
+      }
 
       navigate(typeof from === "string" ? from : "/lobby", { replace: true });
     } catch {

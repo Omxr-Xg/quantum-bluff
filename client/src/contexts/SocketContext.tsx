@@ -212,9 +212,15 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       window.dispatchEvent(new CustomEvent('user-rewards-updated', { detail: data }))
     }
 
+    const onFriendsUpdated = () => {
+      store.dispatch(api.util.invalidateTags(['Friend', 'Referral']))
+    }
+
     socket.on('USER_REWARDS_UPDATED', onUserRewardsUpdated)
+    socket.on('FRIENDS_UPDATED', onFriendsUpdated)
     return () => {
       socket.off('USER_REWARDS_UPDATED', onUserRewardsUpdated)
+      socket.off('FRIENDS_UPDATED', onFriendsUpdated)
     }
   }, [socket, isAdmin])
 
