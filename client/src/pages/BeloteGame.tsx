@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
@@ -13,6 +13,7 @@ import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBa
 import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 import { useTableVoiceChat } from "../features/voice/useTableVoiceChat";
 import { TableVoicePanel } from "../features/voice/TableVoicePanel";
+import { trackEvent } from "../utils/analytics";
 
 export function BeloteGame() {
   const { t } = useTranslation();
@@ -30,6 +31,13 @@ export function BeloteGame() {
   const [acting, setActing] = useState(false);
   const voiceEnabled = Boolean(gameId && userId && state && !isSpectating && !ended);
   const voice = useTableVoiceChat(gameId, userId, socket, voiceEnabled);
+  const trackedBeloteRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!gameId || isSpectating || !state || trackedBeloteRef.current === gameId) return;
+    trackedBeloteRef.current = gameId;
+    trackEvent("play_belote");
+  }, [gameId, isSpectating, state]);
 
   const handleAction = useCallback(
     (action: Record<string, unknown>) => {

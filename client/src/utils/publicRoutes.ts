@@ -8,6 +8,10 @@ const PUBLIC_MARKETING_PATHS = [
   "/play-poker-online",
   "/online-belote",
   "/online-blackjack",
+  "/online-roulette",
+  "/online-slots",
+  "/online-crash-game",
+  "/online-mines-game",
 ] as const;
 
 export function isPublicMarketingPath(pathname: string): boolean {

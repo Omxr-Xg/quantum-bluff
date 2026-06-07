@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Bot, Users, Zap, Brain, Trophy, Target, ChevronDown, ChevronUp, Settings2, XCircle } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { getUserBalance } from "../utils/userProfile";
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 
@@ -130,6 +131,7 @@ export function BotConfiguration() {
         addToast(t("errors.generic", "Réponse invalide"), "error");
         return;
       }
+      trackEvent("play_poker");
       try {
         sessionStorage.setItem(
           "qb_last_practice_bot_config",

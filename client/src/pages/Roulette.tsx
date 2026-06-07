@@ -11,6 +11,7 @@ import {
   refreshGamificationFromServer,
 } from "../utils/gamificationStorage";
 
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
 import logoSrc from "../assets/logo-personnel.webp";
@@ -1013,6 +1014,7 @@ export function Roulette({
 
           if (res.ok) {
             data = parsed;
+            trackEvent("play_roulette");
             break;
           }
 

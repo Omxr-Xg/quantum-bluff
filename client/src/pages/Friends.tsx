@@ -56,6 +56,7 @@ import {
 } from "../utils/friendLoanPreview";
 import { getFriendLoanApiErrorMessage } from "../utils/friendLoanApiError";
 import { censorChatLinks, isChatContentEffectivelyEmpty } from "../utils/chatLinkCensor";
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 import {
@@ -436,6 +437,9 @@ export function Friends() {
   const handleRespond = async (requestId: string, status: "ACCEPTED" | "REJECTED") => {
     try {
       await respondRequest({ requestId, status }).unwrap();
+      if (status === "ACCEPTED") {
+        trackEvent("friend_added");
+      }
       await refetchFriends();
       await refetchRequests();
     } catch (err) {

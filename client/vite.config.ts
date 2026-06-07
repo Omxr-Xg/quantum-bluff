@@ -16,6 +16,10 @@ const devApiProxy = {
       });
     },
   },
+  '/auth': {
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+  },
   '/socket.io': {
     target: 'http://localhost:3000',
     changeOrigin: true,

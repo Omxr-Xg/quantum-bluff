@@ -7,6 +7,7 @@ import { cn } from "./ui/utils";
 import { useSocket } from "../hooks/useSocket";
 import { useInvitationAccept } from "../contexts/InvitationAcceptContext";
 import { useUser } from "../hooks/useUser";
+import { trackEvent } from "../utils/analytics";
 import { useGetFriendRequestsQuery, useRespondToFriendRequestMutation } from "../services/api";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
@@ -316,6 +317,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
 
   const handleAcceptFriendRequest = async (requestId: string) => {
     await respondRequest({ requestId, status: "ACCEPTED" });
+    trackEvent("friend_added");
     refetchRequests();
   };
 

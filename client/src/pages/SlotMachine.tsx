@@ -9,6 +9,7 @@ import {
   BALANCE_CHANGED_EVENT,
   fetchBalanceFromServer,
 } from "../utils/userProfile";
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import { ChipIcon } from "../components/ChipIcon";
 import { CustomScrollArea } from "../components/CustomScrollArea";
@@ -313,6 +314,8 @@ export function SlotMachine() {
       if (!successBody) {
         throw new Error(t("slot.errorUnreachable"));
       }
+
+      trackEvent("play_slots");
 
       const data = successBody;
 

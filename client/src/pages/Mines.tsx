@@ -6,6 +6,7 @@ import { ArrowLeft, Bomb, Gem, Minus, Plus } from "lucide-react";
 import { ChipIcon } from "../components/ChipIcon";
 import { useToast } from "../contexts/ToastContext";
 import { getAuthItem } from "../utils/authStorage";
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import {
   updateUserBalance,
@@ -174,6 +175,7 @@ export function Mines() {
       }
       if (typeof data.chips === "number") updateUserBalance(data.chips);
       syncBalance();
+      trackEvent("play_mines");
       setRoundId(data.roundId ?? actionId);
       setRevealedCells([]);
       setMinePositions(null);

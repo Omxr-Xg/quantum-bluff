@@ -322,4 +322,26 @@ export const env = {
     if (raw === undefined || raw.trim() === '') return 'QUANTUM'
     return raw.trim().toUpperCase()
   })(),
+  googleClientId: getOptionalEnv('GOOGLE_CLIENT_ID'),
+  googleClientSecret: getOptionalEnv('GOOGLE_CLIENT_SECRET'),
+  googleCallbackUrl: (() => {
+    const explicit = getOptionalEnv('GOOGLE_CALLBACK_URL')
+    if (explicit) return explicit.replace(/\/$/, '')
+    const port = getPositiveIntegerEnv('PORT', 3000)
+    return isProduction
+      ? 'https://api.quantum-bluff.com/auth/google/callback'
+      : `http://localhost:${port}/auth/google/callback`
+  })(),
+  clientUrl: (() => {
+    const direct = getOptionalEnv('CLIENT_URL') ?? getOptionalEnv('PUBLIC_APP_URL')
+    if (direct) return direct.replace(/\/$/, '')
+    const webOrigin = corsOrigins.find(
+      (o) => o.startsWith('http') && !o.includes('localhost:3000') && !o.startsWith('capacitor'),
+    )
+    if (webOrigin) return webOrigin.replace(/\/$/, '')
+    return isProduction ? 'https://www.quantum-bluff.com' : 'http://localhost:5173'
+  })(),
+  googleOAuthEnabled: Boolean(
+    getOptionalEnv('GOOGLE_CLIENT_ID') && getOptionalEnv('GOOGLE_CLIENT_SECRET'),
+  ),
 } as const

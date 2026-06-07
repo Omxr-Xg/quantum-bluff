@@ -20,6 +20,7 @@ import {
 } from './observability/index.js'
 import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
+import oauthRoutes from './routes/oauth.routes.js'
 import twofaRoutes from './routes/twofa.routes.js'
 import friendsRoutes from './routes/friends.routes.js'
 import friendLoanRoutes from './routes/friendLoan.routes.js'
@@ -254,6 +255,7 @@ app.use(timeoutMiddleware)
 app.use(idempotencyMiddleware)
 
 app.use('/api', gameRoutes)
+app.use('/auth', oauthRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/auth/2fa', twofaRoutes)
 app.use('/api/friends', friendsRoutes)

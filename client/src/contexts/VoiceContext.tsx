@@ -13,6 +13,7 @@ import { VoiceCallManager } from '../features/voice/call/VoiceCallManager'
 import { CallState } from '../features/voice/call/voiceCallTypes'
 import { isCallSignalPayload } from '../features/voice/call/VoiceSignalingClient'
 import { WebRTCVoiceMesh } from '../features/voice/WebRTCVoiceMesh'
+import { trackEvent } from '../utils/analytics'
 import {
   buildTableChannelId,
   buildWaitingChannelId,
@@ -109,6 +110,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const voicePreparedChannelRef = useRef<string | null>(null)
   /** Appels récemment terminés — évite de recréer l’UI si un VOICE_ROSTER arrive en retard. */
   const endedCallIdsRef = useRef<Set<string>>(new Set())
+  const trackedVoiceAnalyticsRef = useRef<Set<string>>(new Set())
   /** Canal cible en attente de VOICE_ROSTER (retry si NOT_IN_GAME / NOT_IN_WAITING_ROOM). */
   const pendingVoiceJoinRef = useRef<string | null>(null)
   const voiceJoinRetryTimersRef = useRef<number[]>([])
@@ -670,6 +672,11 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       callerId: string
       negotiationId: string
     }) => {
+      const callId = payload.callId?.trim()
+      if (callId && !trackedVoiceAnalyticsRef.current.has(callId)) {
+        trackedVoiceAnalyticsRef.current.add(callId)
+        trackEvent('voice_call_started')
+      }
       setIncomingCall(null)
       const inc = incomingCallRef.current
       incomingCallRef.current = null

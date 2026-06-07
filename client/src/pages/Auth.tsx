@@ -5,6 +5,7 @@ import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, ArrowLeft, Spade, Hea
 import { QuantumBluffLogo } from "../assets/logo";
 import { ClientAuthShellBackground } from "../components/ClientAuthShellBackground";
 import { AuthPublicFooter } from "../components/marketing/AuthPublicFooter";
+import { AuthOAuthDivider, GoogleSignInButton } from "../components/GoogleSignInButton";
 import {
   useCheckEmailMutation,
   useLoginMutation,
@@ -12,6 +13,7 @@ import {
   useRecoveryQuestionMutation,
   useResetPasswordMutation,
 } from "../services/api";
+import { trackEvent } from "../utils/analytics";
 import { persistGamificationFromAuthUser } from "../utils/gamificationStorage";
 import { getAuthItem, removeAuthItem, setAuthItem } from "../utils/authStorage";
 import { translateRegisterApiError, isoDateUtc } from "../utils/authRegisterErrors";
@@ -199,6 +201,8 @@ export function Auth() {
 
       window.dispatchEvent(new Event("auth-changed"));
 
+      trackEvent("login");
+
       navigate(typeof from === "string" ? from : "/lobby", { replace: true });
 
     } catch (err: unknown) {
@@ -248,6 +252,9 @@ export function Auth() {
       socket.connect();
 
       window.dispatchEvent(new Event("auth-changed"));
+
+      trackEvent("register");
+
       navigate(typeof from === "string" ? from : "/lobby", { replace: true });
     } catch {
       // Error handled by registerError
@@ -489,6 +496,8 @@ export function Auth() {
                   <span>{t("auth.continue")}</span>
                 )}
               </button>
+              <AuthOAuthDivider />
+              <GoogleSignInButton />
             </form>
           )}
 

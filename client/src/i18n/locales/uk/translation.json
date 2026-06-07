@@ -921,6 +921,21 @@
     "resetPasswordSubmit": "Скинути пароль",
     "resetPasswordSuccess": "Пароль змінено. Увійдіть з новим паролем.",
     "backToLogin": "Назад до входу",
+    "continueWithGoogle": "Продовжити з Google",
+    "oauthOr": "або",
+    "oauthCompleting": "Вхід…",
+    "oauthError": {
+      "generic": "Не вдалося увійти через Google. Спробуйте ще раз.",
+      "google_denied": "Вхід через Google скасовано.",
+      "google_token": "Не вдалося обміняти токен Google.",
+      "google_profile": "Не вдалося завантажити профіль Google.",
+      "google_email": "Google має надати підтверджений email.",
+      "google_email_conflict": "Цей email уже прив’язаний до іншого облікового запису Google.",
+      "google_auth_failed": "Помилка автентифікації Google.",
+      "account_suspended": "Цей акаунт призупинено.",
+      "missing_token": "Неповне посилання для входу.",
+      "profile_failed": "Не вдалося завантажити ваш профіль."
+    },
     "noSecretQuestionLegacy": "Цей акаунт створено до секретних запитань. Зверніться в підтримку для скидання пароля.",
     "secretQuestions": {
       "q1": "Як звали вашого першого вчителя математики?",
@@ -1028,6 +1043,28 @@
     "claiming": "Отримання…",
     "claimButton": "Отримати {{amount}} фішок"
   },
+  "publicSite": {
+    "nav": {
+      "discover": "Відкрити",
+      "news": "Новини",
+      "about": "Про нас",
+      "contact": "Контакт"
+    },
+    "footer": {
+      "privacy": "Конфіденційність",
+      "terms": "Умови",
+      "about": "Про нас",
+      "contact": "Контакт"
+    },
+    "footerTagline": "Соціальне казино — віртуальні фішки, покер і белот онлайн.",
+    "login": "Увійти",
+    "ctaPlay": "Грати зараз",
+    "ctaNews": "Читати новини",
+    "lastUpdated": "Останнє оновлення:",
+    "backToNews": "Назад до новин",
+    "articleNotFound": "Статтю не знайдено",
+    "articleNotFoundBody": "Ця стаття не існує або була переміщена."
+  },
   "startScreen": {
     "tagline": "Покер переосмислено",
     "init": "Ініціалізація...",
@@ -1038,6 +1075,8 @@
     "readyToPlay": "Готові грати!",
     "play": "Грати",
     "startButton": "ПОЧАТИ",
+    "discoverButton": "Відкрити Quantum Bluff",
+    "footerNav": "Сторінки сайту",
     "serverOnline": "Сервер в мережі"
   },
   "profile": {

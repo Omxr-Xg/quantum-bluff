@@ -10,8 +10,12 @@ import slotImg from "../../assets/games/slot.webp";
 import crashImg from "../../assets/games/crash.webp";
 import minesImg from "../../assets/games/mines.webp";
 import luckyImg from "../../assets/games/lucky.webp";
+import { es } from "./siteContent.es";
+import { ar } from "./siteContent.ar";
+import { uk } from "./siteContent.uk";
+import { resolveMarketingLocale } from "./resolveMarketingLocale";
 
-export type MarketingLocale = "fr" | "en";
+export type MarketingLocale = "fr" | "en" | "es" | "ar" | "uk";
 
 export type FaqItem = { q: string; a: string };
 export type ScreenshotItem = { src: string; title: string; caption: string };
@@ -805,22 +809,186 @@ const en: SiteContent = {
     featuresTitle: "Key features",
     features: [],
     gamesTitle: "Available games",
-    games: fr.discover.games,
+    games: [],
     leaderboardTitle: "Global leaderboard",
-    leaderboard: fr.discover.leaderboard,
+    leaderboard: [],
     rewardsTitle: "Rewards and chips",
-    rewards: fr.discover.rewards,
+    rewards: [],
     screenshotsTitle: "Experience previews",
-    screenshots: fr.discover.screenshots,
+    screenshots: [],
     faqTitle: "FAQ",
-    faq: fr.discover.faq,
+    faq: [],
     ctaTitle: "Ready to enter the lounge?",
     ctaBody: "Create your account in seconds, claim welcome chips and join a table.",
   },
-  about: fr.about,
-  contact: { ...fr.contact, title: "Contact", emailLabel: "Support email" },
-  privacy: fr.privacy,
-  terms: fr.terms,
+  about: {
+    title: "About Quantum Bluff",
+    sections: [
+      {
+        heading: "Our mission",
+        paragraphs: [
+          "Quantum Bluff was created to offer a social, elegant alternative to fragmented online card games. We want one place to enjoy poker with friends, Sunday Belote and a quick roulette spin between hands — without sacrificing visual quality or result integrity.",
+          "The product and engineering team iterates continuously from player feedback: new mini-games, voice improvements, community tournaments and moderation tools.",
+        ],
+      },
+      {
+        heading: "Values",
+        paragraphs: [
+          "Transparency on virtual currency, respect for players, accessibility and responsible fun. We encourage regular breaks and remind everyone that gaming should stay a leisure activity.",
+        ],
+      },
+      {
+        heading: "Publisher",
+        paragraphs: [
+          "Quantum Bluff is published by the Quantum Bluff project team. For legal or press enquiries: legal@quantum-bluff.com.",
+        ],
+      },
+    ],
+  },
+  contact: {
+    title: "Contact",
+    intro: [
+      "A question about your account, a bug to report or a partnership proposal? Our support team handles messages Monday to Friday.",
+      "Before writing, check the Discover page FAQ and blog articles — many answers are already there.",
+    ],
+    emailLabel: "Support email",
+    email: "support@quantum-bluff.com",
+    supportHours: "Typical response time: 48–72 business hours.",
+    formNote:
+      "The form below opens your mail client. For player reports, use the in-game tool when possible.",
+  },
+  privacy: {
+    title: "Privacy policy",
+    lastUpdated: "May 2026",
+    sections: [
+      {
+        heading: "1. Data controller",
+        paragraphs: [
+          "The Quantum Bluff team processes data required to run the game (account, matches, virtual balance, technical logs). Contact: privacy@quantum-bluff.com.",
+        ],
+      },
+      {
+        heading: "2. Data collected",
+        paragraphs: [
+          "Account identifiers (username, email), password hash, language and accessibility preferences, match and chip transaction history, connection logs and IP address for security, friend messages and reports when applicable.",
+        ],
+      },
+      {
+        heading: "3. Purposes",
+        paragraphs: [
+          "Providing the multiplayer service, fraud prevention, user support, product improvement via aggregated statistics, compliance with legal obligations.",
+        ],
+      },
+      {
+        heading: "4. Legal basis",
+        paragraphs: [
+          "Contract performance (Terms), legitimate interest (security, improvement), consent when required (non-essential cookies, marketing communications if enabled).",
+        ],
+      },
+      {
+        heading: "5. Retention",
+        paragraphs: [
+          "Active account: data kept while the account exists. After deletion: anonymisation or erasure within 90 days unless legally required otherwise. Technical logs: up to 12 months.",
+        ],
+      },
+      {
+        heading: "6. Your rights",
+        paragraphs: [
+          "Access, rectification, erasure, restriction, objection and portability where applicable. Request at privacy@quantum-bluff.com. You may lodge a complaint with your local data protection authority.",
+        ],
+      },
+      {
+        heading: "7. Cookies and local storage",
+        paragraphs: [
+          "Session token, i18n preferences and accessibility settings in localStorage. No sale of data to third-party ad networks in the current product version.",
+        ],
+      },
+      {
+        heading: "8. Transfers",
+        paragraphs: [
+          "Hosting and technical subprocessors may be located outside the EU with appropriate safeguards (standard contractual clauses) when required.",
+        ],
+      },
+      {
+        heading: "9. Minors",
+        paragraphs: [
+          "The service is for users aged 18 and over. Any account identified as belonging to a minor may be suspended.",
+        ],
+      },
+      {
+        heading: "10. Updates",
+        paragraphs: [
+          "This policy may evolve. The date at the top indicates the last substantial revision.",
+        ],
+      },
+    ],
+  },
+  terms: {
+    title: "Terms of service",
+    lastUpdated: "May 2026",
+    sections: [
+      {
+        heading: "1. Acceptance",
+        paragraphs: [
+          "By creating an account or using Quantum Bluff, you accept these terms and the privacy policy.",
+        ],
+      },
+      {
+        heading: "2. Nature of the service",
+        paragraphs: [
+          "Quantum Bluff is an online game using virtual chips. No real monetary winnings are guaranteed. Chips have no legal tender value outside the platform.",
+        ],
+      },
+      {
+        heading: "3. User account",
+        paragraphs: [
+          "You are responsible for keeping your credentials confidential. One account per person. Username and behaviour must respect other players.",
+        ],
+      },
+      {
+        heading: "4. Prohibited conduct",
+        paragraphs: [
+          "Cheating, collusion, harassment, technical circumvention, abusive multi-accounts and bug exploitation are prohibited. Sanctions may include warning, suspension or account deletion.",
+        ],
+      },
+      {
+        heading: "5. Virtual currency",
+        paragraphs: [
+          "Simulated purchases or withdrawals in the interface are demonstrations. The team may adjust balances in case of proven error or fraud, with ledger traceability.",
+        ],
+      },
+      {
+        heading: "6. Intellectual property",
+        paragraphs: [
+          "Trademarks, visuals, code and content are protected. Unauthorised reproduction is prohibited.",
+        ],
+      },
+      {
+        heading: "7. Availability",
+        paragraphs: [
+          "Service provided \"as is\". Maintenance, updates and temporary interruptions may occur without compensation.",
+        ],
+      },
+      {
+        heading: "8. Limitation of liability",
+        paragraphs: [
+          "To the extent permitted by law, Quantum Bluff is not liable for indirect losses related to use of the game. Play responsibly.",
+        ],
+      },
+      {
+        heading: "9. Termination",
+        paragraphs: [
+          "You may delete your account via support. We may close an account in case of Terms violation.",
+        ],
+      },
+      {
+        heading: "10. Governing law",
+        paragraphs: [
+          "These terms are governed by French law unless mandatory local provisions apply. Disputes: competent courts after amicable resolution attempt.",
+        ],
+      },
+    ],
+  },
   news: {
     title: "Quantum Bluff News",
     subtitle: "Updates, guides and the platform changelog.",
@@ -884,6 +1052,28 @@ en.discover.rewards = [
   "Chips are the internal virtual currency. You earn them through daily login, challenges, promo gift codes, match results and some community events.",
   "Mini-game wins and losses are recorded in your wallet history for full traceability. Euro amounts shown in demo screens are simulated and involve no real bank transfer.",
   "Progression rewards (ranks, badges, challenges) celebrate loyal play without promising external financial gains.",
+];
+en.discover.screenshots = [
+  {
+    src: bacBg,
+    title: "Main lobby",
+    caption: "Navigate between poker, blackjack, solo games and tournaments from a premium dark lounge.",
+  },
+  {
+    src: bl1Bg,
+    title: "Multiplayer tables",
+    caption: "Waiting rooms, friend invites and real-time Texas Hold'em launches.",
+  },
+  {
+    src: ba1Bg,
+    title: "Solo casino",
+    caption: "Mini-games hub: Crash, Mines, wheel of fortune and retro classics.",
+  },
+  {
+    src: bac2Bg,
+    title: "Profile & progression",
+    caption: "Balance, rank, stats and daily rewards from the main menu.",
+  },
 ];
 en.news.articles = [
   {
@@ -1076,8 +1266,16 @@ en.discover.faq = [
   { q: "How do I contact the team?", a: "Use the Contact page or email support@quantum-bluff.com for general enquiries." },
 ];
 
+const contentByLocale: Record<MarketingLocale, SiteContent> = {
+  fr,
+  en,
+  es,
+  ar,
+  uk,
+};
+
 export function getSiteContent(locale: string): SiteContent {
-  return locale.startsWith("fr") ? fr : en;
+  return contentByLocale[resolveMarketingLocale(locale)];
 }
 
 export function getNewsArticle(slug: string, locale: string): NewsArticle | undefined {

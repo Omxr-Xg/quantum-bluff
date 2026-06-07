@@ -81,6 +81,7 @@ import { useRespondToFriendRequestMutation, useSendFriendMessageMutation } from 
 import { NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
+import { trackEvent } from "../utils/analytics";
 import { isPublicShellPath } from "../utils/publicRoutes";
 import {
   FRIEND_CHAT_REPLIED_EVENT,
@@ -2132,6 +2133,7 @@ export function Layout({ children }: LayoutProps) {
                             requestId: notification.requestId,
                             status: "ACCEPTED",
                           }).unwrap();
+                          trackEvent("friend_added");
                         } catch {
                           /* RTK Query invalide les tags : la cloche se resynchronise */
                         }

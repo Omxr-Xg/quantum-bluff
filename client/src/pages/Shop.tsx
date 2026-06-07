@@ -10,6 +10,7 @@ import {
   type CosmeticType,
   type ShopCosmetic,
 } from "../services/api";
+import { trackEvent } from "../utils/analytics";
 
 const profileGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
@@ -89,8 +90,10 @@ export function Shop() {
 
   const handlePurchase = async (id: string) => {
     setActionError(null);
+    const cosmetic = cosmeticsData?.items.find((item) => item.id === id);
     try {
       await purchase(id).unwrap();
+      trackEvent("cosmetic_purchased", { item: cosmetic?.nameKey ?? id });
     } catch {
       setActionError(t("shop.purchaseError"));
     }

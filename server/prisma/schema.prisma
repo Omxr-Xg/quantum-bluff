@@ -26,6 +26,8 @@ model User {
   username         String  @unique
   email            String  @unique
   password         String
+  googleId         String? @unique
+  authProvider     String  @default("LOCAL")
   /// 1–10 : index de la question secrète (récupération mot de passe)
   secretQuestionId Int?
   secretAnswerHash String?

@@ -6,6 +6,7 @@ import { ArrowLeft, Minus, Plus, TrendingUp } from "lucide-react";
 import { ChipIcon } from "../components/ChipIcon";
 import { useToast } from "../contexts/ToastContext";
 import { getAuthItem } from "../utils/authStorage";
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import {
   updateUserBalance,
@@ -216,6 +217,7 @@ export function Crash() {
       }
       if (typeof data.chips === "number") updateUserBalance(data.chips);
       syncBalance();
+      trackEvent("play_crash");
       setRoundId(data.roundId ?? actionId);
       setStartedAtMs(data.startedAt ?? Date.now());
       setMultiplier(1);

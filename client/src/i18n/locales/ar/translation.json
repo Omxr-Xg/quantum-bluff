@@ -925,6 +925,21 @@
     "resetPasswordSubmit": "إعادة تعيين كلمة المرور",
     "resetPasswordSuccess": "تم تغيير كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.",
     "backToLogin": "العودة لتسجيل الدخول",
+    "continueWithGoogle": "المتابعة مع Google",
+    "oauthOr": "أو",
+    "oauthCompleting": "جارٍ تسجيل الدخول…",
+    "oauthError": {
+      "generic": "فشل تسجيل الدخول عبر Google. حاول مرة أخرى.",
+      "google_denied": "تم إلغاء تسجيل الدخول عبر Google.",
+      "google_token": "تعذر تبادل رمز Google.",
+      "google_profile": "تعذر تحميل ملف Google الخاص بك.",
+      "google_email": "يجب أن يوفر Google بريدًا إلكترونيًا موثقًا.",
+      "google_email_conflict": "هذا البريد مرتبط بالفعل بحساب Google آخر.",
+      "google_auth_failed": "فشلت المصادقة عبر Google.",
+      "account_suspended": "هذا الحساب موقوف.",
+      "missing_token": "رابط تسجيل الدخول غير مكتمل.",
+      "profile_failed": "تعذر تحميل ملفك الشخصي."
+    },
     "noSecretQuestionLegacy": "تم إنشاء هذا الحساب قبل أسئلة الاستعادة. تواصل مع الدعم لإعادة تعيين كلمة المرور.",
     "secretQuestions": {
       "q1": "ما اسم أول معلم رياضيات لديك؟",
@@ -1032,6 +1047,28 @@
     "claiming": "جاري الاستلام…",
     "claimButton": "استلام {{amount}} رقاقة"
   },
+  "publicSite": {
+    "nav": {
+      "discover": "اكتشف",
+      "news": "الأخبار",
+      "about": "حول",
+      "contact": "اتصل"
+    },
+    "footer": {
+      "privacy": "الخصوصية",
+      "terms": "الشروط",
+      "about": "حول",
+      "contact": "اتصل"
+    },
+    "footerTagline": "كازينو اجتماعي — رقائق افتراضية، بوكر وبلوتة على الإنترنت.",
+    "login": "تسجيل الدخول",
+    "ctaPlay": "العب الآن",
+    "ctaNews": "قراءة الأخبار",
+    "lastUpdated": "آخر تحديث:",
+    "backToNews": "العودة إلى الأخبار",
+    "articleNotFound": "المقال غير موجود",
+    "articleNotFoundBody": "هذا المقال غير موجود أو تم نقله."
+  },
   "startScreen": {
     "tagline": "البوكر المُعاد ابتكاره",
     "init": "جاري التهيئة...",
@@ -1042,6 +1079,8 @@
     "readyToPlay": "جاهز للعب!",
     "play": "لعب",
     "startButton": "بدء",
+    "discoverButton": "اكتشف Quantum Bluff",
+    "footerNav": "صفحات الموقع",
     "serverOnline": "الخادم متصل"
   },
   "profile": {

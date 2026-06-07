@@ -8,6 +8,7 @@ import { useUser } from "../hooks/useUser";
 import { fetchBalanceFromServer, getUserAvatar } from "../utils/userProfile";
 import { useGetBlockedUsersQuery, useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 import { getPlayerAvatar } from "../utils/avatars";
@@ -370,6 +371,7 @@ export function WaitingRoom() {
               data.players.map((p) => p.id),
             );
           }
+          trackEvent("play_poker");
           leaveRoom(rawRoomId!);
           navigate(`/game?gameId=${data.gameId}`);
         }

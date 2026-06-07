@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import { BlackjackLobbyBackdrop } from "../components/blackjack/BlackjackLobbyBackdrop";
 import { getAuthItem } from "../utils/authStorage";
@@ -63,6 +64,7 @@ export function Blackjack() {
           return;
         }
         const { gameId } = (await start.json()) as { gameId: string };
+        trackEvent("play_blackjack");
         navigate(`/blackjack/table/${gameId}`, { replace: true });
       } catch {
         const msg = t("bjMulti.soloRoomFailed");

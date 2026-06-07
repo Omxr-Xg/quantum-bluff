@@ -34,6 +34,7 @@ import { Shop } from "./pages/Shop";
 import { PlayerHistory } from "./pages/PlayerHistory";
 import { Notifications } from "./pages/Notifications";
 import { Register } from "./pages/Register";
+import { OAuthSuccessPage } from "./pages/OAuthSuccessPage";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
 import { Layout } from "./components/Layout";
@@ -143,8 +144,13 @@ function App() {
             <Route path="/play-poker-online" element={<SeoGameLandingPage game="poker" />} />
             <Route path="/online-belote" element={<SeoGameLandingPage game="belote" />} />
             <Route path="/online-blackjack" element={<SeoGameLandingPage game="blackjack" />} />
+            <Route path="/online-roulette" element={<SeoGameLandingPage game="roulette" />} />
+            <Route path="/online-slots" element={<SeoGameLandingPage game="slots" />} />
+            <Route path="/online-crash-game" element={<SeoGameLandingPage game="crash" />} />
+            <Route path="/online-mines-game" element={<SeoGameLandingPage game="mines" />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/oauth-success" element={<OAuthSuccessPage />} />
             <Route path="/auth/admin" element={<AdminAuth />} />
 
             <Route path="/admin/console" element={<AdminProtectedRoute><AdminConsole /></AdminProtectedRoute>} />

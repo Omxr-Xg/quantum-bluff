@@ -9,6 +9,7 @@ import { fetchBalanceFromServer, updateUserBalance } from '../utils/userProfile'
 import { apiUrl } from '../utils/apiBase'
 import { getSocketIoUrlAndPath } from '../utils/socketConnect'
 import { getAuthItem } from '../utils/authStorage'
+import { trackEvent } from '../utils/analytics'
 
 export interface GameInvitationNotification {
   invitationId: string
@@ -144,6 +145,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     })
 
     socket.on('FRIEND_REQUEST_ACCEPTED', (_data: { username?: string }) => {
+      trackEvent('friend_added')
       if (window.location.pathname === '/friends') {
         window.dispatchEvent(new CustomEvent('refetch-friends'))
       }

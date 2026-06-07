@@ -4,8 +4,10 @@ import { useTranslation } from "react-i18next";
 import { Mail, Lock, User, Eye, EyeOff, Loader2, Check, X, Spade, Heart, Calendar } from "lucide-react";
 import { QuantumBluffLogo } from "../assets/logo";
 import { useRegisterMutation } from "../services/api";
+import { trackEvent } from "../utils/analytics";
 import { removeAuthItem, setAuthItem } from "../utils/authStorage";
 import { translateRegisterApiError, isoDateUtc } from "../utils/authRegisterErrors";
+import { AuthOAuthDivider, GoogleSignInButton } from "../components/GoogleSignInButton";
 
 const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
@@ -78,6 +80,11 @@ export function Register() {
 
     window.dispatchEvent(new Event('auth-changed'))
 
+    trackEvent('register')
+    if (referralCode) {
+      trackEvent('referral_applied')
+    }
+
     navigate("/lobby")
   } catch (err) {
     console.error("Erreur d'inscription:", err)
@@ -131,6 +138,9 @@ export function Register() {
             border: '1px solid transparent',
             boxShadow: '0 24px 80px rgba(2,6,23,0.48), 0 0 34px rgba(37,99,235,0.16), inset 0 1px 0 rgba(255,255,255,0.08)'
           }}>
+          <GoogleSignInButton />
+          <AuthOAuthDivider />
+
           <form onSubmit={handleSubmit} className="space-y-5">
             
             {/* Nom d'utilisateur */}

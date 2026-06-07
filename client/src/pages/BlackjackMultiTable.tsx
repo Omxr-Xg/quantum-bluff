@@ -6,6 +6,7 @@ import { useSocket } from "../hooks/useSocket";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
 import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
+import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
 import {
   updateUserBalance,
@@ -104,6 +105,7 @@ export function BlackjackMultiTable() {
   const lastOutcomeToastHandRef = useRef<number | null>(null);
   const roomIdRef = useRef<string | null>(null);
   const gameIdRef = useRef<string | undefined>(gameId);
+  const trackedBlackjackRef = useRef<string | null>(null);
   const isSpectatorRef = useRef(isSpectator);
   const socketRef = useRef(socket);
   useEffect(() => {
@@ -230,6 +232,10 @@ export function BlackjackMultiTable() {
     applyRuntimeCode(undefined);
     setState(data.state);
     setHostId(data.hostId);
+    if (gameId && !isSpectator && trackedBlackjackRef.current !== gameId && data.state) {
+      trackedBlackjackRef.current = gameId;
+      trackEvent("play_blackjack");
+    }
     if (typeof data.roomId === "string") {
       roomIdRef.current = data.roomId;
     } else if (data.state?.roomId) {

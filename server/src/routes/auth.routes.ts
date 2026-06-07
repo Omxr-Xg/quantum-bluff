@@ -527,6 +527,61 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 })
 
+/** Profil courant (login OAuth, refresh client). */
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        chips: true,
+        level: true,
+        experience: true,
+        lobbyTutorialCompletedAt: true,
+        avatarUrl: true,
+        avatarHasBinary: true,
+        playerStats: true,
+        authProvider: true,
+      },
+    })
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' })
+    }
+
+    const g = await getGamificationBundle(prisma, user.id)
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        chips: user.chips,
+        level: g?.level ?? user.level,
+        experience: g?.experience ?? user.experience,
+        xpToNext: g?.xpToNext ?? 0,
+        badges: g?.badges ?? [],
+        maxBetSlot: g?.maxBetSlot,
+        maxBetRouletteLine: g?.maxBetRouletteLine,
+        maxRouletteTotalStake: g?.maxRouletteTotalStake,
+        maxBetBlackjack: g?.maxBetBlackjack,
+        playerStats: user.playerStats,
+        lobbyTutorialCompleted: user.lobbyTutorialCompletedAt != null,
+        avatarUrl: clientAvatarUrlFromUser(user),
+        authProvider: user.authProvider,
+      },
+    })
+  } catch (error) {
+    console.error('[AUTH] me GET error:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 /** État du tutoriel lobby (par compte, stocké en base). */
 router.get('/lobby-tutorial-status', authMiddleware, async (req, res) => {
   try {

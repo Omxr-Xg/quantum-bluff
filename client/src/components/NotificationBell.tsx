@@ -11,6 +11,7 @@ import {
   useMarkNotificationReadMutation,
   type AppNotification,
 } from "../services/api";
+import { trackEvent } from "../utils/analytics";
 
 const NAV_BTN =
   "relative inline-flex aspect-square h-9 min-h-9 w-9 min-w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-slate-950/65 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_22px_rgba(0,0,0,0.24)] backdrop-blur-md transition hover:border-white/20 hover:bg-slate-800/80 hover:text-white md:h-11 md:min-h-11 md:w-11 md:min-w-11";
@@ -81,7 +82,13 @@ export function NotificationBell({ variant = "nav" }: NotificationBellProps) {
 
   useEffect(() => {
     if (!socket) return;
-    const onNew = () => {
+    const onNew = (payload?: { type?: string; payload?: { achievementId?: string } }) => {
+      if (payload?.type === "ACHIEVEMENT") {
+        const achievement = payload.payload?.achievementId;
+        if (achievement) {
+          trackEvent("achievement_unlocked", { achievement });
+        }
+      }
       void refetch();
     };
     socket.on("NOTIFICATION_NEW", onNew);

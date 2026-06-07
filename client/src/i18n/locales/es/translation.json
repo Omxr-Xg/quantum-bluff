@@ -917,6 +917,21 @@
     "resetPasswordSubmit": "Restablecer contraseña",
     "resetPasswordSuccess": "Contraseña actualizada. Inicia sesión con la nueva contraseña.",
     "backToLogin": "Volver al inicio de sesión",
+    "continueWithGoogle": "Continuar con Google",
+    "oauthOr": "o",
+    "oauthCompleting": "Iniciando sesión…",
+    "oauthError": {
+      "generic": "Error al iniciar sesión con Google. Inténtalo de nuevo.",
+      "google_denied": "Inicio de sesión con Google cancelado.",
+      "google_token": "No se pudo intercambiar el token de Google.",
+      "google_profile": "No se pudo cargar tu perfil de Google.",
+      "google_email": "Google debe proporcionar un correo verificado.",
+      "google_email_conflict": "Este correo ya está vinculado a otra cuenta de Google.",
+      "google_auth_failed": "Autenticación con Google fallida.",
+      "account_suspended": "Esta cuenta está suspendida.",
+      "missing_token": "Enlace de inicio de sesión incompleto.",
+      "profile_failed": "No se pudo cargar tu perfil."
+    },
     "noSecretQuestionLegacy": "Esta cuenta se creó antes de las preguntas secretas. Contacta con soporte para restablecer la contraseña.",
     "secretQuestions": {
       "q1": "¿Cómo se llamaba tu primer profesor de matemáticas?",
@@ -1024,6 +1039,28 @@
     "claiming": "Reclamando…",
     "claimButton": "Reclamar {{amount}} fichas"
   },
+  "publicSite": {
+    "nav": {
+      "discover": "Descubrir",
+      "news": "Noticias",
+      "about": "Acerca de",
+      "contact": "Contacto"
+    },
+    "footer": {
+      "privacy": "Privacidad",
+      "terms": "Términos",
+      "about": "Acerca de",
+      "contact": "Contacto"
+    },
+    "footerTagline": "Casino social — fichas virtuales, póker y Belote en línea.",
+    "login": "Iniciar sesión",
+    "ctaPlay": "Jugar ahora",
+    "ctaNews": "Leer noticias",
+    "lastUpdated": "Última actualización:",
+    "backToNews": "Volver a noticias",
+    "articleNotFound": "Artículo no encontrado",
+    "articleNotFoundBody": "Este artículo no existe o ha sido movido."
+  },
   "startScreen": {
     "tagline": "El póker reinventado",
     "init": "Inicializando...",
@@ -1034,6 +1071,8 @@
     "readyToPlay": "¡Listo para jugar!",
     "play": "Jugar",
     "startButton": "EMPEZAR",
+    "discoverButton": "Descubrir Quantum Bluff",
+    "footerNav": "Páginas del sitio",
     "serverOnline": "Servidor en línea"
   },
   "profile": {

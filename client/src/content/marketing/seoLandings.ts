@@ -1,9 +1,21 @@
 import type { FaqItem } from "./siteContent";
+import { resolveMarketingLocale } from "./resolveMarketingLocale";
 import pokerImg from "../../assets/games/poker.webp";
 import beloteImg from "../../assets/games/belote.webp";
 import blackjackImg from "../../assets/games/blackjack.webp";
+import rouletteImg from "../../assets/games/roulette.webp";
+import slotImg from "../../assets/games/slot.webp";
+import crashImg from "../../assets/games/crash.webp";
+import minesImg from "../../assets/games/mines.webp";
 
-export type SeoGameSlug = "poker" | "belote" | "blackjack";
+export type SeoGameSlug =
+  | "poker"
+  | "belote"
+  | "blackjack"
+  | "roulette"
+  | "slots"
+  | "crash"
+  | "mines";
 
 export type SeoLandingContent = {
   path: string;
@@ -179,6 +191,210 @@ const fr: SeoLandingsByLocale = {
     ctaTitle: "Tentez le 21",
     ctaBody: "Créez votre compte et lancez une partie de blackjack solo ou multijoueur en un clic.",
   },
+  roulette: {
+    path: "/online-roulette",
+    image: rouletteImg,
+    imageAlt: "Roulette européenne rétro sur Quantum Bluff",
+    metaTitle: "Roulette en ligne gratuite | Roulette européenne — Quantum Bluff",
+    metaDescription:
+      "Jouez à la roulette en ligne sur Quantum Bluff : roulette européenne, mises intérieures et extérieures, thème casino rétro et jetons virtuels. Gratuit, sans argent réel.",
+    heroTitle: "Roulette en ligne",
+    heroSubtitle:
+      "Roulette européenne au salon casino rétro — rouge, noir, pair, impair et pleins : chaque tirage est validé côté serveur avec des jetons virtuels.",
+    descriptionTitle: "Roulette social sur Quantum Bluff",
+    description: [
+      "Quantum Bluff propose une roulette européenne intégrée au hub casino rétro : ambiance vintage, animation fluide et retour instantané vers le lobby. Les mises intérieures (numéro plein, cheval, transversale) et extérieures (rouge/noir, pair/impair, douzaines) sont toutes disponibles.",
+      "Chaque spin est généré et validé côté serveur avant d'être affiché. Les gains en jetons virtuels sont crédités automatiquement sur votre portefeuille, avec historique des parties pour suivre vos sessions.",
+      "Un mode tutoriel guidé depuis le lobby vous aide à découvrir les types de paris. Idéal pour une pause rapide entre deux parties de poker ou de Belote, sans quitter l'univers Quantum Bluff.",
+    ],
+    rulesTitle: "Règles de la roulette sur Quantum Bluff",
+    rules: [
+      "La roulette européenne compte 37 cases : numéros 1 à 36 et un zéro (0).",
+      "Placez vos mises sur le tapis avant le lancement de la roue : numéro plein, cheval, transversale, carré, sixain, colonne, douzaine, rouge/noir, pair/impair, manque/passe.",
+      "Le croupier virtuel lance la bille ; le numéro gagnant est tiré côté serveur et affiché avec animation synchronisée.",
+      "Les gains dépendent du type de pari : un plein paie 35:1, rouge/noir et pair/impair paient 1:1, etc.",
+      "Les mises sont en jetons virtuels (pas de 10), avec limites min/max affichées à l'écran.",
+      "Aucune valeur monétaire réelle n'est en jeu : divertissement social uniquement.",
+    ],
+    faqTitle: "FAQ — Roulette en ligne sur Quantum Bluff",
+    faq: [
+      {
+        q: "Quel type de roulette est disponible ?",
+        a: "Roulette européenne à 37 cases (un seul zéro), dans le salon casino rétro du lobby.",
+      },
+      {
+        q: "La roulette est-elle gratuite ?",
+        a: "Oui. Vous jouez avec des jetons virtuels offerts à l'inscription et via les récompenses quotidiennes.",
+      },
+      {
+        q: "Les tirages sont-ils équitables ?",
+        a: "Oui. Chaque résultat est généré et validé côté serveur avant affichage, sans manipulation côté client.",
+      },
+      {
+        q: "Y a-t-il un tutoriel ?",
+        a: "Oui. Un mode tutoriel guidé est accessible depuis le lobby pour apprendre les types de paris pas à pas.",
+      },
+      {
+        q: "Puis-je jouer sur mobile ?",
+        a: "Oui. La roulette est responsive et optimisée pour le tactile sur navigateur et application mobile.",
+      },
+    ],
+    ctaTitle: "Faites tourner la roue",
+    ctaBody: "Créez votre compte gratuitement et lancez un spin à la roulette européenne.",
+  },
+  slots: {
+    path: "/online-slots",
+    image: slotImg,
+    imageAlt: "Machine à sous vintage sur Quantum Bluff",
+    metaTitle: "Machine à sous en ligne gratuite | Slots rétro — Quantum Bluff",
+    metaDescription:
+      "Jouez aux machines à sous en ligne sur Quantum Bluff : slot vintage, symboles classiques, tirages serveur et jetons virtuels. Casino social gratuit, sans argent réel.",
+    heroTitle: "Machine à sous en ligne",
+    heroSubtitle:
+      "Slot machine vintage au cœur du casino rétro — symboles néon, tirages validés serveur et sessions express entre deux parties de cartes.",
+    descriptionTitle: "Slots social sur Quantum Bluff",
+    description: [
+      "Quantum Bluff propose une machine à sous au style casino vintage : symboles classiques, effets lumineux et interface immersive dans le hub rétro. Chaque spin est validé côté serveur pour garantir des résultats équitables.",
+      "Les gains en jetons virtuels sont calculés automatiquement selon les combinaisons alignées. L'historique portefeuille trace chaque partie pour un suivi transparent de vos sessions.",
+      "Parfait pour une pause rapide : quelques spins entre deux mains de poker, sans quitter l'écosystème Quantum Bluff ni miser d'argent réel.",
+    ],
+    rulesTitle: "Comment jouer aux slots sur Quantum Bluff",
+    rules: [
+      "Choisissez votre mise en jetons virtuels (limites affichées à l'écran) puis lancez le spin.",
+      "Les rouleaux s'arrêtent sur une combinaison de symboles déterminée côté serveur.",
+      "Les alignements gagnants (lignes, paires, symboles bonus) déclenchent des gains selon le tableau des payouts.",
+      "Les jetons gagnés sont crédités instantanément sur votre portefeuille virtuel.",
+      "Aucun dépôt ni retrait d'argent réel : monnaie interne uniquement.",
+      "Le jeu est accessible depuis le hub casino rétro du lobby après connexion.",
+    ],
+    faqTitle: "FAQ — Machine à sous sur Quantum Bluff",
+    faq: [
+      {
+        q: "Les slots sont-ils gratuits ?",
+        a: "Oui. Vous jouez avec des jetons virtuels sans valeur monétaire, obtenus à l'inscription et via les récompenses quotidiennes.",
+      },
+      {
+        q: "Les résultats sont-ils truqués ?",
+        a: "Non. Chaque tirage est généré et validé côté serveur avant d'être affiché au client.",
+      },
+      {
+        q: "Quel style de machine à sous ?",
+        a: "Une slot vintage au thème casino rétro, avec symboles classiques et effets néon, intégrée au salon Quantum Bluff.",
+      },
+      {
+        q: "Puis-je jouer sur mobile ?",
+        a: "Oui. L'interface est responsive et optimisée pour le tactile sur navigateur et application.",
+      },
+      {
+        q: "Quantum Bluff est-il un casino réglementé ?",
+        a: "Non. C'est une plateforme de divertissement social. Aucun gain d'argent réel n'est possible.",
+      },
+    ],
+    ctaTitle: "Tentez votre chance",
+    ctaBody: "Inscrivez-vous et lancez vos premiers spins sur la machine à sous vintage.",
+  },
+  crash: {
+    path: "/online-crash-game",
+    image: crashImg,
+    imageAlt: "Jeu Crash multijoueur sur Quantum Bluff",
+    metaTitle: "Crash game en ligne gratuit | Multiplicateur — Quantum Bluff",
+    metaDescription:
+      "Jouez au Crash en ligne sur Quantum Bluff : multiplicateur en temps réel, cash out, rounds serveur et jetons virtuels. Mini-jeu social gratuit, sans argent réel.",
+    heroTitle: "Crash game en ligne",
+    heroSubtitle:
+      "Montez le multiplicateur et encaissez avant le crash — chaque round est validé côté serveur avec animation temps réel synchronisée.",
+    descriptionTitle: "Crash social sur Quantum Bluff",
+    description: [
+      "Le Crash est un mini-jeu solo où un multiplicateur grimpe en continu jusqu'à un point de crash imprévisible. Placez votre mise, suivez la courbe et encaissez (cash out) avant que le multiplicateur ne s'effondre.",
+      "Chaque round est entièrement géré côté serveur : point de crash, timing et payouts calculés avant affichage. Les mises vont de 10 à 500 jetons virtuels, avec historique portefeuille pour chaque session.",
+      "Intégré au hub Quick Solo du lobby, le Crash offre des sessions express entre deux parties de cartes — fun, rapide et sans argent réel.",
+    ],
+    rulesTitle: "Règles du Crash sur Quantum Bluff",
+    rules: [
+      "Placez une mise en jetons virtuels (10 à 500, pas de 10) avant le début du round.",
+      "Le multiplicateur démarre à 1,00× et monte progressivement.",
+      "Cliquez sur Cash Out pour encaisser : gain = mise × multiplicateur au moment du cash out.",
+      "Si le multiplicateur crash avant votre cash out, vous perdez la mise du round.",
+      "Le point de crash est déterminé côté serveur avant le début du round — le client affiche uniquement le résultat.",
+      "Un historique des rounds récents est visible pour analyser vos sessions.",
+    ],
+    faqTitle: "FAQ — Crash game sur Quantum Bluff",
+    faq: [
+      {
+        q: "Comment fonctionne le Crash ?",
+        a: "Un multiplicateur monte jusqu'à un crash aléatoire. Encaissez avant le crash pour gagner mise × multiplicateur.",
+      },
+      {
+        q: "Le jeu est-il gratuit ?",
+        a: "Oui. Vous misez des jetons virtuels sans valeur monétaire.",
+      },
+      {
+        q: "Le crash est-il manipulable ?",
+        a: "Non. Le point de crash est calculé côté serveur avant le round et ne peut pas être modifié par le client.",
+      },
+      {
+        q: "Quelle est la mise minimale ?",
+        a: "10 jetons virtuels, par pas de 10, jusqu'à 500 jetons maximum par round.",
+      },
+      {
+        q: "Où accéder au Crash ?",
+        a: "Depuis le hub Quick Solo du lobby, après connexion à votre compte Quantum Bluff.",
+      },
+    ],
+    ctaTitle: "Visez le cash out",
+    ctaBody: "Créez votre compte et testez le Crash — encaissez au bon moment avant l'effondrement.",
+  },
+  mines: {
+    path: "/online-mines-game",
+    image: minesImg,
+    imageAlt: "Jeu Mines sur Quantum Bluff",
+    metaTitle: "Mines game en ligne gratuit | Grille risque/récompense — Quantum Bluff",
+    metaDescription:
+      "Jouez à Mines en ligne sur Quantum Bluff : grille risque/récompense, révélez les cases, évitez les mines et jetons virtuels. Mini-jeu social gratuit, sans argent réel.",
+    heroTitle: "Mines game en ligne",
+    heroSubtitle:
+      "Révélez les cases une par une sans toucher une mine — chaque case sûre fait grimper votre gain jusqu'au cash out.",
+    descriptionTitle: "Mines social sur Quantum Bluff",
+    description: [
+      "Mines est un mini-jeu de grille où vous choisissez le nombre de mines cachées, placez votre mise et révélez des cases une par une. Chaque case sûre augmente le multiplicateur ; touchez une mine et vous perdez la mise.",
+      "Le placement des mines et les payouts sont entièrement calculés côté serveur. Le client illustre l'état de la grille et les gains potentiels, sans influencer le résultat.",
+      "Accessible depuis le hub Quick Solo, Mines complète l'offre casino express de Quantum Bluff — sessions courtes, stratégie risque/récompense et jetons virtuels uniquement.",
+    ],
+    rulesTitle: "Règles du Mines sur Quantum Bluff",
+    rules: [
+      "Choisissez le nombre de mines sur la grille (plus de mines = multiplicateur plus élevé mais risque accru).",
+      "Placez votre mise en jetons virtuels (10 à 500, pas de 10).",
+      "Révélez les cases une par une : chaque gemme sûre augmente le gain potentiel.",
+      "Cash Out à tout moment pour encaisser le multiplicateur actuel.",
+      "Si vous révélez une mine, le round est perdu et la mise est déduite.",
+      "Le placement des mines est tiré côté serveur au début du round — équitable et non manipulable.",
+    ],
+    faqTitle: "FAQ — Mines game sur Quantum Bluff",
+    faq: [
+      {
+        q: "Comment gagner au Mines ?",
+        a: "Révélez un maximum de cases sûres puis encaissez (Cash Out) avant de toucher une mine.",
+      },
+      {
+        q: "Le jeu est-il gratuit ?",
+        a: "Oui. Mises en jetons virtuels sans valeur monétaire réelle.",
+      },
+      {
+        q: "Les mines sont-elles truquées ?",
+        a: "Non. Le placement est généré côté serveur au début de chaque round.",
+      },
+      {
+        q: "Puis-je choisir le nombre de mines ?",
+        a: "Oui. Plus il y a de mines, plus le multiplicateur potentiel est élevé — mais le risque augmente aussi.",
+      },
+      {
+        q: "Mines fonctionne-t-il sur mobile ?",
+        a: "Oui. La grille est responsive et optimisée pour le tactile.",
+      },
+    ],
+    ctaTitle: "Évitez les mines",
+    ctaBody: "Inscrivez-vous et lancez votre première grille Mines depuis le lobby.",
+  },
 };
 
 const en: SeoLandingsByLocale = {
@@ -335,9 +551,213 @@ const en: SeoLandingsByLocale = {
     ctaTitle: "Go for 21",
     ctaBody: "Create your account and start a solo or multiplayer blackjack game in one click.",
   },
+  roulette: {
+    path: "/online-roulette",
+    image: rouletteImg,
+    imageAlt: "Retro European roulette on Quantum Bluff",
+    metaTitle: "Play Roulette Online Free | European Roulette — Quantum Bluff",
+    metaDescription:
+      "Play roulette online on Quantum Bluff: European roulette, inside and outside bets, retro casino theme and virtual chips. Free social gaming, no real money.",
+    heroTitle: "Roulette online",
+    heroSubtitle:
+      "European roulette in the retro casino lounge — red, black, odd, even and straight bets: every spin is server-validated with virtual chips.",
+    descriptionTitle: "Social roulette on Quantum Bluff",
+    description: [
+      "Quantum Bluff offers European roulette in the retro casino hub: vintage atmosphere, smooth animation and instant return to the lobby. Inside bets (straight, split, street) and outside bets (red/black, odd/even, dozens) are all available.",
+      "Every spin is generated and validated server-side before display. Virtual chip winnings are credited automatically to your wallet, with game history to track your sessions.",
+      "A guided tutorial from the lobby helps you learn bet types. Perfect for a quick break between poker or Belote games without leaving the Quantum Bluff universe.",
+    ],
+    rulesTitle: "Roulette rules on Quantum Bluff",
+    rules: [
+      "European roulette has 37 pockets: numbers 1–36 and a single zero (0).",
+      "Place bets on the layout before the wheel spins: straight, split, street, corner, six-line, column, dozen, red/black, odd/even, low/high.",
+      "The virtual dealer launches the ball; the winning number is drawn server-side and shown with synchronized animation.",
+      "Payouts depend on bet type: straight pays 35:1, red/black and odd/even pay 1:1, etc.",
+      "Bets use virtual chips (in steps of 10) with min/max limits shown on screen.",
+      "No real money is involved — social entertainment only.",
+    ],
+    faqTitle: "FAQ — Online roulette on Quantum Bluff",
+    faq: [
+      {
+        q: "What type of roulette is available?",
+        a: "European roulette with 37 pockets (single zero), in the lobby retro casino lounge.",
+      },
+      {
+        q: "Is roulette free?",
+        a: "Yes. You play with virtual chips granted at signup and through daily rewards.",
+      },
+      {
+        q: "Are spins fair?",
+        a: "Yes. Every result is generated and validated server-side before display — no client-side manipulation.",
+      },
+      {
+        q: "Is there a tutorial?",
+        a: "Yes. A guided tutorial is available from the lobby to learn bet types step by step.",
+      },
+      {
+        q: "Can I play on mobile?",
+        a: "Yes. Roulette is responsive and touch-optimized on browser and mobile app.",
+      },
+    ],
+    ctaTitle: "Spin the wheel",
+    ctaBody: "Create your free account and launch a European roulette spin.",
+  },
+  slots: {
+    path: "/online-slots",
+    image: slotImg,
+    imageAlt: "Vintage slot machine on Quantum Bluff",
+    metaTitle: "Play Slots Online Free | Retro Slot Machine — Quantum Bluff",
+    metaDescription:
+      "Play slots online on Quantum Bluff: vintage slot machine, classic symbols, server-validated spins and virtual chips. Free social casino, no real money.",
+    heroTitle: "Online slots",
+    heroSubtitle:
+      "Vintage slot machine at the heart of the retro casino — neon symbols, server-validated spins and quick sessions between card games.",
+    descriptionTitle: "Social slots on Quantum Bluff",
+    description: [
+      "Quantum Bluff features a vintage-style slot machine: classic symbols, light effects and an immersive interface in the retro hub. Every spin is server-validated for fair outcomes.",
+      "Virtual chip winnings are calculated automatically based on aligned combinations. Wallet history tracks every game for transparent session monitoring.",
+      "Perfect for a quick break: a few spins between poker hands without leaving the Quantum Bluff ecosystem or wagering real money.",
+    ],
+    rulesTitle: "How to play slots on Quantum Bluff",
+    rules: [
+      "Choose your virtual chip bet (limits shown on screen) then launch the spin.",
+      "Reels stop on a symbol combination determined server-side.",
+      "Winning alignments (lines, pairs, bonus symbols) trigger payouts per the paytable.",
+      "Won chips are credited instantly to your virtual wallet.",
+      "No real-money deposits or withdrawals — internal currency only.",
+      "Access from the retro casino hub in the lobby after signing in.",
+    ],
+    faqTitle: "FAQ — Slot machine on Quantum Bluff",
+    faq: [
+      {
+        q: "Are slots free?",
+        a: "Yes. You play with virtual chips with no monetary value, earned at signup and through daily rewards.",
+      },
+      {
+        q: "Are results rigged?",
+        a: "No. Every spin is generated and validated server-side before display.",
+      },
+      {
+        q: "What style of slot machine?",
+        a: "A vintage retro casino slot with classic symbols and neon effects, integrated into the Quantum Bluff lounge.",
+      },
+      {
+        q: "Can I play on mobile?",
+        a: "Yes. The interface is responsive and touch-optimized on browser and app.",
+      },
+      {
+        q: "Is Quantum Bluff a regulated casino?",
+        a: "No. It is a social entertainment platform. No real-money prizes are possible.",
+      },
+    ],
+    ctaTitle: "Try your luck",
+    ctaBody: "Sign up and launch your first spins on the vintage slot machine.",
+  },
+  crash: {
+    path: "/online-crash-game",
+    image: crashImg,
+    imageAlt: "Crash game on Quantum Bluff",
+    metaTitle: "Play Crash Game Online Free | Multiplier — Quantum Bluff",
+    metaDescription:
+      "Play Crash online on Quantum Bluff: real-time multiplier, cash out, server rounds and virtual chips. Free social mini-game, no real money.",
+    heroTitle: "Crash game online",
+    heroSubtitle:
+      "Ride the multiplier and cash out before the crash — every round is server-validated with real-time synchronized animation.",
+    descriptionTitle: "Social Crash on Quantum Bluff",
+    description: [
+      "Crash is a solo mini-game where a multiplier climbs continuously until an unpredictable crash point. Place your bet, watch the curve and cash out before the multiplier collapses.",
+      "Every round is fully server-managed: crash point, timing and payouts calculated before display. Bets range from 10 to 500 virtual chips, with wallet history for each session.",
+      "Integrated into the Quick Solo hub in the lobby, Crash offers express sessions between card games — fun, fast and no real money.",
+    ],
+    rulesTitle: "Crash rules on Quantum Bluff",
+    rules: [
+      "Place a virtual chip bet (10–500, in steps of 10) before the round starts.",
+      "The multiplier starts at 1.00× and rises steadily.",
+      "Click Cash Out to collect: winnings = bet × multiplier at cash-out moment.",
+      "If the multiplier crashes before you cash out, you lose the round bet.",
+      "The crash point is determined server-side before the round starts — the client only displays the result.",
+      "A history of recent rounds is visible to analyze your sessions.",
+    ],
+    faqTitle: "FAQ — Crash game on Quantum Bluff",
+    faq: [
+      {
+        q: "How does Crash work?",
+        a: "A multiplier rises until a random crash. Cash out before the crash to win bet × multiplier.",
+      },
+      {
+        q: "Is the game free?",
+        a: "Yes. You bet virtual chips with no monetary value.",
+      },
+      {
+        q: "Can the crash be manipulated?",
+        a: "No. The crash point is calculated server-side before the round and cannot be changed by the client.",
+      },
+      {
+        q: "What is the minimum bet?",
+        a: "10 virtual chips, in steps of 10, up to 500 chips maximum per round.",
+      },
+      {
+        q: "Where do I access Crash?",
+        a: "From the Quick Solo hub in the lobby, after signing into your Quantum Bluff account.",
+      },
+    ],
+    ctaTitle: "Aim for cash out",
+    ctaBody: "Create your account and try Crash — cash out at the right moment before the drop.",
+  },
+  mines: {
+    path: "/online-mines-game",
+    image: minesImg,
+    imageAlt: "Mines game on Quantum Bluff",
+    metaTitle: "Play Mines Game Online Free | Risk/Reward Grid — Quantum Bluff",
+    metaDescription:
+      "Play Mines online on Quantum Bluff: risk/reward grid, reveal tiles, avoid mines and virtual chips. Free social mini-game, no real money.",
+    heroTitle: "Mines game online",
+    heroSubtitle:
+      "Reveal tiles one by one without hitting a mine — each safe tile increases your winnings until you cash out.",
+    descriptionTitle: "Social Mines on Quantum Bluff",
+    description: [
+      "Mines is a grid mini-game where you choose the number of hidden mines, place your bet and reveal tiles one by one. Each safe tile raises the multiplier; hit a mine and you lose the bet.",
+      "Mine placement and payouts are fully calculated server-side. The client shows grid state and potential winnings without influencing the outcome.",
+      "Available from the Quick Solo hub, Mines completes Quantum Bluff's express casino offer — short sessions, risk/reward strategy and virtual chips only.",
+    ],
+    rulesTitle: "Mines rules on Quantum Bluff",
+    rules: [
+      "Choose the number of mines on the grid (more mines = higher multiplier but greater risk).",
+      "Place your virtual chip bet (10–500, in steps of 10).",
+      "Reveal tiles one by one: each safe gem increases potential winnings.",
+      "Cash Out anytime to collect the current multiplier.",
+      "If you reveal a mine, the round is lost and the bet is deducted.",
+      "Mine placement is drawn server-side at round start — fair and non-manipulable.",
+    ],
+    faqTitle: "FAQ — Mines game on Quantum Bluff",
+    faq: [
+      {
+        q: "How do I win at Mines?",
+        a: "Reveal as many safe tiles as possible then cash out before hitting a mine.",
+      },
+      {
+        q: "Is the game free?",
+        a: "Yes. Bets use virtual chips with no real monetary value.",
+      },
+      {
+        q: "Are mines rigged?",
+        a: "No. Placement is generated server-side at the start of each round.",
+      },
+      {
+        q: "Can I choose the number of mines?",
+        a: "Yes. More mines mean higher potential multipliers — but risk increases too.",
+      },
+      {
+        q: "Does Mines work on mobile?",
+        a: "Yes. The grid is responsive and touch-optimized.",
+      },
+    ],
+    ctaTitle: "Avoid the mines",
+    ctaBody: "Sign up and launch your first Mines grid from the lobby.",
+  },
 };
 
 export function getSeoLanding(slug: SeoGameSlug, locale: string): SeoLandingContent {
-  const pack = locale.startsWith("fr") ? fr : en;
+  const pack = resolveMarketingLocale(locale) === "fr" ? fr : en;
   return pack[slug];
 }

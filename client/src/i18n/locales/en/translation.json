@@ -1198,6 +1198,21 @@
     "resetPasswordSubmit": "Reset password",
     "resetPasswordSuccess": "Password updated. Sign in with your new password.",
     "backToLogin": "Back to sign in",
+    "continueWithGoogle": "Continue with Google",
+    "oauthOr": "or",
+    "oauthCompleting": "Signing you in…",
+    "oauthError": {
+      "generic": "Google sign-in failed. Please try again.",
+      "google_denied": "Google sign-in was cancelled.",
+      "google_token": "Could not exchange the Google token.",
+      "google_profile": "Could not load your Google profile.",
+      "google_email": "Google must provide a verified email address.",
+      "google_email_conflict": "This email is already linked to another Google account.",
+      "google_auth_failed": "Google authentication failed.",
+      "account_suspended": "This account is suspended.",
+      "missing_token": "Incomplete sign-in link.",
+      "profile_failed": "Could not load your profile."
+    },
     "noSecretQuestionLegacy": "This account was created before secret questions. Contact support to reset your password.",
     "secretQuestions": {
       "q1": "What was your first math teacher’s name?",

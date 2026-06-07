@@ -1197,6 +1197,21 @@
     "resetPasswordSubmit": "Réinitialiser le mot de passe",
     "resetPasswordSuccess": "Mot de passe modifié. Connectez-vous avec le nouveau mot de passe.",
     "backToLogin": "Retour à la connexion",
+    "continueWithGoogle": "Continuer avec Google",
+    "oauthOr": "ou",
+    "oauthCompleting": "Connexion en cours…",
+    "oauthError": {
+      "generic": "La connexion Google a échoué. Réessayez.",
+      "google_denied": "Connexion Google annulée.",
+      "google_token": "Échange de jeton Google impossible.",
+      "google_profile": "Impossible de récupérer votre profil Google.",
+      "google_email": "Google doit fournir une adresse e-mail vérifiée.",
+      "google_email_conflict": "Cet e-mail est déjà lié à un autre compte Google.",
+      "google_auth_failed": "Authentification Google impossible.",
+      "account_suspended": "Ce compte est suspendu.",
+      "missing_token": "Lien de connexion incomplet.",
+      "profile_failed": "Impossible de charger votre profil."
+    },
     "noSecretQuestionLegacy": "Ce compte a été créé avant la question secrète. Contactez le support pour réinitialiser le mot de passe.",
     "secretQuestions": {
       "q1": "Quel était le nom de ton premier professeur de maths ?",
