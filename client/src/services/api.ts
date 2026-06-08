@@ -1,8 +1,9 @@
 import { createApi, fetchBaseQuery, retry } from '@reduxjs/toolkit/query/react'
 import { getApiBaseUrl } from '../utils/apiBase'
 import { getAuthItem } from '../utils/authStorage'
+import type { PublicPlayerCosmetics } from '../utils/publicCosmetics'
 
-
+export type { PublicPlayerCosmetics }
 
 export interface FriendProfile {
   id: string
@@ -11,6 +12,7 @@ export interface FriendProfile {
   avatarUrl?: string | null
   isOnline: boolean
   friendshipCreatedAt: string
+  cosmetics?: PublicPlayerCosmetics
   stats: {
     totalWins: number
     totalGames: number
@@ -37,6 +39,7 @@ interface User {
     totalWins: number
     totalGames: number
   } | null
+  cosmetics?: PublicPlayerCosmetics
 }
 
 export interface PlayerStats {

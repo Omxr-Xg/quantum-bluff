@@ -7,6 +7,7 @@ import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service
 import { createPokerCashLedgerContext } from '../poker/cash/pokerCashLedger.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js';
+import { resolvePublicCosmetics } from '../shop/publicCosmetics.js';
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js';
 import sanitizeHtml from 'sanitize-html';
 import rateLimit from 'express-rate-limit';
@@ -143,6 +144,9 @@ const formatWaitingRoomPayload = (room: {
       level: number
       avatarUrl?: string | null
       avatarHasBinary?: boolean
+      equippedBannerId?: string | null
+      equippedFrameId?: string | null
+      equippedTitleId?: string | null
     }
   }>
 }) => ({
@@ -153,31 +157,51 @@ const formatWaitingRoomPayload = (room: {
   visibility: room.visibility,
   status: room.status,
   turbo: room.turbo ?? false,
-  players: room.players.map((p) => ({
+  players: room.players.map((p) => mapWaitingRoomPlayer(p)),
+})
+
+function mapWaitingRoomPlayer(p: {
+  isReady: boolean
+  position: number
+  avatarUrl?: string | null
+  user: {
+    id: string
+    username: string
+    level: number
+    avatarUrl?: string | null
+    avatarHasBinary?: boolean
+    equippedBannerId?: string | null
+    equippedFrameId?: string | null
+    equippedTitleId?: string | null
+  }
+}) {
+  return {
     id: p.user.id,
     username: p.user.username,
     level: p.user.level,
     isReady: p.isReady,
     position: p.position,
-    // Fallback : si le snapshot RoomPlayer.avatarUrl est vide (preset bundlé rejeté
-    // par sanitizePublicAvatarUrl, join sans avatar côté client, ancienne salle…),
-    // on retombe sur l'avatar persistant du profil pour rester cohérent avec
-    // ce qui est affiché sur la page Amis.
     avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user),
-  })),
-})
+    cosmetics: resolvePublicCosmetics(p.user),
+  }
+}
+
+const waitingRoomUserSelect = {
+  id: true,
+  username: true,
+  level: true,
+  avatarUrl: true,
+  avatarHasBinary: true,
+  equippedBannerId: true,
+  equippedFrameId: true,
+  equippedTitleId: true,
+} as const
 
 const waitingRoomPlayersInclude = {
   players: {
     include: {
       user: {
-        select: {
-          id: true,
-          username: true,
-          level: true,
-          avatarUrl: true,
-          avatarHasBinary: true,
-        },
+        select: waitingRoomUserSelect,
       },
     },
   },
@@ -237,13 +261,7 @@ router.get('/', waitingRoomListLimiter, authMiddleware, async (req, res) => {
         players: {
           include: {
             user: {
-              select: {
-                id: true,
-                username: true,
-                level: true,
-                avatarUrl: true,
-                avatarHasBinary: true,
-              }
+              select: waitingRoomUserSelect,
             }
           }
         }
@@ -305,14 +323,7 @@ router.get('/', waitingRoomListLimiter, authMiddleware, async (req, res) => {
         turbo: room.turbo,
         players: room.players
           .filter((p): p is typeof p & { user: NonNullable<typeof p.user> } => p.user != null)
-          .map(p => ({
-          id: p.user.id,
-          username: p.user.username,
-          level: p.user.level,
-          isReady: p.isReady,
-          position: p.position,
-          avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user),
-        })),
+          .map((p) => mapWaitingRoomPlayer(p)),
         playerCount: room.players.length,
         minBalance: room.minBalance ?? null,
         smallBlind: room.smallBlind ?? null,
@@ -499,13 +510,7 @@ router.post('/create', waitingRoomCreateLimiter, authMiddleware, async (req, res
         players: {
           include: {
             user: {
-              select: {
-                id: true,
-                username: true,
-                level: true,
-                avatarUrl: true,
-                avatarHasBinary: true,
-              }
+              select: waitingRoomUserSelect,
             }
           }
         }
@@ -520,14 +525,7 @@ router.post('/create', waitingRoomCreateLimiter, authMiddleware, async (req, res
       visibility: room.visibility,
       status: room.status,
       turbo: room.turbo,
-      players: room.players.map(p => ({
-        id: p.user.id,
-        username: p.user.username,
-        level: p.user.level,
-        isReady: p.isReady,
-        position: p.position,
-        avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user)
-      }))
+      players: room.players.map((p) => mapWaitingRoomPlayer(p)),
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -611,13 +609,7 @@ router.get('/:roomId', waitingRoomListLimiter, authMiddleware, async (req, res) 
         players: {
           include: {
             user: {
-              select: {
-                id: true,
-                username: true,
-                level: true,
-                avatarUrl: true,
-                avatarHasBinary: true,
-              }
+              select: waitingRoomUserSelect,
             }
           }
         }
@@ -656,14 +648,7 @@ router.get('/:roomId', waitingRoomListLimiter, authMiddleware, async (req, res) 
       bigBlind: room.bigBlind ?? null,
       blockedPlayers: await getBlockedPlayersForViewer(viewerId, room.players),
       presentUserIds: getWaitingRoomPresentUserIds(io, roomId),
-      players: room.players.map(p => ({
-        id: p.user.id,
-        username: p.user.username,
-        level: p.user.level,
-        isReady: p.isReady,
-        position: p.position,
-        avatarUrl: p.avatarUrl ?? clientAvatarUrlFromUser(p.user)
-      }))
+      players: room.players.map((p) => mapWaitingRoomPlayer(p)),
     });
   } catch (error) {
     console.error('Erreur récupération salle:', error);

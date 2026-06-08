@@ -1,5 +1,8 @@
 import express from 'express'
 import { authMiddleware } from '../middleware/auth.middleware.js'
+import { prisma } from '../config/database.js'
+import { emitWaitingRoomUpdated } from '../routes/waitingRoom.routes.js'
+import { getGameIo } from '../sockets/gameIo.registry.js'
 import {
   getUserLoadout,
   isShopError,
@@ -48,6 +51,16 @@ router.patch('/loadout', async (req, res) => {
       frameId: body.frameId ?? body.equippedFrameId,
       titleId: body.titleId ?? body.equippedTitleId,
     })
+    const memberships = await prisma.roomPlayer.findMany({
+      where: { userId },
+      select: { roomId: true, room: { select: { status: true } } },
+    })
+    const io = getGameIo()
+    for (const membership of memberships) {
+      if (membership.room.status === 'WAITING') {
+        void emitWaitingRoomUpdated(membership.roomId, io).catch(() => {})
+      }
+    }
     return res.json(loadout)
   } catch (err) {
     if (isShopError(err)) {

@@ -15,6 +15,7 @@ import {
   isChatContentEffectivelyEmpty,
 } from '../utils/chatLinkCensor.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
+import { resolvePublicCosmetics } from '../shop/publicCosmetics.js'
 
 const router = express.Router()
 
@@ -942,6 +943,9 @@ router.get('/profile/:friendId', async (req, res) => {
         level: true,
         avatarUrl: true,
         avatarHasBinary: true,
+        equippedBannerId: true,
+        equippedFrameId: true,
+        equippedTitleId: true,
         playerStats: {
           select: { totalWins: true, totalGames: true },
         },
@@ -959,6 +963,7 @@ router.get('/profile/:friendId', async (req, res) => {
       username: friend.username,
       level: friend.level,
       avatarUrl: clientAvatarUrlFromUser(friend),
+      cosmetics: resolvePublicCosmetics(friend),
       isOnline: await isUserOnline(friend.id),
       friendshipCreatedAt: friendship.createdAt,
       stats: {
@@ -994,6 +999,9 @@ router.get('/:userId', async (req, res) => {
             level: true,
             avatarUrl: true,
             avatarHasBinary: true,
+            equippedBannerId: true,
+            equippedFrameId: true,
+            equippedTitleId: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -1009,6 +1017,9 @@ router.get('/:userId', async (req, res) => {
             level: true,
             avatarUrl: true,
             avatarHasBinary: true,
+            equippedBannerId: true,
+            equippedFrameId: true,
+            equippedTitleId: true,
             playerStats: {
               select: {
                 totalWins: true,
@@ -1064,6 +1075,7 @@ router.get('/:userId', async (req, res) => {
         return {
           ...friend,
           avatarUrl: clientAvatarUrlFromUser(friend),
+          cosmetics: resolvePublicCosmetics(friend),
           friendshipCreatedAt: friendship.createdAt,
           isOnline: presence?.online ?? false,
           lastSeenAt:

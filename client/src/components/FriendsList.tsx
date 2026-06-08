@@ -16,6 +16,7 @@ import {
 import { getPlayerAvatar } from "../utils/avatars";
 import { formatFriendLastSeen } from "../utils/formatLastSeen";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { CosmeticAvatar, CosmeticBannerCard, CosmeticTitle } from "./PlayerCosmetics";
 
 type SearchUser = {
   id: string;
@@ -276,71 +277,78 @@ export function FriendsList() {
                 ? formatFriendLastSeen(friend.lastSeenAt, t)
                 : null
               return (
-              <div
+              <CosmeticBannerCard
                 key={friend.id}
-                className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-md ${
+                cosmetics={friend.cosmetics}
+                bannerHeightClass="min-h-0"
+                className={`${
                   friend.isOnline
-                    ? "border-emerald-400/30 bg-emerald-950/25 shadow-[inset_0_1px_0_rgba(52,211,153,0.12)]"
-                    : "border-white/10 bg-white/[0.045]"
+                    ? "border-emerald-400/30 shadow-[inset_0_1px_0_rgba(52,211,153,0.12)]"
+                    : ""
                 }`}
               >
-                <div className="flex shrink-0 flex-col items-center gap-0.5">
-                  <div className="relative h-10 w-10">
-                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                      {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
-                        <ImageWithFallback
-                          src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
-                          alt=""
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-sm font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
-                      )}
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <div className="flex shrink-0 flex-col items-center gap-0.5">
+                    <div className="relative h-10 w-10">
+                      <CosmeticAvatar cosmetics={friend.cosmetics} sizeClass="h-10 w-10">
+                        <div className="flex h-full w-full items-center justify-center bg-blue-950/60">
+                          {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
+                            <ImageWithFallback
+                              src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-sm font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
+                          )}
+                        </div>
+                      </CosmeticAvatar>
+                      <span
+                        className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${
+                          friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
+                        }`}
+                        aria-label={friend.isOnline ? t("friends.online") : t("friends.offline")}
+                      />
                     </div>
-                    <span
-                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${
-                        friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
-                      }`}
-                      aria-label={friend.isOnline ? t("friends.online") : t("friends.offline")}
-                    />
+                    {lastSeenLabel ? (
+                      <span
+                        className="max-w-[5.25rem] truncate text-center text-[9px] leading-tight text-slate-500"
+                        title={lastSeenLabel}
+                      >
+                        {lastSeenLabel}
+                      </span>
+                    ) : null}
                   </div>
-                  {lastSeenLabel ? (
-                    <span
-                      className="max-w-[5.25rem] truncate text-center text-[9px] leading-tight text-slate-500"
-                      title={lastSeenLabel}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-white">{friend.username}</p>
+                    <CosmeticTitle cosmetics={friend.cosmetics} className="text-[10px] font-semibold" />
+                    <p className="truncate text-xs italic text-gray-400">{friend.currentActivity || "Salon poker"}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(event) => handleCallFriend(event, friend)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-300/15 bg-emerald-950/70 text-emerald-100 transition hover:border-emerald-200/30 hover:bg-emerald-900/80"
+                      aria-label={t("voice.callFriend")}
+                      title={t("voice.callFriend")}
                     >
-                      {lastSeenLabel}
-                    </span>
-                  ) : null}
+                      <Phone className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openFriendChat(friend.id);
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-300/15 bg-blue-950/70 text-blue-100 transition hover:border-blue-200/30 hover:bg-blue-900/80"
+                      aria-label={t("friends.message", { defaultValue: "Message" })}
+                      title={t("friends.message", { defaultValue: "Message" })}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-white">{friend.username}</p>
-                  <p className="truncate text-xs italic text-gray-400">{friend.currentActivity || "Salon poker"}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={(event) => handleCallFriend(event, friend)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-300/15 bg-emerald-950/70 text-emerald-100 transition hover:border-emerald-200/30 hover:bg-emerald-900/80"
-                    aria-label={t("voice.callFriend")}
-                    title={t("voice.callFriend")}
-                  >
-                    <Phone className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openFriendChat(friend.id);
-                    }}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-300/15 bg-blue-950/70 text-blue-100 transition hover:border-blue-200/30 hover:bg-blue-900/80"
-                    aria-label={t("friends.message", { defaultValue: "Message" })}
-                    title={t("friends.message", { defaultValue: "Message" })}
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+              </CosmeticBannerCard>
             )})}
           </div>
         ) : (

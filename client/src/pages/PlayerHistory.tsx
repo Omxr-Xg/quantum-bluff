@@ -13,14 +13,17 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
 } from "../components/ui/chart";
 
-const profileGlassCard =
-  "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
-const profileMutedButton =
-  "rounded-full border border-white/10 bg-white/[0.055] font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/[0.08]";
+const historyCard =
+  "rounded-2xl border border-slate-700/70 bg-slate-900/95 shadow-md";
+const tabActive =
+  "border border-sky-400/50 bg-sky-950/80 text-sky-50 shadow-sm";
+const tabInactive =
+  "border border-slate-600/60 bg-slate-800/80 text-slate-300 hover:border-slate-500 hover:text-slate-100";
+const filterActive = "bg-sky-600 text-white shadow-sm";
+const filterInactive =
+  "border border-slate-600/70 bg-slate-800 text-slate-200 hover:border-slate-500";
 
 const HISTORY_MODES: PlayerHistoryMode[] = ["all", "poker", "belote", "casino", "tournament"];
 const PERIODS: AnalyticsPeriod[] = ["7d", "30d", "90d", "all"];
@@ -36,6 +39,21 @@ const gainsChartConfig = {
   tournament: { label: "Tournament", color: "#f472b6" },
   other: { label: "Other", color: "#94a3b8" },
 };
+
+const GAME_COLORS: Record<string, string> = {
+  poker: "#34d399",
+  belote: "#a78bfa",
+  casino: "#fbbf24",
+  tournament: "#f472b6",
+  other: "#94a3b8",
+};
+
+const chartTooltip = (
+  <ChartTooltipContent className="border-slate-600 bg-slate-800 text-slate-100 shadow-xl [&_.text-foreground]:text-white [&_.text-muted-foreground]:text-slate-400" />
+);
+
+const chartShell =
+  "text-slate-300 [&_.recharts-cartesian-axis-tick_text]:!fill-slate-400 [&_.recharts-cartesian-grid_line]:stroke-slate-700/80";
 
 export function PlayerHistory() {
   const { t } = useTranslation();
@@ -62,7 +80,7 @@ export function PlayerHistory() {
         name: t(`history.gameType.${key}`),
         key,
         value: Math.abs(value),
-        fill: `var(--color-${key})`,
+        fill: GAME_COLORS[key] ?? GAME_COLORS.other,
       }));
   }, [analytics, t]);
 
@@ -72,39 +90,39 @@ export function PlayerHistory() {
       key,
       label: t(`history.gameType.${key}`),
       pct,
-      fill: `var(--color-${key})`,
+      fill: GAME_COLORS[key] ?? GAME_COLORS.other,
     }));
   }, [analytics, t]);
 
-  return (
-    <div className="relative min-h-full w-full overflow-x-hidden bg-[#020716]">
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_110%_75%_at_50%_-10%,rgba(30,64,175,0.24),transparent_52%),linear-gradient(165deg,#020716_0%,#061326_46%,#02040c_100%)]" />
-      </div>
+  const pieTotal = useMemo(
+    () => gainsPieData.reduce((sum, item) => sum + item.value, 0),
+    [gainsPieData],
+  );
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl min-w-0 p-3 sm:p-6">
+  return (
+    <div className="min-h-full w-full overflow-x-hidden bg-slate-950 text-slate-100">
+      <div className="mx-auto w-full max-w-6xl min-w-0 p-3 sm:p-6">
         <header className="mb-6 flex flex-col gap-4">
           <button
             type="button"
             onClick={() => navigate("/profile")}
-            className={`flex w-fit items-center gap-2 px-3 py-2 text-sm sm:px-4 ${profileMutedButton}`}
+            className="flex w-fit items-center gap-2 rounded-full border border-slate-600/70 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-700 sm:px-4"
           >
             <Home className="h-4 w-4" />
             {t("history.backToProfile")}
           </button>
-          <h1 className="bg-gradient-to-r from-slate-100 via-blue-200 to-emerald-200 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">
-            {t("history.title")}
-          </h1>
+          <h1 className="text-3xl font-bold text-white sm:text-4xl">{t("history.title")}</h1>
+          <p className="max-w-2xl text-sm text-slate-400">
+            {mainTab === "history" ? t("history.tabHistory") : t("history.tabAnalytics")}
+          </p>
         </header>
 
-        <div className="mb-5 flex flex-wrap gap-2">
+        <div className="mb-6 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setMainTab("history")}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${
-              mainTab === "history"
-                ? "border border-blue-300/40 bg-blue-950/50 text-blue-100"
-                : "border border-white/10 bg-white/5 text-slate-400"
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+              mainTab === "history" ? tabActive : tabInactive
             }`}
           >
             <History className="h-4 w-4" />
@@ -113,10 +131,8 @@ export function PlayerHistory() {
           <button
             type="button"
             onClick={() => setMainTab("analytics")}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${
-              mainTab === "analytics"
-                ? "border border-emerald-300/40 bg-emerald-950/40 text-emerald-100"
-                : "border border-white/10 bg-white/5 text-slate-400"
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+              mainTab === "analytics" ? tabActive : tabInactive
             }`}
           >
             <BarChart3 className="h-4 w-4" />
@@ -135,10 +151,8 @@ export function PlayerHistory() {
                     setHistoryMode(mode);
                     setPage(1);
                   }}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
-                    historyMode === mode
-                      ? "bg-sky-600/90 text-white"
-                      : "bg-slate-800/90 text-slate-300 ring-1 ring-slate-600/60"
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    historyMode === mode ? filterActive : filterInactive
                   }`}
                 >
                   {t(`history.mode.${mode}`)}
@@ -146,20 +160,20 @@ export function PlayerHistory() {
               ))}
             </div>
 
-            <section className={`p-4 sm:p-5 ${profileGlassCard}`}>
+            <section className={`p-4 sm:p-5 ${historyCard}`}>
               {historyLoading ? (
                 <div className="flex justify-center py-16">
                   <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
                 </div>
               ) : (historyData?.items.length ?? 0) === 0 ? (
-                <p className="py-10 text-center text-slate-500">{t("history.empty")}</p>
+                <p className="py-10 text-center text-slate-400">{t("history.empty")}</p>
               ) : (
-                <ul className="divide-y divide-white/10">
+                <ul className="divide-y divide-slate-700/80">
                   {historyData?.items.map((item) => (
-                    <li key={item.id} className="flex items-center justify-between gap-3 py-3">
+                    <li key={item.id} className="flex items-center justify-between gap-4 py-3.5">
                       <div className="min-w-0">
                         <p className="truncate font-medium text-white">{item.summary}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="mt-0.5 text-xs text-slate-400">
                           {t(`history.mode.${item.gameType as PlayerHistoryMode}`, {
                             defaultValue: item.gameType,
                           })}{" "}
@@ -168,8 +182,10 @@ export function PlayerHistory() {
                       </div>
                       {item.amount != null ? (
                         <span
-                          className={`shrink-0 font-bold tabular-nums ${
-                            item.amount >= 0 ? "text-emerald-300" : "text-rose-300"
+                          className={`shrink-0 rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums ${
+                            item.amount >= 0
+                              ? "bg-emerald-950/80 text-emerald-300"
+                              : "bg-rose-950/80 text-rose-300"
                           }`}
                         >
                           {item.amount >= 0 ? "+" : ""}
@@ -181,21 +197,21 @@ export function PlayerHistory() {
                 </ul>
               )}
 
-              <div className="mt-4 flex justify-between">
+              <div className="mt-5 flex items-center justify-between border-t border-slate-700/80 pt-4">
                 <button
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 disabled:opacity-40"
+                  className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {t("history.prevPage")}
                 </button>
-                <span className="text-sm text-slate-500">{t("history.page", { page })}</span>
+                <span className="text-sm text-slate-400">{t("history.page", { page })}</span>
                 <button
                   type="button"
                   disabled={(historyData?.items.length ?? 0) < 20}
                   onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 disabled:opacity-40"
+                  className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {t("history.nextPage")}
                 </button>
@@ -204,16 +220,14 @@ export function PlayerHistory() {
           </>
         ) : (
           <>
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="mb-5 flex flex-wrap gap-2">
               {PERIODS.map((p) => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => setPeriod(p)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
-                    period === p
-                      ? "bg-emerald-600/90 text-white"
-                      : "bg-slate-800/90 text-slate-300 ring-1 ring-slate-600/60"
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    period === p ? filterActive : filterInactive
                   }`}
                 >
                   {t(`history.period.${p}`)}
@@ -226,56 +240,146 @@ export function PlayerHistory() {
                 <Loader2 className="h-10 w-10 animate-spin text-slate-400" />
               </div>
             ) : analytics ? (
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                <section className={`p-4 ${profileGlassCard}`}>
-                  <h2 className="mb-3 text-sm font-bold text-white">{t("history.chipsTimeline")}</h2>
-                  <ChartContainer config={chipsChartConfig} className="aspect-[4/3] w-full">
-                    <LineChart data={analytics.chipsTimeline}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} />
-                      <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ChartContainer>
-                </section>
-
-                <section className={`p-4 ${profileGlassCard}`}>
-                  <h2 className="mb-3 text-sm font-bold text-white">{t("history.gainsByGame")}</h2>
-                  <ChartContainer config={gainsChartConfig} className="aspect-[4/3] w-full">
-                    <PieChart>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Pie data={gainsPieData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} />
-                      <ChartLegend content={<ChartLegendContent />} />
-                    </PieChart>
-                  </ChartContainer>
-                </section>
-
-                <section className={`p-4 lg:col-span-2 ${profileGlassCard}`}>
-                  <h2 className="mb-3 text-sm font-bold text-white">{t("history.gainsPercent")}</h2>
-                  <ChartContainer config={gainsChartConfig} className="aspect-[3/2] w-full max-h-72">
-                    <BarChart data={gainsBarData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis dataKey="label" tick={{ fill: "#94a3b8", fontSize: 10 }} />
-                      <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="pct" radius={4} />
-                    </BarChart>
-                  </ChartContainer>
-                </section>
-
-                <section className={`p-4 lg:col-span-2 ${profileGlassCard}`}>
-                  <h2 className="mb-3 text-sm font-bold text-white">{t("history.records")}</h2>
+              <div className="space-y-5">
+                <section className={`p-4 sm:p-5 ${historyCard}`}>
+                  <h2 className="mb-4 text-base font-semibold text-white">{t("history.records")}</h2>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {Object.entries(analytics.records).map(([key, value]) => (
-                      <div key={key} className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-center">
-                        <p className="text-lg font-bold tabular-nums text-white">{value.toLocaleString()}</p>
-                        <p className="text-[10px] uppercase tracking-wide text-slate-500">
+                      <div
+                        key={key}
+                        className="rounded-xl border border-slate-700/80 bg-slate-800/90 p-3 text-center"
+                      >
+                        <p className="text-lg font-bold tabular-nums text-white">
+                          {value.toLocaleString()}
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
                           {t(`history.record.${key}`, { defaultValue: key })}
                         </p>
                       </div>
                     ))}
                   </div>
+                </section>
+
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                  <section className={`p-4 sm:p-5 ${historyCard}`}>
+                    <h2 className="mb-1 text-base font-semibold text-white">
+                      {t("history.chipsTimeline")}
+                    </h2>
+                    <p className="mb-4 text-xs text-slate-400">{t(`history.period.${period}`)}</p>
+                    <ChartContainer
+                      config={chipsChartConfig}
+                      className={`aspect-[5/3] w-full min-h-[220px] ${chartShell}`}
+                    >
+                      <LineChart data={analytics.chipsTimeline} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fill: "#94a3b8", fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={{ stroke: "#475569" }}
+                        />
+                        <YAxis
+                          tick={{ fill: "#94a3b8", fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={48}
+                        />
+                        <ChartTooltip content={chartTooltip} />
+                        <Line
+                          type="monotone"
+                          dataKey="balance"
+                          stroke="var(--color-balance)"
+                          strokeWidth={2.5}
+                          dot={false}
+                          activeDot={{ r: 4, fill: "#38bdf8", stroke: "#0f172a", strokeWidth: 2 }}
+                        />
+                      </LineChart>
+                    </ChartContainer>
+                  </section>
+
+                  <section className={`p-4 sm:p-5 ${historyCard}`}>
+                    <h2 className="mb-1 text-base font-semibold text-white">{t("history.gainsByGame")}</h2>
+                    <p className="mb-4 text-xs text-slate-400">{t(`history.period.${period}`)}</p>
+                    {gainsPieData.length === 0 ? (
+                      <p className="py-16 text-center text-sm text-slate-400">{t("history.empty")}</p>
+                    ) : (
+                      <>
+                        <ChartContainer
+                          config={gainsChartConfig}
+                          className={`mx-auto aspect-square w-full max-w-[240px] ${chartShell}`}
+                        >
+                          <PieChart>
+                            <ChartTooltip content={chartTooltip} />
+                            <Pie
+                              data={gainsPieData}
+                              dataKey="value"
+                              nameKey="name"
+                              innerRadius={52}
+                              outerRadius={88}
+                              paddingAngle={2}
+                              stroke="#0f172a"
+                              strokeWidth={2}
+                            />
+                          </PieChart>
+                        </ChartContainer>
+                        <ul className="mt-4 space-y-2 border-t border-slate-700/80 pt-4">
+                          {gainsPieData.map((item) => {
+                            const pct = pieTotal > 0 ? Math.round((item.value / pieTotal) * 100) : 0;
+                            return (
+                              <li
+                                key={item.key}
+                                className="flex items-center gap-3 text-sm text-slate-200"
+                              >
+                                <span
+                                  className="h-3 w-3 shrink-0 rounded-sm"
+                                  style={{ backgroundColor: item.fill }}
+                                  aria-hidden
+                                />
+                                <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                                <span className="shrink-0 tabular-nums text-slate-400">{pct}%</span>
+                                <span className="shrink-0 font-medium tabular-nums text-white">
+                                  {item.value.toLocaleString()}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </>
+                    )}
+                  </section>
+                </div>
+
+                <section className={`p-4 sm:p-5 ${historyCard}`}>
+                  <h2 className="mb-1 text-base font-semibold text-white">{t("history.gainsPercent")}</h2>
+                  <p className="mb-4 text-xs text-slate-400">{t(`history.period.${period}`)}</p>
+                  {gainsBarData.length === 0 ? (
+                    <p className="py-10 text-center text-sm text-slate-400">{t("history.empty")}</p>
+                  ) : (
+                    <ChartContainer
+                      config={gainsChartConfig}
+                      className={`aspect-[5/2] w-full min-h-[200px] max-h-80 ${chartShell}`}
+                    >
+                      <BarChart data={gainsBarData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fill: "#cbd5e1", fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={{ stroke: "#475569" }}
+                          interval={0}
+                        />
+                        <YAxis
+                          tick={{ fill: "#94a3b8", fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={40}
+                          unit="%"
+                        />
+                        <ChartTooltip content={chartTooltip} />
+                        <Bar dataKey="pct" radius={[6, 6, 0, 0]} maxBarSize={56} />
+                      </BarChart>
+                    </ChartContainer>
+                  )}
                 </section>
               </div>
             ) : null}

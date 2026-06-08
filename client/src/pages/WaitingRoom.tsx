@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { UserPlus, Users, Loader2, AlertCircle, Lock, Globe, Check, UserCheck, Zap, Clock, AlertTriangle, Trash2, LogOut, X } from "lucide-react";
@@ -6,7 +6,15 @@ import { ChipIcon } from "../components/ChipIcon";
 import { useSocket } from "../hooks/useSocket";
 import { useUser } from "../hooks/useUser";
 import { fetchBalanceFromServer, getUserAvatar } from "../utils/userProfile";
-import { useGetBlockedUsersQuery, useGetFriendsQuery } from "../services/api";
+import {
+  useGetBlockedUsersQuery,
+  useGetFriendsQuery,
+  useGetShopCosmeticsQuery,
+  useGetShopLoadoutQuery,
+} from "../services/api";
+import type { PublicPlayerCosmetics } from "../utils/publicCosmetics";
+import { resolvePublicCosmeticsFromShop } from "../utils/publicCosmetics";
+import { CosmeticAvatar, CosmeticBannerCard, CosmeticTitle } from "../components/PlayerCosmetics";
 import { useToast } from "../contexts/ToastContext";
 import { trackEvent } from "../utils/analytics";
 import { apiUrl } from "../utils/apiBase";
@@ -23,7 +31,17 @@ interface Player {
   level: number;
   isReady: boolean;
   avatarUrl?: string | null;
+  cosmetics?: PublicPlayerCosmetics;
 }
+
+type RoomPlayerSnapshot = {
+  id: string;
+  username: string;
+  level?: number;
+  isReady?: boolean;
+  avatarUrl?: string | null;
+  cosmetics?: PublicPlayerCosmetics;
+};
 
 export function WaitingRoom() {
   const { t } = useTranslation();
@@ -56,6 +74,7 @@ export function WaitingRoom() {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [myIsReady, setMyIsReady] = useState(false);
+  const [myCosmetics, setMyCosmetics] = useState<PublicPlayerCosmetics | null>(null);
   const [presentUserIds, setPresentUserIds] = useState<string[]>([]);
 
   interface JoinRequestItem {
@@ -86,7 +105,7 @@ export function WaitingRoom() {
     hostId?: string;
     minBalance?: number | null;
     presentUserIds?: string[];
-    players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
+    players?: RoomPlayerSnapshot[];
     blockedPlayers?: Array<{ id: string; username: string }>;
   }) => {
     setRoomName(room.name || "");
@@ -96,6 +115,7 @@ export function WaitingRoom() {
     setIsCreator(room.hostId === userId);
     const me = room.players?.find((p) => p.id === userId);
     setMyIsReady(me?.isReady ?? false);
+    setMyCosmetics(me?.cosmetics ?? null);
     setPresentUserIds(Array.isArray(room.presentUserIds) ? room.presentUserIds : []);
     setPlayers(
       (room.players || [])
@@ -106,11 +126,19 @@ export function WaitingRoom() {
           level: p.level ?? 0,
           isReady: p.isReady ?? false,
           avatarUrl: p.avatarUrl ?? null,
+          cosmetics: p.cosmetics,
         }))
     );
   }, [userId]);
 
   const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
+  const { data: shopCosmetics } = useGetShopCosmeticsQuery(undefined, { skip: !userId });
+  const { data: shopLoadout } = useGetShopLoadoutQuery(undefined, { skip: !userId });
+  const localCosmetics = useMemo(
+    () => resolvePublicCosmeticsFromShop(shopCosmetics?.items, shopLoadout),
+    [shopCosmetics?.items, shopLoadout],
+  );
+  const displayMyCosmetics = myCosmetics ?? localCosmetics;
   const { data: blockedUsers = [], isLoading: blockedUsersLoading } = useGetBlockedUsersQuery(undefined, {
     skip: !userId,
   });
@@ -399,7 +427,7 @@ export function WaitingRoom() {
       turbo?: boolean;
       hostId?: string;
       presentUserIds?: string[];
-      players?: Array<{ id: string; username: string; level?: number; isReady?: boolean; avatarUrl?: string | null }>;
+      players?: RoomPlayerSnapshot[];
     } | null) => {
       if (!room) {
         if (rawRoomId && !rawRoomId.startsWith("room_")) {
@@ -814,21 +842,22 @@ export function WaitingRoom() {
             </h2>
 
             {/* Toi-même */}
-            <div className="bg-blue-800/30 rounded-xl p-4 border border-blue-700/50 mb-3">
-              <div className="flex items-center justify-between">
+            <CosmeticBannerCard cosmetics={displayMyCosmetics} className="mb-3 border-blue-700/50">
+              <div className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                    <CosmeticAvatar cosmetics={displayMyCosmetics} sizeClass="w-12 h-12">
                       <ImageWithFallback
                         src={getPlayerAvatar(username || "Vous", userId, userId)}
                         alt={`${username || "Vous"} avatar`}
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="h-full w-full object-cover"
                       />
-                    </div>
+                    </CosmeticAvatar>
                     <div className={`absolute bottom-0 right-0 w-5 h-5 ${myIsReady ? 'bg-green-500' : isCreator ? 'bg-amber-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`} title={myIsReady ? t('waitingRoom.ready') : t('game.waiting')}></div>
                   </div>
                   <div>
                     <div className="text-white font-bold">{username}</div>
+                    <CosmeticTitle cosmetics={displayMyCosmetics} className="text-xs font-semibold" />
                     <div className="flex items-center gap-1.5 text-gray-400 text-sm">
                       {myIsReady ? (
                         <>
@@ -865,25 +894,26 @@ export function WaitingRoom() {
                   </span>
                 </div>
               </div>
-            </div>
+            </CosmeticBannerCard>
 
             {/* Autres joueurs */}
             {players.map((player) => (
-              <div key={player.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 mb-3">
-                <div className="flex items-center justify-between">
+              <CosmeticBannerCard key={player.id} cosmetics={player.cosmetics} className="mb-3 border-slate-700/50">
+                <div className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white bg-blue-500 shadow-lg transition">
+                      <CosmeticAvatar cosmetics={player.cosmetics} sizeClass="w-12 h-12">
                         <ImageWithFallback
                           src={getPlayerAvatar(player.name, player.id, userId, player.avatarUrl)}
                           alt={`${player.name} avatar`}
-                          className="w-12 h-12 rounded-full object-cover"
+                          className="h-full w-full object-cover"
                         />
-                      </div>
+                      </CosmeticAvatar>
                       <div className={`absolute bottom-0 right-0 w-5 h-5 ${player.isReady ? 'bg-green-500' : 'bg-yellow-500'} rounded-full border-2 border-slate-800`}></div>
                     </div>
                     <div>
                       <div className="text-white font-bold">{player.name}</div>
+                      <CosmeticTitle cosmetics={player.cosmetics} className="text-xs font-semibold" />
                       <div className="text-gray-400 text-sm">{t('friends.level', { level: player.level })}</div>
                     </div>
                   </div>
@@ -908,7 +938,7 @@ export function WaitingRoom() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </CosmeticBannerCard>
             ))}
 
             {players.length === 0 && (
