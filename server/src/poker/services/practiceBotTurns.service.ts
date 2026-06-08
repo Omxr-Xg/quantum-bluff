@@ -38,7 +38,10 @@ import {
 const QB_BOT_PREFIX = 'qb-bot-'
 
 /** Délai avant chaque action bot (affordance « réflexion » côté joueur humain). */
-const PRACTICE_BOT_THINK_MS = 1200
+const PRACTICE_BOT_THINK_MS = 450
+
+/** Timeout chargement profil adaptatif (ne doit pas bloquer la chaîne bot). */
+const ADAPTIVE_CONTEXT_TIMEOUT_MS = 500
 
 /** Garde-fou : mains très longues (beaucoup de relances). */
 const PRACTICE_BOT_MAX_STEPS = 160
@@ -48,6 +51,24 @@ const PRACTICE_BOT_STALL_BEFORE_FORCE = 3
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: T,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), ms)
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
 }
 
 /** File par `gameId` : évite deux chaînes bot concurrentes (JOIN + relance auto). */
@@ -125,6 +146,8 @@ async function buildExpertAiContext(game: GameTable, gameId: string, botId: stri
   let playerTendency
   let rangeWinProb: number | undefined
 
+  const humanHasHoles = (human?.cards?.length ?? 0) >= 2
+
   if (human && usesAdaptiveExpertAi(getPracticeBotDifficulty(gameId))) {
     try {
       const handId = game.state.handId ?? ''
@@ -133,28 +156,36 @@ async function buildExpertAiContext(game: GameTable, gameId: string, botId: stri
       if (cached && cached.handId === handId && cached.playerTendency) {
         playerTendency = cached.playerTendency
       } else {
-        const profile = await getPlayerTendencyProfile(human.id)
-        const recent = await getRecentTendencySession(human.id, gameId, 5)
-        const heroPos = resolveHeroPosition(game, human.id)
-        const positionRates =
-          profile?.positionStats
-            ? positionRatesFromStats(profile.positionStats, heroPos)
-            : null
-
-        if (profile) {
-          playerTendency = toExpertPlayerTendency(profile, {
-            positionRates,
-            recentTendency: {
-              consecutiveBluffHands: recent.consecutiveBluffHands,
-              consecutiveFoldStreak: recent.consecutiveFoldStreak,
-            },
-          })
-        }
+        const loaded = await withTimeout(
+          (async () => {
+            const [profile, recent] = await Promise.all([
+              getPlayerTendencyProfile(human.id),
+              getRecentTendencySession(human.id, gameId, 5),
+            ])
+            const heroPos = resolveHeroPosition(game, human.id)
+            const positionRates =
+              profile?.positionStats
+                ? positionRatesFromStats(profile.positionStats, heroPos)
+                : null
+            if (!profile) return undefined
+            return toExpertPlayerTendency(profile, {
+              positionRates,
+              recentTendency: {
+                consecutiveBluffHands: recent.consecutiveBluffHands,
+                consecutiveFoldStreak: recent.consecutiveFoldStreak,
+              },
+            })
+          })(),
+          ADAPTIVE_CONTEXT_TIMEOUT_MS,
+          undefined,
+        )
+        playerTendency = loaded
         adaptiveTendencyCache.set(cacheKey, { handId, playerTendency })
       }
 
       const bot = game.state.players.find((p) => p.id === botId)
-      if (bot?.cards && bot.cards.length >= 2) {
+      // Practice-bot : trous humains connus → l’oracle utilise heroShowdownEquity (pas de range lourde).
+      if (!humanHasHoles && bot?.cards && bot.cards.length >= 2) {
         const known = [
           ...bot.cards,
           ...(game.state.communityCards ?? []),
@@ -424,6 +455,16 @@ async function runPracticeBotTurnsChainBody(
   await broadcastPracticeTableState(io, gameId)
 }
 
+/** Vide la file bot et le cache adaptatif (sortie de partie / abandon). */
+export function clearPracticeBotSession(gameId: string): void {
+  practiceBotChainTail.delete(gameId)
+  for (const key of adaptiveTendencyCache.keys()) {
+    if (key.startsWith(`${gameId}:`)) {
+      adaptiveTendencyCache.delete(key)
+    }
+  }
+}
+
 /**
  * Enchaîne les actions bot côté serveur jusqu’à ce que ce soit au tour d’un humain
  * ou que la main soit terminée (showdown / relance auto).
@@ -437,7 +478,29 @@ export async function runPracticeBotTurnsChain(io: Server, gameId: string): Prom
     .catch(() => {
       /* continuer la file même si une étape a échoué */
     })
-    .then(() => runPracticeBotTurnsChainBody(io, gameId))
+    .then(async () => {
+      try {
+        await runPracticeBotTurnsChainBody(io, gameId)
+      } catch (err) {
+        rootLogger.error({
+          msg: 'practice_bot_chain_body_failed',
+          gameId,
+          detail: err instanceof Error ? err.message : String(err),
+        })
+      }
+    })
   practiceBotChainTail.set(gameId, next)
   await next
+}
+
+/** Lance la chaîne bot sans bloquer le handler socket / HTTP. */
+export function schedulePracticeBotTurns(io: Server, gameId: string): void {
+  if (!isPracticeBotGameId(gameId)) return
+  void runPracticeBotTurnsChain(io, gameId).catch((err) => {
+    rootLogger.error({
+      msg: 'practice_bot_chain_scheduled_failed',
+      gameId,
+      detail: err instanceof Error ? err.message : String(err),
+    })
+  })
 }

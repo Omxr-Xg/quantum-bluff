@@ -185,10 +185,9 @@ async function handleHandCompleteIfNeeded(
 
         const ioAfter = getGameIo();
         if (ioAfter && isPracticeBotGameId(gameId)) {
-          const { runPracticeBotTurnsChain, broadcastPracticeTableState } =
+          const { schedulePracticeBotTurns } =
             await import("./practiceBotTurns.service.js");
-          await runPracticeBotTurnsChain(ioAfter, gameId);
-          await broadcastPracticeTableState(ioAfter, gameId);
+          schedulePracticeBotTurns(ioAfter, gameId);
         }
       } catch (error) {
         console.error("❌ Erreur relance auto :", error);

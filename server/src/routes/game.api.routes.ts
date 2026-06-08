@@ -14,10 +14,7 @@ import {
   isPracticeBotGameId,
   registerPracticeBotGame,
 } from '../shared/practiceBotGames.js'
-import {
-  broadcastPracticeTableState,
-  runPracticeBotTurnsChain,
-} from '../poker/services/practiceBotTurns.service.js'
+import { schedulePracticeBotTurns } from '../poker/services/practiceBotTurns.service.js'
 import type { BotDifficulty } from '../logic/botAI.js'
 import { intChips } from '../utils/chips.js'
 import { getActionLog } from '../config/redis.config.js'
@@ -254,8 +251,7 @@ router.post('/:gameId/action', authMiddleware, gameActionLimiter, async (req, re
 
     const io = req.app.get('io') as Server | undefined
     if (io && isPracticeBotGameId(gameId)) {
-      await runPracticeBotTurnsChain(io, gameId)
-      await broadcastPracticeTableState(io, gameId)
+      schedulePracticeBotTurns(io, gameId)
     }
 
     const freshAfter = await activeGames.get(gameId)

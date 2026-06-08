@@ -25,7 +25,10 @@ import {
   withBlackjackTableLock,
 } from "../blackjack/services/blackjackTableLock.service.js";
 import { applyPokerAction } from "../poker/services/pokerActionOrchestrator.service.js";
-import { runPracticeBotTurnsChain } from "../poker/services/practiceBotTurns.service.js";
+import {
+  clearPracticeBotSession,
+  schedulePracticeBotTurns,
+} from "../poker/services/practiceBotTurns.service.js";
 import { isPracticeBotGameId } from "../shared/practiceBotGames.js";
 import {
   PokerTableLockedError,
@@ -686,9 +689,7 @@ export class GameGateway {
                 }
                 void this.ensureTurnTimerForActiveHand(gameId);
                 if (isPracticeBotGameId(gameId)) {
-                  void runPracticeBotTurnsChain(this.io, gameId).catch((err) => {
-                    console.error("[practice-bot] JOIN_GAME chain", err);
-                  });
+                  schedulePracticeBotTurns(this.io, gameId);
                 }
               }
 
@@ -1168,29 +1169,7 @@ export class GameGateway {
             }
 
             if (isPracticeBotGameId(gameId)) {
-              await runPracticeBotTurnsChain(this.io, gameId);
-              const afterBots = await activeGames.get(gameId);
-              if (afterBots) {
-                freshGame = afterBots;
-                const room = await this.io.in(gameId).fetchSockets();
-                for (const s of room) {
-                  const uid = (s as unknown as AuthenticatedSocket).userId;
-                  const isSpectator = !freshGame.getPlayerState(uid ?? "");
-                  const snapshot = freshGame.getSanitizedState(
-                    isSpectator ? undefined : uid,
-                    isSpectator,
-                  );
-                  s.emit("GAME_UPDATE", snapshot);
-                  s.emit("GAME_STATE_UPDATED", snapshot);
-                }
-                this.io.to(gameId).emit("HAND_STATE_CHANGED", {
-                  gameId,
-                  phase: freshGame.state.phase,
-                  handRuntimePhase: freshGame.state.handRuntimePhase,
-                  handEndReason: freshGame.state.handEndReason,
-                  handId: freshGame.state.handId,
-                });
-              }
+              schedulePracticeBotTurns(this.io, gameId);
             }
 
             if (freshGame.state.phase === "SHOWDOWN") {
@@ -1402,6 +1381,22 @@ export class GameGateway {
           }
         },
       );
+
+      socket.on("PRACTICE_LEAVE", async (data: { gameId?: string }) => {
+        try {
+          const gameId = data?.gameId;
+          if (!gameId || !isPracticeBotGameId(gameId)) return;
+          if (socket.gameId !== gameId) return;
+
+          this.resetTimer(gameId);
+          clearPracticeBotSession(gameId);
+          await activeGames.delete(gameId);
+          socket.leave(gameId);
+          socket.gameId = undefined;
+        } catch (err) {
+          console.error("Erreur PRACTICE_LEAVE:", err);
+        }
+      });
 
       socket.on("CASH_LEAVE", async (data: { gameId: string }) => {
         try {
@@ -2832,6 +2827,19 @@ export class GameGateway {
             const player = g.getPlayerState(currentPlayerId);
             if (!player) return;
 
+            if (
+              isPracticeBotGameId(gameId) &&
+              currentPlayerId.startsWith("qb-bot-")
+            ) {
+              clearPracticeBotSession(gameId);
+              schedulePracticeBotTurns(this.io, gameId);
+              const afterBotKick = await activeGames.get(gameId);
+              if (afterBotKick?.state.currentTurn) {
+                this.startTurnTimer(gameId);
+              }
+              return;
+            }
+
             const callAmount = g.calculateCallAmount(currentPlayerId);
 
             if (callAmount === 0) {
@@ -2867,6 +2875,9 @@ export class GameGateway {
               );
               s.emit("GAME_UPDATE", snapshot);
               s.emit("GAME_STATE_UPDATED", snapshot);
+            }
+            if (isPracticeBotGameId(gameId)) {
+              schedulePracticeBotTurns(this.io, gameId);
             }
             if (fresh.state.phase === "SHOWDOWN" && fresh instanceof CashGameController) {
               const showdownSnapshot = {

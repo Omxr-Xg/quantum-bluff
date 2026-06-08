@@ -339,10 +339,16 @@ export function Game() {
 
   const exitToLobby = useCallback(
     (opts?: { replace?: boolean; state?: unknown }) => {
+      if (
+        gameIdParam?.startsWith(PRACTICE_BOT_GAME_ID_PREFIX) &&
+        socket?.connected
+      ) {
+        socket.emit("PRACTICE_LEAVE", { gameId: gameIdParam });
+      }
       voice.leaveChannel();
       navigate("/lobby", { replace: opts?.replace, state: opts?.state });
     },
-    [navigate, voice],
+    [navigate, voice, gameIdParam, socket],
   );
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hiddenBetNextHandId, setHiddenBetNextHandId] = useState<string | null>(null);
@@ -2812,6 +2818,12 @@ export function Game() {
     emitJoinRoom();
 
     return () => {
+      if (
+        gameIdParam?.startsWith(PRACTICE_BOT_GAME_ID_PREFIX) &&
+        socket.connected
+      ) {
+        socket.emit("PRACTICE_LEAVE", { gameId: gameIdParam });
+      }
       if (tournamentTransitionTimerRef.current) {
         clearTimeout(tournamentTransitionTimerRef.current);
         tournamentTransitionTimerRef.current = null;
@@ -3719,7 +3731,7 @@ export function Game() {
           applySocketGameUpdateRef.current(st as Record<string, unknown>);
         })
         .catch(() => {});
-    }, 14000);
+    }, 8000);
 
     return () => window.clearTimeout(t);
   }, [gameIdParam, isBotMode, userId, practiceBotTurnWatchId, phase, gameOverReason]);
