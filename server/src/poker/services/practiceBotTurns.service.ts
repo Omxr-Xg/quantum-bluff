@@ -37,8 +37,8 @@ import {
 
 const QB_BOT_PREFIX = 'qb-bot-'
 
-/** Délai avant chaque action bot (affordance « réflexion » côté joueur humain). */
-const PRACTICE_BOT_THINK_MS = 450
+/** Délai avant chaque action bot (affordance « réflexion » — ~3 s comme un humain). */
+const PRACTICE_BOT_THINK_MS = 3000
 
 /** Timeout chargement profil adaptatif (ne doit pas bloquer la chaîne bot). */
 const ADAPTIVE_CONTEXT_TIMEOUT_MS = 500
@@ -328,7 +328,7 @@ async function runPracticeBotTurnsChainBody(
         reason,
         fallback: fb,
       })
-      await sleep(Math.min(500, PRACTICE_BOT_THINK_MS))
+      await sleep(PRACTICE_BOT_THINK_MS)
       try {
         await applyBotAction(gameId, turn, latest, fb)
       } catch (err) {
