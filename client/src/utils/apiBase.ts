@@ -118,6 +118,11 @@ import { isTransientHttpStatus } from "./fetchErrors";
 
 const API_FETCH_MAX_RETRIES = 3;
 
+export type ApiFetchInit = RequestInit & {
+  /** Défaut 3. Mettre 0 pour les polls lobby (retry au prochain intervalle). */
+  maxRetries?: number;
+};
+
 function retryDelayMs(attempt: number, retryAfterHeader: string | null): number {
   const ra = retryAfterHeader;
   if (ra) {
@@ -133,20 +138,22 @@ function retryDelayMs(attempt: number, retryAfterHeader: string | null): number 
  * fetch avec backoff sur erreurs transitoires (429, 502/503/504, coupure réseau).
  * Réduit les flashes « Load failed » quand l’API Render redémarre ou est saturée.
  */
-export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
+export async function apiFetch(input: string, init?: ApiFetchInit): Promise<Response> {
+  const { maxRetries: maxRetriesOpt, ...fetchInit } = init ?? {};
+  const maxRetries = maxRetriesOpt ?? API_FETCH_MAX_RETRIES;
   let attempt = 0;
   let last: Response | undefined;
 
-  while (attempt <= API_FETCH_MAX_RETRIES) {
+  while (attempt <= maxRetries) {
     try {
-      last = await fetch(input, init);
+      last = await fetch(input, fetchInit);
       const transient = isTransientHttpStatus(last.status);
-      if (!transient || attempt >= API_FETCH_MAX_RETRIES) return last;
+      if (!transient || attempt >= maxRetries) return last;
       await new Promise((r) => setTimeout(r, retryDelayMs(attempt, last!.headers.get("Retry-After"))));
       attempt += 1;
       continue;
     } catch (err) {
-      if (attempt >= API_FETCH_MAX_RETRIES) throw err;
+      if (attempt >= maxRetries) throw err;
       await new Promise((r) => setTimeout(r, retryDelayMs(attempt, null)));
       attempt += 1;
     }

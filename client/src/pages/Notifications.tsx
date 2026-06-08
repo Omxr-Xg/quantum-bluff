@@ -52,20 +52,18 @@ export function Notifications() {
               {t("growthNotifications.pageTitle")}
             </h1>
           </div>
-          {unreadCount > 0 ? (
-            <button
-              type="button"
-              disabled={markingAll}
-              onClick={async () => {
-                await markAll().unwrap();
-                void refetch();
-              }}
-              className={`flex items-center gap-2 ${profileButton}`}
-            >
-              <CheckCheck className="h-4 w-4" />
-              {t("growthNotifications.markAllRead")}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            disabled={markingAll || unreadCount === 0}
+            onClick={async () => {
+              await markAll().unwrap();
+              void refetch();
+            }}
+            className={`flex items-center gap-2 ${profileButton}`}
+          >
+            <CheckCheck className="h-4 w-4" />
+            {t("growthNotifications.markAllRead")}
+          </button>
         </header>
 
         <section className={`p-4 sm:p-5 ${profileGlassCard}`}>

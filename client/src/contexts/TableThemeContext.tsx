@@ -135,9 +135,14 @@ export function TableThemeProvider({ children }: { children: ReactNode }) {
     const theme = prefs.feltThemeId;
     if (theme === "custom") {
       setTableThemeState("custom");
-      if (prefs.feltCustomColor) setCustomFeltColorState(prefs.feltCustomColor);
+      localStorage.setItem(STORAGE_KEY, "custom");
+      if (prefs.feltCustomColor) {
+        setCustomFeltColorState(prefs.feltCustomColor);
+        localStorage.setItem(CUSTOM_COLOR_STORAGE_KEY, prefs.feltCustomColor);
+      }
     } else if (isTableThemeId(theme)) {
       setTableThemeState(theme);
+      localStorage.setItem(STORAGE_KEY, theme);
     }
     const bg = prefs.feltBackgroundId;
     if (bg === "custom") {

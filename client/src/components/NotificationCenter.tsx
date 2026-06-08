@@ -12,6 +12,7 @@ import {
   useGetFriendRequestsQuery,
   useRespondToFriendRequestMutation,
   useGetNotificationsQuery,
+  useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   type AppNotification,
 } from "../services/api";
@@ -76,6 +77,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     { skip: !userId, pollingInterval: 60_000 },
   );
   const [markGrowthRead] = useMarkNotificationReadMutation();
+  const [markAllGrowthRead, { isLoading: markingAllGrowth }] = useMarkAllNotificationsReadMutation();
 
   const pendingFriendRequests = friendRequests?.filter((r) => r.status === "PENDING") ?? [];
   const growthUnreadCount = growthData?.unreadCount ?? 0;
@@ -370,6 +372,16 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
     setOpen(false);
   };
 
+  const handleMarkAllGrowthRead = async () => {
+    if (growthUnreadCount <= 0) return;
+    try {
+      await markAllGrowthRead().unwrap();
+      void refetchGrowth();
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleGrowthItemClick = async (n: AppNotification) => {
     if (!n.readAt) {
       try {
@@ -396,11 +408,21 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
       }}
       className="max-h-[400px] overflow-y-auto bg-slate-800 border border-slate-600 rounded-xl shadow-2xl"
     >
-      <div className="sticky top-0 bg-slate-800 px-4 py-3 border-b border-slate-600">
-        <h3 className="text-white font-bold text-sm flex items-center gap-2">
-          <Bell className="w-4 h-4" />
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-slate-600 bg-slate-800 px-4 py-3">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+          <Bell className="h-4 w-4" />
           {t("notifications.hubTitle")}
         </h3>
+        {growthUnreadCount > 0 ? (
+          <button
+            type="button"
+            disabled={markingAllGrowth}
+            onClick={() => void handleMarkAllGrowthRead()}
+            className="shrink-0 rounded-md border border-cyan-500/35 bg-cyan-950/40 px-2 py-1 text-[11px] font-semibold text-cyan-100 transition hover:bg-cyan-900/50 disabled:opacity-50"
+          >
+            {t("growthNotifications.markAllRead")}
+          </button>
+        ) : null}
       </div>
 
       <div className="p-2">

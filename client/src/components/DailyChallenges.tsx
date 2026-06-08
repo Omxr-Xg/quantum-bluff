@@ -63,7 +63,9 @@ export function DailyChallenges() {
   }, [userId]);
 
   useEffect(() => {
-    void fetchChallenges();
+    const deferMs = 300;
+    const id = window.setTimeout(() => void fetchChallenges(), deferMs);
+    return () => window.clearTimeout(id);
   }, [fetchChallenges]);
 
   useEffect(() => {
@@ -136,7 +138,7 @@ export function DailyChallenges() {
         <p className="text-gray-400 text-sm">{t("dailyChallenges.empty")}</p>
       )}
       {errorKey && (
-        <p className="text-red-400 text-xs mt-2">{t(errorKey)}</p>
+        <p className="text-slate-500 text-xs mt-2">{t("dailyChallenges.retryLater")}</p>
       )}
 
       <div className="min-h-0 flex-1 space-y-2 overflow-hidden">

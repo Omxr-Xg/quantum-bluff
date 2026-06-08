@@ -82,12 +82,58 @@ export async function resolveTableVisualsForUserId(userId: string): Promise<Tabl
   return resolveTableVisualsFromUser(user)
 }
 
+async function ensureUnlockRow(userId: string, unlockId: string): Promise<void> {
+  await prisma.userTableUnlock.upsert({
+    where: { userId_unlockId: { userId, unlockId } },
+    create: { userId, unlockId },
+    update: {},
+  })
+}
+
+/** Déblocages permanents : jamais filtrés par date ; réparation si ligne manquante. */
 async function ownedUnlockIds(userId: string): Promise<Set<string>> {
   const rows = await prisma.userTableUnlock.findMany({
     where: { userId },
     select: { unlockId: true },
   })
-  return new Set(rows.map((r) => r.unlockId))
+  const owned = new Set(rows.map((r) => r.unlockId))
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      tableFeltThemeId: true,
+      tableFeltBackgroundId: true,
+      tableFeltBackgroundHasBinary: true,
+    },
+  })
+  if (user?.tableFeltThemeId === 'custom') {
+    owned.add(CUSTOM_FELT_COLOR_UNLOCK)
+    if (!rows.some((r) => r.unlockId === CUSTOM_FELT_COLOR_UNLOCK)) {
+      await ensureUnlockRow(userId, CUSTOM_FELT_COLOR_UNLOCK)
+    }
+  }
+  if (user?.tableFeltBackgroundId === 'custom' && user.tableFeltBackgroundHasBinary) {
+    owned.add(CUSTOM_FELT_BACKGROUND_UNLOCK)
+    if (!rows.some((r) => r.unlockId === CUSTOM_FELT_BACKGROUND_UNLOCK)) {
+      await ensureUnlockRow(userId, CUSTOM_FELT_BACKGROUND_UNLOCK)
+    }
+  }
+
+  const ledgerPurchases = await prisma.walletLedgerEntry.findMany({
+    where: { userId, reason: 'TABLE_THEME_PURCHASE' },
+    select: { roundId: true },
+    distinct: ['roundId'],
+  })
+  for (const entry of ledgerPurchases) {
+    const unlockId = entry.roundId
+    if (!unlockId || !isTableShopUnlockId(unlockId)) continue
+    owned.add(unlockId)
+    if (!rows.some((r) => r.unlockId === unlockId)) {
+      await ensureUnlockRow(userId, unlockId)
+    }
+  }
+
+  return owned
 }
 
 function isUnlockOwned(owned: Set<string>, unlockId: string): boolean {

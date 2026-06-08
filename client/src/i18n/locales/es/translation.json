@@ -1562,6 +1562,7 @@
     "quickReplySend": "Enviar",
     "messages": "Mensajes",
     "chat": "Chatear",
+    "markAllRead": "Marcar todo leído",
     "localNotices": "Información",
     "freeRechargeNoticeTitle": "Recarga gratuita",
     "freeRechargeDetailInBell": "Consulta el mensaje completo en notificaciones (campana arriba a la derecha).",

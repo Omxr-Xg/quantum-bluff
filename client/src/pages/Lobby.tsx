@@ -45,7 +45,8 @@ import { useTopBar } from '../contexts/TopBarContext';
 import { LobbyInteractiveTour } from '../components/LobbyInteractiveTour';
 import { apiFetch, apiUrl } from "../utils/apiBase";
 import { formatFetchError } from "../utils/fetchErrors";
-import { shouldShowPollError, startStaggeredPolling } from "../utils/resilientPoll";
+import { shouldShowPollError } from "../utils/resilientPoll";
+import { readLobbySnapshot, writeLobbySnapshot } from "../utils/lobbyDataCache";
 import { useIsInVoiceCall } from "../features/voice/useIsInVoiceCall";
 import {
   getUserBalance,
@@ -162,14 +163,27 @@ export function Lobby() {
     };
   }, []);
   const { menuContent } = useTopBar();
-  const [rooms, setRooms] = useState<WaitingRoomItem[]>([]);
-  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [rooms, setRooms] = useState<WaitingRoomItem[]>(() => {
+    const cached = readLobbySnapshot()?.rooms;
+    return Array.isArray(cached) ? (cached as WaitingRoomItem[]) : [];
+  });
+  const [roomsLoading, setRoomsLoading] = useState(() => readLobbySnapshot() == null);
   const [creating, setCreating] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const roomsPollFailuresRef = useRef(0);
   const tournamentsPollFailuresRef = useRef(0);
-  const roomsCacheRef = useRef<WaitingRoomItem[]>([]);
-  const tournamentsCacheRef = useRef({ open: 0, live: 0 });
+  const roomsCacheRef = useRef<WaitingRoomItem[]>(
+    (() => {
+      const cached = readLobbySnapshot()?.rooms;
+      return Array.isArray(cached) ? (cached as WaitingRoomItem[]) : [];
+    })(),
+  );
+  const tournamentsCacheRef = useRef((() => {
+    const snap = readLobbySnapshot();
+    const open = Array.isArray(snap?.openTournaments) ? snap.openTournaments.length : 0;
+    const live = Array.isArray(snap?.liveTournaments) ? snap.liveTournaments.length : 0;
+    return { open, live };
+  })());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createVisibility, setCreateVisibility] = useState<'PUBLIC' | 'PRIVATE' | null>(null);
   const [createMaxPlayers, setCreateMaxPlayers] = useState<number | null>(null);
@@ -185,11 +199,20 @@ export function Lobby() {
     names: string[];
     onContinue: () => void;
   } | null>(null);
-  const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>([]);
-  const [gamesLoading, setGamesLoading] = useState(true);
-  const [openTournaments, setOpenTournaments] = useState<TournamentOpenItem[]>([]);
-  const [liveTournaments, setLiveTournaments] = useState<TournamentLiveItem[]>([]);
-  const [tournamentsLoading, setTournamentsLoading] = useState(true);
+  const [gamesInProgress, setGamesInProgress] = useState<GameInProgressItem[]>(() => {
+    const cached = readLobbySnapshot()?.games;
+    return Array.isArray(cached) ? (cached as GameInProgressItem[]) : [];
+  });
+  const [gamesLoading, setGamesLoading] = useState(() => readLobbySnapshot() == null);
+  const [openTournaments, setOpenTournaments] = useState<TournamentOpenItem[]>(() => {
+    const cached = readLobbySnapshot()?.openTournaments;
+    return Array.isArray(cached) ? (cached as TournamentOpenItem[]) : [];
+  });
+  const [liveTournaments, setLiveTournaments] = useState<TournamentLiveItem[]>(() => {
+    const cached = readLobbySnapshot()?.liveTournaments;
+    return Array.isArray(cached) ? (cached as TournamentLiveItem[]) : [];
+  });
+  const [tournamentsLoading, setTournamentsLoading] = useState(() => readLobbySnapshot() == null);
   const [tournamentsError, setTournamentsError] = useState<string | null>(null);
   /* Modal "Creer un tournoi" : compact par defaut (nom + rapide/normale).
    * `tournamentExpanded` revele les champs detailles (SB, BB, joueurs, date...). */
@@ -462,10 +485,12 @@ export function Lobby() {
     try {
       const base = apiUrl("/api/waiting-room/games-in-progress");
       const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
-      const res = await apiFetch(url, { headers: authHeaders() });
+      const res = await apiFetch(url, { headers: authHeaders(), maxRetries: 0 });
       if (!res.ok) return;
       const data = await res.json();
-      setGamesInProgress(Array.isArray(data) ? data : []);
+      const next = Array.isArray(data) ? data : [];
+      setGamesInProgress(next);
+      writeLobbySnapshot({ games: next });
     } catch {
       /* Garde la liste précédente : erreur transitoire fréquente au refresh. */
     } finally {
@@ -475,7 +500,9 @@ export function Lobby() {
 
   useEffect(() => {
     if (inVoiceCall) return;
-    return startStaggeredPolling(() => void fetchGamesInProgress(), 5000, { initialDelayMs: 400 });
+    void fetchGamesInProgress();
+    const id = window.setInterval(() => void fetchGamesInProgress(), 5000);
+    return () => window.clearInterval(id);
   }, [fetchGamesInProgress, inVoiceCall]);
 
   // Auto-navigate when a join request is accepted
@@ -494,12 +521,13 @@ export function Lobby() {
     try {
       const base = apiUrl("/api/waiting-room");
       const url = userId ? `${base}?userId=${encodeURIComponent(userId)}` : base;
-      const res = await apiFetch(url, { headers: authHeaders() });
+      const res = await apiFetch(url, { headers: authHeaders(), maxRetries: 0 });
       if (!res.ok) throw new Error(t('common.error'));
       const data = await res.json();
       const next = Array.isArray(data) ? data : [];
       roomsCacheRef.current = next;
       setRooms(next);
+      writeLobbySnapshot({ rooms: next });
       roomsPollFailuresRef.current = 0;
       setRoomsError(null);
     } catch (e) {
@@ -514,7 +542,9 @@ export function Lobby() {
 
   useEffect(() => {
     if (inVoiceCall) return;
-    return startStaggeredPolling(() => void fetchRooms(), 5000, { initialDelayMs: 800 });
+    void fetchRooms();
+    const id = window.setInterval(() => void fetchRooms(), 5000);
+    return () => window.clearInterval(id);
   }, [fetchRooms, inVoiceCall]);
 
   useEffect(() => {
@@ -550,6 +580,7 @@ export function Lobby() {
       tournamentsCacheRef.current = { open: openNext.length, live: liveNext.length };
       setOpenTournaments(openNext);
       setLiveTournaments(liveNext);
+      writeLobbySnapshot({ openTournaments: openNext, liveTournaments: liveNext });
       tournamentsPollFailuresRef.current = 0;
       setTournamentsError(null);
     } catch (e) {
@@ -565,11 +596,14 @@ export function Lobby() {
   }, [t]);
 
   useEffect(() => {
-    return startStaggeredPolling(() => void fetchTournamentsBoth(), 10_000, { initialDelayMs: 1200 });
-  }, [fetchTournamentsBoth]);
+    if (lobbyMainTab !== "poker") return;
+    void fetchTournamentsBoth();
+    const id = window.setInterval(() => void fetchTournamentsBoth(), 10_000);
+    return () => window.clearInterval(id);
+  }, [fetchTournamentsBoth, lobbyMainTab]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || lobbyMainTab !== "poker") return;
     const joinLobby = () => {
       if (socket.connected) socket.emit("JOIN_TOURNAMENT_LOBBY");
     };
@@ -584,7 +618,7 @@ export function Lobby() {
       socket.off("TOURNAMENT_LOBBY_LIST_UPDATED", onListUpdated);
       if (socket.connected) socket.emit("LEAVE_TOURNAMENT_LOBBY");
     };
-  }, [socket, fetchTournamentsBoth]);
+  }, [socket, fetchTournamentsBoth, lobbyMainTab]);
 
   const resetTournamentForm = useCallback(() => {
     setTournamentName("");
@@ -1778,7 +1812,7 @@ export function Lobby() {
                         <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
                       </p>
                     ) : roomsMemo.length === 0 && roomsError ? (
-                      <p className="text-red-400 text-center py-2 text-sm">{roomsError}</p>
+                      <p className="text-slate-500 text-center py-2 text-sm">{t("lobby.syncing")}</p>
                     ) : roomsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noServersAvailable')}</p>
                     ) : (
@@ -1936,7 +1970,7 @@ export function Lobby() {
                         <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
                       </p>
                     ) : openTournamentsMemo.length === 0 && tournamentsError ? (
-                      <p className="text-red-400 text-center py-2 text-sm">{tournamentsError}</p>
+                      <p className="text-slate-500 text-center py-2 text-sm">{t("lobby.syncing")}</p>
                     ) : openTournamentsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>
                     ) : (

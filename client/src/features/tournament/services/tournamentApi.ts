@@ -26,13 +26,13 @@ export async function readApiError(r: Response): Promise<string> {
 }
 
 export async function fetchTournaments() {
-  const r = await apiFetch(API(), { headers: authHeaders() });
+  const r = await apiFetch(API(), { headers: authHeaders(), maxRetries: 0 });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }
 
 export async function fetchLiveSpectateTournaments() {
-  const r = await apiFetch(`${API()}/live-spectate`, { headers: authHeaders() });
+  const r = await apiFetch(`${API()}/live-spectate`, { headers: authHeaders(), maxRetries: 0 });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }

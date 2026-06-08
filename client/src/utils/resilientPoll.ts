@@ -32,8 +32,8 @@ export function startStaggeredPolling(
   };
 }
 
-/** N’affiche l’erreur qu’après plusieurs échecs consécutifs si des données existent déjà. */
+/** N’affiche l’erreur qu’après plusieurs échecs consécutifs (évite le flash rouge au chargement). */
 export function shouldShowPollError(hasData: boolean, consecutiveFailures: number): boolean {
-  if (!hasData) return true;
-  return consecutiveFailures >= 2;
+  if (!hasData) return consecutiveFailures >= 4;
+  return consecutiveFailures >= 3;
 }

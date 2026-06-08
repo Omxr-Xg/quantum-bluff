@@ -52,7 +52,17 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const owned = useMemo(() => new Set(data?.preferences?.ownedUnlockIds ?? []), [data]);
+  const owned = useMemo(() => {
+    const ids = new Set(data?.preferences?.ownedUnlockIds ?? []);
+    for (const item of [
+      ...(data?.feltThemes ?? []),
+      ...(data?.feltBackgrounds ?? []),
+      ...(data?.extras ?? []),
+    ]) {
+      if (item.owned) ids.add(item.id);
+    }
+    return ids;
+  }, [data]);
 
   const themeUnlocked = (id: TableThemeId) => id === "default" || owned.has(id);
   const bgUnlocked = (id: TableFeltBackgroundId) => id === "ba1" || owned.has(id);
@@ -76,9 +86,9 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
     }
   };
 
-  const selectTheme = async (id: TableThemeId) => {
-    if (!themeUnlocked(id)) {
-      await buyUnlock(id, () => void selectTheme(id));
+  const selectTheme = async (id: TableThemeId, skipUnlockCheck = false) => {
+    if (!skipUnlockCheck && !themeUnlocked(id)) {
+      await buyUnlock(id, () => void selectTheme(id, true));
       return;
     }
     try {
@@ -90,9 +100,9 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
     }
   };
 
-  const selectBackground = async (id: TableFeltBackgroundId) => {
-    if (!bgUnlocked(id)) {
-      await buyUnlock(id, () => void selectBackground(id));
+  const selectBackground = async (id: TableFeltBackgroundId, skipUnlockCheck = false) => {
+    if (!skipUnlockCheck && !bgUnlocked(id)) {
+      await buyUnlock(id, () => void selectBackground(id, true));
       return;
     }
     try {
@@ -104,9 +114,9 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
     }
   };
 
-  const enableCustomColor = async () => {
-    if (!customColorUnlocked) {
-      await buyUnlock(CUSTOM_FELT_COLOR_UNLOCK, () => void enableCustomColor());
+  const enableCustomColor = async (skipUnlockCheck = false) => {
+    if (!skipUnlockCheck && !customColorUnlocked) {
+      await buyUnlock(CUSTOM_FELT_COLOR_UNLOCK, () => void enableCustomColor(true));
       return;
     }
     const color = customFeltColor || "#0b7f52";
@@ -129,8 +139,8 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
     }
   };
 
-  const onBackgroundFile = async (file: File) => {
-    if (!customBgUnlocked) {
+  const onBackgroundFile = async (file: File, skipUnlockCheck = false) => {
+    if (!skipUnlockCheck && !customBgUnlocked) {
       await buyUnlock(CUSTOM_FELT_BACKGROUND_UNLOCK, () => fileInputRef.current?.click());
       return;
     }

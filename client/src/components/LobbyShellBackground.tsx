@@ -8,6 +8,8 @@ export function LobbyShellBackground() {
         <img
           src={bacBg}
           alt=""
+          decoding="async"
+          fetchPriority="low"
           className="h-full w-full scale-105 object-cover blur-[6px] brightness-[0.32] grayscale"
         />
       </div>
