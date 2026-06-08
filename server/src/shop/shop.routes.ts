@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js'
 import { prisma } from '../config/database.js'
 import { emitWaitingRoomUpdated } from '../routes/waitingRoom.routes.js'
 import { getGameIo } from '../sockets/gameIo.registry.js'
+import { listAvatarPresets, purchaseAvatarPreset } from './avatar.service.js'
 import {
   getUserLoadout,
   isShopError,
@@ -67,6 +68,33 @@ router.patch('/loadout', async (req, res) => {
       return res.status(err.statusCode).json({ error: err.message, code: err.code })
     }
     console.error('[shop] PATCH /loadout', err)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.get('/avatars', async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const items = await listAvatarPresets(userId)
+    return res.json({ items })
+  } catch (err) {
+    console.error('[shop] GET /avatars', err)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+router.post('/avatars/:id/purchase', async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const result = await purchaseAvatarPreset(userId, req.params.id)
+    return res.json({ ok: true, ...result })
+  } catch (err) {
+    if (isShopError(err)) {
+      return res.status(err.statusCode).json({ error: err.message, code: err.code })
+    }
+    console.error('[shop] POST /avatars/:id/purchase', err)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 })

@@ -47,36 +47,56 @@ function normalizeRemoteAvatarUrl(remoteAvatarUrl?: string | null): string {
   return trimmed;
 }
 
+export const FREE_AVATAR_IDS = new Set(["FA1", "FJ1", "HA1", "HJ1"]);
+export const PAID_AVATAR_PRICE_CHIPS = 2_500;
+
+/** Catalogue presets : id stable (nom fichier) + URL bundlée Vite. */
+export const AVATAR_PRESET_CATALOG: readonly { id: string; url: string }[] = [
+  { id: "FA1", url: avatarFA1 },
+  { id: "FA2", url: avatarFA2 },
+  { id: "FJ1", url: avatarFJ1 },
+  { id: "FJ2", url: avatarFJ2 },
+  { id: "FJ3", url: avatarFJ3 },
+  { id: "FJ4", url: avatarFJ4 },
+  { id: "FJ5", url: avatarFJ5 },
+  { id: "FJ6", url: avatarFJ6 },
+  { id: "FJ7", url: avatarFJ7 },
+  { id: "FJ8", url: avatarFJ8 },
+  { id: "HA1", url: avatarHA1 },
+  { id: "HA2", url: avatarHA2 },
+  { id: "HA3", url: avatarHA3 },
+  { id: "HJ1", url: avatarHJ1 },
+  { id: "HJ2", url: avatarHJ2 },
+  { id: "HJ3", url: avatarHJ3 },
+  { id: "HJ4", url: avatarHJ4 },
+  { id: "HJ5", url: avatarHJ5 },
+  { id: "HJ6", url: avatarHJ6 },
+  { id: "HJ7", url: avatarHJ7 },
+  { id: "HJ8", url: avatarHJ8 },
+  { id: "HJ9", url: avatarHJ9 },
+  { id: "HJ10", url: avatarHJ10 },
+  { id: "TJ1", url: avatarTJ1 },
+];
+
 /**
- * Presets d'avatar offerts à la sélection (Edit Profile / inscription).
+ * Presets d'avatar offerts à la sélection (Edit Profile).
  * Ordre alphabétique par fichier (sans B1.webp).
  */
-export const AVATAR_PRESETS: readonly string[] = [
-  avatarFA1,
-  avatarFA2,
-  avatarFJ1,
-  avatarFJ2,
-  avatarFJ3,
-  avatarFJ4,
-  avatarFJ5,
-  avatarFJ6,
-  avatarFJ7,
-  avatarFJ8,
-  avatarHA1,
-  avatarHA2,
-  avatarHA3,
-  avatarHJ1,
-  avatarHJ2,
-  avatarHJ3,
-  avatarHJ4,
-  avatarHJ5,
-  avatarHJ6,
-  avatarHJ7,
-  avatarHJ8,
-  avatarHJ9,
-  avatarHJ10,
-  avatarTJ1,
-];
+export const AVATAR_PRESETS: readonly string[] = AVATAR_PRESET_CATALOG.map((entry) => entry.url);
+
+const PRESET_URL_TO_ID = new Map(AVATAR_PRESET_CATALOG.map((entry) => [entry.url, entry.id]));
+
+export function avatarPresetIdFromUrl(url: string): string | null {
+  return PRESET_URL_TO_ID.get(url) ?? null;
+}
+
+export function avatarPresetUrlFromId(id: string): string | null {
+  return AVATAR_PRESET_CATALOG.find((entry) => entry.id === id)?.url ?? null;
+}
+
+export function isFreeAvatarPresetId(id: string): boolean {
+  return FREE_AVATAR_IDS.has(id);
+}
 
 /**
  * Détecte un siège bot via le préfixe / forme de l'ID :

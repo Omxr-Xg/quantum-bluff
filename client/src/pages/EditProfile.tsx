@@ -7,6 +7,7 @@ import { getUserProfile, saveUserProfile } from "../utils/userProfile";
 import { AvatarGallery } from "../components/AvatarGallery";
 import { useUpdateProfileAvatarMutation } from "../services/api";
 import { fileToAvatarDataUrl, presetAvatarToDataUrl } from "../utils/avatarUpload";
+import { avatarPresetIdFromUrl } from "../utils/avatars";
 import { getAuthItem, setAuthItem } from "../utils/authStorage";
 
 const editGlassCard =
@@ -96,8 +97,10 @@ export function EditProfile() {
          * data:, http(s):, ou /api/auth/avatars/{uuid}). On les convertit donc
          * en data URL avant l'envoi pour que le serveur puisse les ingérer. */
         const avatarUrlForApi = await presetAvatarToDataUrl(profileImage);
+        const avatarPresetId = avatarPresetIdFromUrl(profileImage) ?? undefined;
         const result = await updateProfileAvatar({
           avatarUrl: avatarUrlForApi,
+          avatarPresetId,
           username: usernameToPersist,
           email: emailToPersist,
           currentPassword: formData.currentPassword || undefined,

@@ -5,7 +5,7 @@ import { COSMETIC_BY_ID, COSMETIC_CATALOG } from './cosmetics.catalog.js'
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
 
-class ShopError extends Error {
+export class ShopError extends Error {
   statusCode: number
   code: string
 

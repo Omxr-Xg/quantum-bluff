@@ -480,19 +480,25 @@ export function FriendsList() {
           <div className="flex items-center justify-between border-b border-white/10 p-5">
             <div className="flex min-w-0 items-center gap-3">
               <div className="relative h-12 w-12 shrink-0">
-                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                  {selectedFriend && getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
-                    <ImageWithFallback
-                      src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
-                      alt=""
-                      className="h-12 w-12 rounded-full object-cover"
-                    />
-                  ) : selectedFriend ? (
-                    <span className="text-xl font-bold text-white">{selectedFriend.username.charAt(0).toUpperCase()}</span>
-                  ) : (
+                {selectedFriend ? (
+                  <CosmeticAvatar cosmetics={selectedFriend.cosmetics} sizeClass="h-12 w-12">
+                    <div className="flex h-full w-full items-center justify-center bg-blue-950/60">
+                      {getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
+                        <ImageWithFallback
+                          src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl font-bold text-white">{selectedFriend.username.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                  </CosmeticAvatar>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
                     <MessageCircle className="h-6 w-6 text-slate-400" />
-                  )}
-                </div>
+                  </div>
+                )}
                 {selectedFriend ? (
                   <span
                     className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-slate-950 ${
@@ -505,6 +511,9 @@ export function FriendsList() {
                 <h2 className="truncate text-xl font-bold text-white">
                   {selectedFriend?.username ?? t("friends.chat")}
                 </h2>
+                {selectedFriend ? (
+                  <CosmeticTitle cosmetics={selectedFriend.cosmetics} className="text-xs font-semibold" />
+                ) : null}
                 <p className="truncate text-sm italic text-gray-400">{selectedFriend?.currentActivity || "Salon poker"}</p>
               </div>
             </div>

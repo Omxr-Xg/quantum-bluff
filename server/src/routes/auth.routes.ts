@@ -16,6 +16,8 @@ import { verifyTotpToken } from '../auth/totp.service.js'
 import { getGamificationBundle } from '../logic/gamification.js'
 import { extractBearerToken, generateToken, verifyToken } from '../auth/jwt.service.js'
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js'
+import { assertCanUseAvatarPreset } from '../shop/avatar.service.js'
+import { isShopError } from '../shop/shop.service.js'
 import {
   canonicalStoredAvatarPath,
   ingestAvatarToBuffer,
@@ -701,6 +703,7 @@ router.get('/lobby-tutorial-status', authMiddleware, async (req, res) => {
 
 const profileUpdateSchema = z.object({
   avatarUrl: z.string().nullable().optional(),
+  avatarPresetId: z.string().trim().optional(),
   username: z.string().trim().min(3).max(20).optional(),
   email: z.string().trim().email().optional(),
   currentPassword: z.string().optional(),
@@ -777,6 +780,16 @@ router.patch('/profile', authMiddleware, async (req, res) => {
 
     const avatarProvided = Object.prototype.hasOwnProperty.call(req.body ?? {}, 'avatarUrl')
     if (avatarProvided) {
+      if (parsed.data.avatarPresetId) {
+        try {
+          await assertCanUseAvatarPreset(userId, parsed.data.avatarPresetId)
+        } catch (err) {
+          if (isShopError(err)) {
+            return res.status(err.statusCode).json({ error: err.message, code: err.code })
+          }
+          throw err
+        }
+      }
       const raw = parsed.data.avatarUrl
       if (raw === null || raw === undefined || raw === '') {
         data.avatarUrl = null

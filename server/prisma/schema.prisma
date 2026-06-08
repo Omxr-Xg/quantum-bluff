@@ -138,6 +138,7 @@ model User {
   referralReceived  Referral?          @relation("Referred")
   userAchievements  UserAchievement[]
   userCosmetics     UserCosmetic[]
+  userAvatarPresets UserAvatarPreset[]
   seasonScores      SeasonScore[]
   notifications     UserNotification[]
 
@@ -1357,6 +1358,17 @@ model UserCosmetic {
 
   @@id([userId, cosmeticId])
   @@map("user_cosmetics")
+}
+
+model UserAvatarPreset {
+  userId     String
+  presetId   String
+  acquiredAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, presetId])
+  @@map("user_avatar_presets")
 }
 
 // ============================================

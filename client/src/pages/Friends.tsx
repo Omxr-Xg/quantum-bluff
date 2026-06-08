@@ -26,6 +26,7 @@ import {
 import { getPlayerAvatar } from "../utils/avatars";
 import { formatFriendLastSeen } from "../utils/formatLastSeen";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { CosmeticAvatar, CosmeticBannerCard, CosmeticTitle } from "../components/PlayerCosmetics";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useNumberFieldInput, NUMBER_FIELD_INVALID_CLASS } from "../hooks/useNumberFieldInput";
@@ -903,10 +904,13 @@ export function Friends() {
                       ? formatFriendLastSeen(friend.lastSeenAt, t)
                       : null
                     return (
-                    <div
+                    <CosmeticBannerCard
                       key={friend.id}
-                      className={`group relative p-4 transition-all hover:border-blue-300/25 ${pokerInnerCard}`}
+                      cosmetics={friend.cosmetics}
+                      bannerHeightClass="min-h-0"
+                      className={`group relative transition-all hover:border-blue-300/25 ${pokerInnerCard}`}
                     >
+                      <div className="p-4">
                       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-200/40 to-transparent opacity-0 transition group-hover:opacity-100" />
                       <div
                         className="absolute right-3 top-3 z-20"
@@ -970,17 +974,19 @@ export function Friends() {
                       <div className="flex items-start gap-4">
                         <div className="flex shrink-0 flex-col items-center gap-1">
                           <div className="relative h-16 w-16">
-                            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60 shadow-[0_0_28px_rgba(59,130,246,0.16)]">
-                              {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
-                                <ImageWithFallback
-                                  src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
-                                  alt={`${friend.username}'s avatar`}
-                                  className="h-16 w-16 rounded-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-2xl font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
-                              )}
-                            </div>
+                            <CosmeticAvatar cosmetics={friend.cosmetics} sizeClass="h-16 w-16">
+                              <div className="flex h-full w-full items-center justify-center bg-blue-950/60 shadow-[0_0_28px_rgba(59,130,246,0.16)]">
+                                {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
+                                  <ImageWithFallback
+                                    src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
+                                    alt={`${friend.username}'s avatar`}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-2xl font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
+                                )}
+                              </div>
+                            </CosmeticAvatar>
                             <span
                               className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-slate-950 ${
                                 friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
@@ -1011,6 +1017,7 @@ export function Friends() {
                               {t("friends.level", { level: friend.level })}
                             </span>
                           </div>
+                          <CosmeticTitle cosmetics={friend.cosmetics} className="mb-1 text-xs font-semibold" />
                           <div className="flex items-center gap-1.5 text-sm text-slate-400">
                             <Trophy className="h-4 w-4 text-cyan-200/80" />
                             {friend.stats?.wins ?? friend.playerStats?.totalWins ?? 0}{" "}
@@ -1056,8 +1063,9 @@ export function Friends() {
                           {t("friends.loans.requestLoan")}
                         </button>
                       </div>
-                    </div>
-                  )})}
+                      </div>
+                    </CosmeticBannerCard>
+                    )})}
                 </div>
               ) : (
                 <div className="py-16 text-center">
@@ -1089,22 +1097,27 @@ export function Friends() {
             ) : friends?.length ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {friends.map((friend) => (
-                  <div
+                  <CosmeticBannerCard
                     key={friend.id}
-                    className={`flex flex-col gap-3 p-4 text-white ${pokerInnerCard}`}
+                    cosmetics={friend.cosmetics}
+                    bannerHeightClass="min-h-0"
+                    className={`text-white ${pokerInnerCard}`}
                   >
+                    <div className="flex flex-col gap-3 p-4">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                        {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
-                          <ImageWithFallback
-                            src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
-                            alt={`${friend.username}'s avatar`}
-                            className="h-12 w-12 rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-lg font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
+                      <CosmeticAvatar cosmetics={friend.cosmetics} sizeClass="h-12 w-12">
+                        <div className="flex h-full w-full items-center justify-center bg-blue-950/60">
+                          {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
+                            <ImageWithFallback
+                              src={getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl)}
+                              alt={`${friend.username}'s avatar`}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-lg font-bold text-white">{friend.username.charAt(0).toUpperCase()}</span>
+                          )}
+                        </div>
+                      </CosmeticAvatar>
                       <div className="min-w-0 flex-1">
                         <button
                           type="button"
@@ -1113,6 +1126,7 @@ export function Friends() {
                         >
                           {friend.username}
                         </button>
+                        <CosmeticTitle cosmetics={friend.cosmetics} className="text-[10px] font-semibold" />
                         <p className="text-xs text-slate-400">{t("friends.level", { level: friend.level })}</p>
                       </div>
                     </div>
@@ -1135,7 +1149,8 @@ export function Friends() {
                         {t("voice.callFriend")}
                       </button>
                     </div>
-                  </div>
+                    </div>
+                  </CosmeticBannerCard>
                 ))}
               </div>
             ) : (
@@ -1523,23 +1538,29 @@ export function Friends() {
           <div className={`flex h-[600px] w-full max-w-2xl flex-col overflow-hidden ${pokerGlassCard}`}>
             <div className="flex items-center justify-between border-b border-white/10 p-6">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                  {selectedFriend ? (
-                    getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
-                      <ImageWithFallback
-                        src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
-                        alt={`${selectedFriend.username}'s avatar`}
-                        className="h-12 w-12 rounded-full object-cover"
-                      />
+                {selectedFriend ? (
+                  <CosmeticAvatar cosmetics={selectedFriend.cosmetics} sizeClass="h-12 w-12">
+                    <div className="flex h-full w-full items-center justify-center bg-blue-950/60">
+                      {getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl) ? (
+                        <ImageWithFallback
+                          src={getPlayerAvatar(selectedFriend.username, selectedFriend.id, userId, selectedFriend.avatarUrl)}
+                          alt={`${selectedFriend.username}'s avatar`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl font-bold text-white">{selectedFriend.username.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                  </CosmeticAvatar>
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
+                    {loadingFriends ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
                     ) : (
-                      <span className="text-xl font-bold text-white">{selectedFriend.username.charAt(0).toUpperCase()}</span>
-                    )
-                  ) : loadingFriends ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-blue-300" />
-                  ) : (
-                    <MessageCircle className="h-6 w-6 text-slate-400" />
-                  )}
-                </div>
+                      <MessageCircle className="h-6 w-6 text-slate-400" />
+                    )}
+                  </div>
+                )}
                 <div className="min-w-0">
                   <h2 className="truncate text-xl font-bold text-white">
                     {selectedFriend ? (
@@ -1557,7 +1578,10 @@ export function Friends() {
                     )}
                   </h2>
                   {selectedFriend ? (
-                    <p className="text-sm text-gray-400">{t("friends.level", { level: selectedFriend.level })}</p>
+                    <>
+                      <CosmeticTitle cosmetics={selectedFriend.cosmetics} className="text-xs font-semibold" />
+                      <p className="text-sm text-gray-400">{t("friends.level", { level: selectedFriend.level })}</p>
+                    </>
                   ) : (
                     <p className="text-sm text-gray-400">{"\u00a0"}</p>
                   )}

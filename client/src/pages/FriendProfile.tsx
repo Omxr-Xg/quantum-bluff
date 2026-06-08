@@ -8,6 +8,7 @@ import { useVoice } from "../contexts/VoiceContext";
 import { useToast } from "../contexts/ToastContext";
 import { useGetFriendProfileQuery } from "../services/api";
 import { getPlayerAvatar } from "../utils/avatars";
+import { CosmeticAvatar, CosmeticBannerCard, CosmeticTitle } from "../components/PlayerCosmetics";
 
 const glassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
@@ -92,17 +93,20 @@ export function FriendProfile() {
         </button>
       </div>
 
-      <div className={`p-6 sm:p-8 ${glassCard}`}>
+      <CosmeticBannerCard cosmetics={profile.cosmetics} className={`p-6 sm:p-8 ${glassCard}`}>
         <div className="mb-6 flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left sm:gap-6">
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
+          <CosmeticAvatar cosmetics={profile.cosmetics} sizeClass="h-24 w-24">
             {avatarSrc ? (
-              <ImageWithFallback src={avatarSrc} alt="" className="h-24 w-24 rounded-full object-cover" />
+              <ImageWithFallback src={avatarSrc} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="text-3xl font-bold text-white">{profile.username.charAt(0).toUpperCase()}</span>
+              <div className="flex h-full w-full items-center justify-center bg-blue-950/60">
+                <span className="text-3xl font-bold text-white">{profile.username.charAt(0).toUpperCase()}</span>
+              </div>
             )}
-          </div>
+          </CosmeticAvatar>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-2xl font-bold text-white sm:text-3xl">{profile.username}</h1>
+            <CosmeticTitle cosmetics={profile.cosmetics} className="mt-1 text-sm font-semibold" />
             <p className="mt-1 text-sm text-slate-400">{t("friends.level", { level: profile.level })}</p>
             <p className={`mt-2 text-sm font-semibold ${profile.isOnline ? "text-emerald-300" : "text-slate-500"}`}>
               {profile.isOnline ? t("friends.online") : t("friends.offline")}
@@ -165,7 +169,7 @@ export function FriendProfile() {
             {t("voice.callFriend")}
           </button>
         </div>
-      </div>
+      </CosmeticBannerCard>
     </div>
   );
 }

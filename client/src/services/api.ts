@@ -81,6 +81,7 @@ type PlayerReportReason = 'INAPPROPRIATE_LANGUAGE' | 'CHEATING' | 'HARASSMENT' |
 
 type UpdateProfilePayload = {
   avatarUrl?: string | null
+  avatarPresetId?: string
   username?: string
   email?: string
   currentPassword?: string
@@ -147,6 +148,14 @@ export type ShopCosmetic = {
   purchasable: boolean
   rarity: string
   styleJson: string
+  owned: boolean
+  acquiredAt: string | null
+}
+
+export type ShopAvatarPreset = {
+  id: string
+  priceChips: number
+  free: boolean
   owned: boolean
   acquiredAt: string | null
 }
@@ -611,6 +620,19 @@ export const api = createApi({
       providesTags: ['Achievement'],
     }),
 
+    getShopAvatars: builder.query<{ items: ShopAvatarPreset[] }, void>({
+      query: () => '/shop/avatars',
+      providesTags: ['Shop'],
+    }),
+
+    purchaseAvatarPreset: builder.mutation<{ ok: boolean; presetId: string; chips: number }, string>({
+      query: (id) => ({
+        url: `/shop/avatars/${encodeURIComponent(id)}/purchase`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Shop', 'User'],
+    }),
+
     getShopCosmetics: builder.query<{ items: ShopCosmetic[] }, void>({
       query: () => '/shop/cosmetics',
       providesTags: ['Shop'],
@@ -729,6 +751,8 @@ export const {
   useGetReferralInvitesQuery,
   useApplyReferralCodeMutation,
   useGetMyAchievementsQuery,
+  useGetShopAvatarsQuery,
+  usePurchaseAvatarPresetMutation,
   useGetShopCosmeticsQuery,
   usePurchaseCosmeticMutation,
   useGetShopLoadoutQuery,
