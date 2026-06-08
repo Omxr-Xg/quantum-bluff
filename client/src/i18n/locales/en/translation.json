@@ -1576,7 +1576,7 @@
     "passwordMismatch": "New passwords do not match!",
     "passwordMinLength": "New password must be at least 6 characters!",
     "avatarGalleryLabel": "Choose an avatar",
-    "avatarPresetHint": "FA1, FJ1, HA1 and HJ1 are free. Other avatars cost 2,500 tokens. You can also upload your own image.",
+    "avatarPresetHint": "4 avatars are free; the others can be unlocked with tokens (from 1,500 to 15,000). You can also upload your own image.",
     "avatarFree": "Free",
     "avatarUnlocked": "Avatar unlocked!",
     "avatarPurchaseError": "Could not purchase this avatar.",

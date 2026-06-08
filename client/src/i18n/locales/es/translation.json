@@ -1114,7 +1114,7 @@
     "passwordMismatch": "¡Las nuevas contraseñas no coinciden!",
     "passwordMinLength": "¡La nueva contraseña debe tener al menos 6 caracteres!",
     "avatarGalleryLabel": "Elegir un avatar",
-    "avatarPresetHint": "Puedes elegir un avatar predefinido o importar tu propia imagen.",
+    "avatarPresetHint": "4 avatares son gratuitos; los demás se desbloquean con fichas (de 1.500 a 15.000). También puedes importar tu propia imagen.",
     "avatarOption": "Avatar {{index}} de {{total}}",
     "showMoreAvatars": "Ver más avatares ({{count}})",
     "showLessAvatars": "Ver menos",

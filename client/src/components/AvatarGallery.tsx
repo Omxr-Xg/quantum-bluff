@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, Lock, Loader2 } from "lucide-react";
 import {
   AVATAR_PRESET_CATALOG,
   AVATAR_PRESETS,
-  PAID_AVATAR_PRICE_CHIPS,
+  avatarPresetPriceChips,
   isFreeAvatarPresetId,
 } from "@/utils/avatars";
 import { ChipIcon } from "./ChipIcon";
@@ -92,9 +92,7 @@ export function AvatarGallery({ selectedAvatar, onSelect }: AvatarGalleryProps) 
             const isSelected = selectedAvatar === preset.url;
             const access = ownershipById.get(preset.id);
             const unlocked = access?.owned ?? isFreeAvatarPresetId(preset.id);
-            const price =
-              access?.priceChips ??
-              (isFreeAvatarPresetId(preset.id) ? 0 : PAID_AVATAR_PRICE_CHIPS);
+            const price = access?.priceChips ?? avatarPresetPriceChips(preset.id);
             const isBuying = purchasing && pendingPurchaseId === preset.id;
 
             return (

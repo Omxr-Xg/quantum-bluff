@@ -48,7 +48,38 @@ function normalizeRemoteAvatarUrl(remoteAvatarUrl?: string | null): string {
 }
 
 export const FREE_AVATAR_IDS = new Set(["FA1", "FJ1", "HA1", "HJ1"]);
-export const PAID_AVATAR_PRICE_CHIPS = 2_500;
+
+/** Jetons par preset payant (1 500 – 15 000) — aligné sur `server/src/shop/avatars.catalog.ts`. */
+export const AVATAR_PRESET_PRICES: Record<string, number> = {
+  FA1: 0,
+  FA2: 1_500,
+  FJ1: 0,
+  FJ2: 2_000,
+  FJ3: 2_500,
+  FJ4: 3_000,
+  FJ5: 3_500,
+  FJ6: 4_500,
+  FJ7: 5_500,
+  FJ8: 6_500,
+  HA1: 0,
+  HA2: 4_000,
+  HA3: 7_000,
+  HJ1: 0,
+  HJ2: 2_200,
+  HJ3: 3_200,
+  HJ4: 4_800,
+  HJ5: 5_800,
+  HJ6: 7_500,
+  HJ7: 8_500,
+  HJ8: 10_000,
+  HJ9: 12_000,
+  HJ10: 14_000,
+  TJ1: 15_000,
+};
+
+export function avatarPresetPriceChips(id: string): number {
+  return AVATAR_PRESET_PRICES[id] ?? 0;
+}
 
 /** Catalogue presets : id stable (nom fichier) + URL bundlée Vite. */
 export const AVATAR_PRESET_CATALOG: readonly { id: string; url: string }[] = [
