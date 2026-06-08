@@ -244,8 +244,9 @@ function playHand(
     const decision = sanitizeBotDecision(raw, req)
     bumpCounters(counters[turn]!, req, decision.action, table.state.phase)
 
+    const amount = 'amount' in decision ? decision.amount : undefined
     try {
-      table.handlePlayerAction(turn, decision.action, decision.amount)
+      table.handlePlayerAction(turn, decision.action, amount)
     } catch {
       const fallback = req.callAmount > 0 ? 'FOLD' : 'CHECK'
       table.handlePlayerAction(turn, fallback)
