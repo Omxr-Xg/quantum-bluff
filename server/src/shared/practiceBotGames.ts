@@ -18,3 +18,17 @@ export function registerPracticeBotGame(
 export function getPracticeBotDifficulty(gameId: string): BotDifficulty {
   return difficultyByGameId.get(gameId) ?? 'medium'
 }
+
+/** Oracle statistique expert (équité / trous connus) — ancien niveau « expert ». */
+export function usesStatisticalExpertOracle(difficulty: BotDifficulty): boolean {
+  return difficulty === 'hard'
+}
+
+/** IA adaptative (profil tendances + ajustements) — niveau « expert » actuel. */
+export function usesAdaptiveExpertAi(difficulty: BotDifficulty): boolean {
+  return difficulty === 'expert'
+}
+
+export function usesExpertOraclePath(difficulty: BotDifficulty): boolean {
+  return usesStatisticalExpertOracle(difficulty) || usesAdaptiveExpertAi(difficulty)
+}

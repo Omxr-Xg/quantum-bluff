@@ -8,7 +8,7 @@ export const BOT_WIN_MULTIPLIERS = {
   facile: 0.3,
   moyen: 0.6,
   difficile: 1,
-  /** Bonus léger vs difficile (même IA serveur `hard` vs `expert`, paramètres différents). */
+  /** Bonus léger vs difficile (`hard` = Real AI, `expert` = IA adaptative). */
   expert: 1.05,
 } as const;
 

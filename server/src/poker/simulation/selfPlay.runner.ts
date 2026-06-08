@@ -75,7 +75,11 @@ function tableHighestBet(players: Player[]): number {
   return Math.max(0, ...players.map((p) => p.currentBet ?? 0))
 }
 
-function buildRequest(table: GameTable, botId: string): BotActionRequest | null {
+function buildRequest(
+  table: GameTable,
+  botId: string,
+  difficulty: BotDifficulty,
+): BotActionRequest | null {
   const bot = table.state.players.find((p) => p.id === botId)
   if (!bot?.cards || bot.cards.length < 2) return null
 
@@ -86,7 +90,7 @@ function buildRequest(table: GameTable, botId: string): BotActionRequest | null 
   return {
     playerCards: bot.cards,
     communityCards: table.state.communityCards ?? [],
-    difficulty: 'expert',
+    difficulty,
     currentBet: myBet,
     playerChips: bot.chips,
     callAmount,
@@ -160,7 +164,7 @@ function decideSeatAction(
   if (opponents.length > 0) {
     return expertOracleDecision(req, { opponentHoleCards: opponents })
   }
-  return decideBotAction({ ...req, difficulty: 'expert' as BotDifficulty })
+  return decideBotAction({ ...req, difficulty: 'hard' as BotDifficulty })
 }
 
 function bumpCounters(
@@ -236,10 +240,10 @@ function playHand(
     const turn = table.state.currentTurn
     if (!turn) break
 
-    const req = buildRequest(table, turn)
-    if (!req) break
-
     const seat: 'A' | 'B' = turn === 'qb-bot-1' ? 'A' : 'B'
+    const difficulty: BotDifficulty = isAdaptiveSeat(matchup, seat) ? 'expert' : 'hard'
+    const req = buildRequest(table, turn, difficulty)
+    if (!req) break
     const raw = decideSeatAction(req, table, turn, matchup, seat)
     const decision = sanitizeBotDecision(raw, req)
     bumpCounters(counters[turn]!, req, decision.action, table.state.phase)

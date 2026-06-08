@@ -7,11 +7,16 @@ import { CashGameController } from '../../logic/CashGameController.js'
 import type { GameTable } from '../../logic/GameTable.js'
 import type { ActiveGame } from '../../shared/activeGames.js'
 import {
+  decideBotAction,
   type BotActionRequest,
   type BotDifficulty,
 } from '../../logic/botAI.js'
 import { sanitizeBotDecision } from '../../logic/botDecisionSanitize.js'
-import { getPracticeBotDifficulty } from '../../shared/practiceBotGames.js'
+import {
+  getPracticeBotDifficulty,
+  usesAdaptiveExpertAi,
+  usesExpertOraclePath,
+} from '../../shared/practiceBotGames.js'
 import { rootLogger } from '../../observability/logger.js'
 import {
   decideBotActionWithExpertAi,
@@ -113,7 +118,7 @@ async function buildExpertAiContext(game: GameTable, gameId: string, botId: stri
   let playerTendency
   let rangeWinProb: number | undefined
 
-  if (human && getPracticeBotDifficulty(gameId) === 'expert') {
+  if (human && usesAdaptiveExpertAi(getPracticeBotDifficulty(gameId))) {
     const profile = await getPlayerTendencyProfile(human.id)
     const recent = await getRecentTendencySession(human.id, gameId, 5)
     const heroPos = resolveHeroPosition(game, human.id)
@@ -303,8 +308,13 @@ async function runPracticeBotTurnsChainBody(
     }
 
     const decisionStart = Date.now()
-    const expertCtx = await buildExpertAiContext(inner, gameId, turn)
-    const raw = await decideBotActionWithExpertAi(req, expertCtx)
+    const raw =
+      usesExpertOraclePath(difficulty)
+        ? await decideBotActionWithExpertAi(
+            req,
+            await buildExpertAiContext(inner, gameId, turn),
+          )
+        : decideBotAction(req)
     const decision = sanitizeBotDecision(raw, req)
     const finalAmount = 'amount' in decision ? decision.amount : undefined
     rootLogger.info({

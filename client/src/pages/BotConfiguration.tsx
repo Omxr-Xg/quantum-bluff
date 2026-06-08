@@ -57,7 +57,7 @@ export function BotConfiguration() {
       selectedTitle: "text-orange-100",
       selectedDot: "bg-orange-300",
       descKey: "hardDesc",
-      traitKeys: ["traitCalculated", "traitBluffs", "traitAdapt"],
+      traitKeys: ["traitRealAi", "traitEquity", "traitStatistics"],
     },
     {
       id: "expert" as const,
@@ -69,7 +69,7 @@ export function BotConfiguration() {
       selectedTitle: "text-rose-100",
       selectedDot: "bg-rose-300",
       descKey: "expertDesc",
-      traitKeys: ["traitUnpredictable", "traitAdvanced", "traitAggressive"],
+      traitKeys: ["traitAdaptive", "traitProfile", "traitLearns"],
     }
   ];
 
@@ -206,9 +206,14 @@ export function BotConfiguration() {
                           : `border-white/10 bg-white/[0.045] backdrop-blur-md ${diff.idleCard}`
                       }`}
                     >
+                      {diff.id === "difficile" && (
+                        <div className="absolute -top-3 left-5 rounded-full border border-orange-200/70 bg-orange-950/95 px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.18em] text-orange-100 shadow-[0_0_18px_rgba(251,146,60,0.28)]">
+                          {t("botConfig.realAiBadge")}
+                        </div>
+                      )}
                       {diff.id === "expert" && (
                         <div className="absolute -top-3 left-5 rounded-full border border-cyan-200/70 bg-cyan-950/95 px-3 py-1 text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.28)]">
-                          {t("botConfig.realAiBadge")}
+                          {t("botConfig.adaptiveAiBadge")}
                         </div>
                       )}
                       <div className="flex items-start gap-4">

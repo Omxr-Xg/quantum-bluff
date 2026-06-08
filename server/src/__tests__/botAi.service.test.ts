@@ -37,6 +37,19 @@ describe('botAi.service — expert Python integration', () => {
     jest.restoreAllMocks()
   })
 
+  test('hard : oracle statistique (Real AI) sans Python', async () => {
+    const fetchMock = jest.fn()
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const decision = await decideBotActionWithExpertAi(
+      { ...baseReq, difficulty: 'hard' },
+      { opponentHoleCards: [[c('2'), c('3')]], opponentStack: 800 },
+    )
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(decision.reasoning ?? '').toContain('expert-oracle')
+  })
+
   test('oracle trous : n’appelle pas Python même si le service est activé', async () => {
     const fetchMock = jest.fn()
     global.fetch = fetchMock as unknown as typeof fetch

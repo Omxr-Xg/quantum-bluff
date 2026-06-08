@@ -8,6 +8,7 @@ import {
   type ExpertPlayerTendency,
 } from '../logic/botAI.js'
 import type { PlayerTendencyView } from '../poker/services/playerTendency.service.js'
+import { usesExpertOraclePath } from '../shared/practiceBotGames.js'
 import type { Card, GamePhase } from '../types/poker.js'
 import { rootLogger } from '../observability/logger.js'
 
@@ -206,17 +207,16 @@ async function callPythonExpertAi(
 }
 
 /**
- * Expert :
- * - **Trous adverses (`opponentHoleCards`)** : toujours `expertOracleDecision` (TS). Le modèle Python fold trop
- *   en multiway avec oracle côté client ; la politique TS est calibrée pour ce cas.
- * - **Sans trous** : si `AI_SERVICE_ENABLED` + URL → Python (`python-expert` dans reasoning) ; sinon `expertBotDecision`.
- * - Échec Python (sans oracle, car sinon on n’appelle pas Python) : heuristique expert avec message de fallback.
+ * Hard = oracle statistique expert (sans profil adaptatif).
+ * Expert = oracle + ajustements Adaptive AI (`playerTendency` dans le contexte).
+ * - **Trous adverses** : `expertOracleDecision` (TS).
+ * - **Sans trous** : Python si activé, sinon heuristique expert.
  */
 export async function decideBotActionWithExpertAi(
   req: BotActionRequest,
   context: ExpertAiContext = {},
 ): Promise<BotActionResponse> {
-  if (req.difficulty !== 'expert') {
+  if (!usesExpertOraclePath(req.difficulty)) {
     return decideBotAction(req)
   }
 

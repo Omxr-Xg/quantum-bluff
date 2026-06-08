@@ -173,7 +173,7 @@ router.post('/action', botActionLimiter, async (req, res) => {
     }
 
     const expertContext =
-      raw.difficulty === 'expert'
+      raw.difficulty === 'hard' || raw.difficulty === 'expert'
         ? {
             opponentHoleCards: raw.opponentHoleCards?.map((row) => row.map(normalizeCard)),
             opponentStack: raw.opponentStack,
