@@ -92,7 +92,7 @@ export function AvatarGallery({ selectedAvatar, onSelect }: AvatarGalleryProps) 
             const isSelected = selectedAvatar === preset.url;
             const access = ownershipById.get(preset.id);
             const unlocked = access?.owned ?? isFreeAvatarPresetId(preset.id);
-            const price = access?.priceChips ?? avatarPresetPriceChips(preset.id);
+            const price = avatarPresetPriceChips(preset.id);
             const isBuying = purchasing && pendingPurchaseId === preset.id;
 
             return (

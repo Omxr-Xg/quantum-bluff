@@ -25,6 +25,7 @@ describe('avatars.catalog', () => {
     const prices = paid.map((id) => avatarPresetPriceChips(id))
     expect(Math.min(...prices)).toBe(1_500)
     expect(Math.max(...prices)).toBe(15_000)
+    expect(new Set(prices).size).toBe(paid.length)
     for (const id of paid) {
       expect(avatarPresetPriceChips(id)).toBe(AVATAR_PRESET_PRICES[id])
       expect(avatarPresetPriceChips(id)).toBeGreaterThanOrEqual(1_500)
