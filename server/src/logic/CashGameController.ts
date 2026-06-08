@@ -4,7 +4,7 @@
  * et les commandes sit / leave / rebuy.
  */
 import { randomUUID } from 'node:crypto'
-import type { GameState, Player, PublicPlayerCosmetics } from '../types/poker.js'
+import type { GameState, Player, PublicPlayerCosmetics, TableVisuals } from '../types/poker.js'
 import { GameTable } from './GameTable.js'
 import { intChips } from '../utils/chips.js'
 
@@ -65,6 +65,8 @@ export interface CashGameControllerOptions {
    * (fin de « match » élimination directe). La gateway notifie le tournoi.
    */
   stopWhenSingleSurvivor?: boolean
+  /** Tapis + fond diffusés à tous les joueurs (généralement préférences de l'hôte). */
+  tableVisuals?: TableVisuals
 }
 
 /** Interface compatible avec GameTable pour activeGames */
@@ -89,6 +91,7 @@ export class CashGameController implements IGameSession {
   private readonly turnTimeoutMs: number
   private readonly walletLedger: CashWalletLedgerMode
   private readonly stopWhenSingleSurvivor: boolean
+  private readonly tableVisuals: TableVisuals | null
   private seats: CashSeat[]
   private buttonSeatIndex: number
   private gameTable: GameTable | null = null
@@ -219,6 +222,7 @@ export class CashGameController implements IGameSession {
     this.defaultBuyIn = options.defaultBuyIn ?? DEFAULT_BUY_IN
     this.walletLedger = options.walletLedger === 'none' ? 'none' : 'cash'
     this.stopWhenSingleSurvivor = Boolean(options.stopWhenSingleSurvivor)
+    this.tableVisuals = options.tableVisuals ?? null
     this.turnTimeoutMs =
       typeof options.turnTimeoutMs === 'number' && options.turnTimeoutMs >= 3000 && options.turnTimeoutMs <= 120_000
         ? options.turnTimeoutMs
@@ -851,6 +855,7 @@ export class CashGameController implements IGameSession {
       hiddenBetWindowOpen: hiddenBetState.windowOpen,
       hiddenBetWindowClosesAt: hiddenBetState.closesAt,
       hiddenBetState,
+      tableVisuals: this.tableVisuals ?? undefined,
     }
   }
 

@@ -4,12 +4,20 @@ import {
   useState,
   useEffect,
   useMemo,
-  ReactNode,
+  useCallback,
+  type ReactNode,
 } from "react";
 import ba1Url from "../assets/background/BA1.webp";
 import ba2Url from "../assets/background/BA2.webp";
 import ba3Url from "../assets/background/BA3.webp";
 import ba4Url from "../assets/background/BA4.webp";
+import { apiUrl } from "../utils/apiBase";
+import {
+  feltGradientFromCustomColor,
+  type TableVisualsPayload,
+} from "../utils/tableThemeShop";
+import { useUser } from "../hooks/useUser";
+import { useGetTableThemeShopQuery } from "../services/api";
 
 export type TableThemeId = "default" | "vegasRed" | "vegasPurple" | "darkBlue";
 
@@ -18,6 +26,7 @@ export type TableFeltBackgroundId = "ba1" | "ba2" | "ba3" | "ba4";
 
 const STORAGE_KEY = "pokerTableTheme";
 const FELT_BACKGROUND_STORAGE_KEY = "pokerTableFeltBackground";
+const CUSTOM_COLOR_STORAGE_KEY = "pokerTableCustomColor";
 
 export const TABLE_FELT_BACKGROUND_IDS: TableFeltBackgroundId[] = ["ba1", "ba2", "ba3", "ba4"];
 
@@ -48,7 +57,6 @@ export const TABLE_FELT_GRADIENTS: Record<TableThemeId, string> = {
     "radial-gradient(ellipse at center, #2d6edb 0%, #1d55c9 35%, #162f72 70%, #0a111f 100%)",
 };
 
-/** Bordure rail / cuir — identique pour tous les tapis (marron type billard). */
 const FELT_RAIL_BROWN = "rgba(120, 53, 15, 0.85)";
 
 export const TABLE_FELT_BORDER: Record<TableThemeId, string> = {
@@ -58,74 +66,152 @@ export const TABLE_FELT_BORDER: Record<TableThemeId, string> = {
   darkBlue: FELT_RAIL_BROWN,
 };
 
-interface TableThemeContextType {
-  tableTheme: TableThemeId;
-  setTableTheme: (id: TableThemeId) => void;
-  feltGradient: string;
-  feltBorder: string;
-  feltBackgroundId: TableFeltBackgroundId;
-  setFeltBackgroundId: (id: TableFeltBackgroundId) => void;
-  /** URL bundlée (Vite) pour `background-image: url(...)`. */
-  feltBackgroundUrl: string;
+function resolveBackgroundUrl(
+  id: TableFeltBackgroundId | "custom",
+  customUrl: string | null,
+): string {
+  if (id === "custom" && customUrl) {
+    return customUrl.startsWith("/api/") ? apiUrl(customUrl) : customUrl;
+  }
+  if (isTableFeltBackgroundId(id)) return TABLE_FELT_BACKGROUND_URLS[id];
+  return TABLE_FELT_BACKGROUND_URLS.ba1;
 }
 
-const TableThemeContext = createContext<TableThemeContextType | undefined>(
-  undefined
-);
+function resolveGradient(
+  themeId: TableThemeId | "custom",
+  customColor: string | null,
+): string {
+  if (themeId === "custom" && customColor) {
+    return feltGradientFromCustomColor(customColor);
+  }
+  if (isTableThemeId(themeId)) return TABLE_FELT_GRADIENTS[themeId];
+  return TABLE_FELT_GRADIENTS.default;
+}
+
+interface TableThemeContextType {
+  tableTheme: TableThemeId | "custom";
+  setTableTheme: (id: TableThemeId) => void;
+  customFeltColor: string | null;
+  setCustomFeltColor: (hex: string) => void;
+  feltGradient: string;
+  feltBorder: string;
+  feltBackgroundId: TableFeltBackgroundId | "custom";
+  setFeltBackgroundId: (id: TableFeltBackgroundId | "custom", customUrl?: string | null) => void;
+  feltBackgroundUrl: string;
+  setSessionTableVisuals: (visuals: TableVisualsPayload | null) => void;
+}
+
+const TableThemeContext = createContext<TableThemeContextType | undefined>(undefined);
 
 export function TableThemeProvider({ children }: { children: ReactNode }) {
-  const [tableTheme, setTableThemeState] = useState<TableThemeId>(() => {
+  const { userId } = useUser();
+  const { data: shopData } = useGetTableThemeShopQuery(undefined, { skip: !userId });
+
+  const [tableTheme, setTableThemeState] = useState<TableThemeId | "custom">(() => {
     if (typeof window === "undefined") return "default";
     const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw === "custom") return "custom";
     return raw && isTableThemeId(raw) ? raw : "default";
   });
 
-  const [feltBackgroundId, setFeltBackgroundIdState] = useState<TableFeltBackgroundId>(() => {
+  const [customFeltColor, setCustomFeltColorState] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(CUSTOM_COLOR_STORAGE_KEY);
+  });
+
+  const [feltBackgroundId, setFeltBackgroundIdState] = useState<TableFeltBackgroundId | "custom">(() => {
     if (typeof window === "undefined") return "ba1";
     const raw = localStorage.getItem(FELT_BACKGROUND_STORAGE_KEY);
+    if (raw === "custom") return "custom";
     return raw && isTableFeltBackgroundId(raw) ? raw : "ba1";
   });
 
-  const setTableTheme = (id: TableThemeId) => {
+  const [customFeltBackgroundUrl, setCustomFeltBackgroundUrl] = useState<string | null>(null);
+  const [sessionVisuals, setSessionVisuals] = useState<TableVisualsPayload | null>(null);
+
+  useEffect(() => {
+    const prefs = shopData?.preferences;
+    if (!prefs) return;
+    const theme = prefs.feltThemeId;
+    if (theme === "custom") {
+      setTableThemeState("custom");
+      if (prefs.feltCustomColor) setCustomFeltColorState(prefs.feltCustomColor);
+    } else if (isTableThemeId(theme)) {
+      setTableThemeState(theme);
+    }
+    const bg = prefs.feltBackgroundId;
+    if (bg === "custom") {
+      setFeltBackgroundIdState("custom");
+      if (prefs.visuals?.feltBackgroundUrl) {
+        setCustomFeltBackgroundUrl(prefs.visuals.feltBackgroundUrl);
+      }
+    } else if (isTableFeltBackgroundId(bg)) {
+      setFeltBackgroundIdState(bg);
+    }
+  }, [shopData]);
+
+  const setTableTheme = useCallback((id: TableThemeId) => {
     setTableThemeState(id);
     localStorage.setItem(STORAGE_KEY, id);
-  };
+  }, []);
 
-  const setFeltBackgroundId = (id: TableFeltBackgroundId) => {
-    setFeltBackgroundIdState(id);
-    localStorage.setItem(FELT_BACKGROUND_STORAGE_KEY, id);
-  };
+  const setCustomFeltColor = useCallback((hex: string) => {
+    setTableThemeState("custom");
+    setCustomFeltColorState(hex);
+    localStorage.setItem(STORAGE_KEY, "custom");
+    localStorage.setItem(CUSTOM_COLOR_STORAGE_KEY, hex);
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, tableTheme);
-  }, [tableTheme]);
+  const setFeltBackgroundId = useCallback(
+    (id: TableFeltBackgroundId | "custom", customUrl?: string | null) => {
+      setFeltBackgroundIdState(id);
+      localStorage.setItem(FELT_BACKGROUND_STORAGE_KEY, id);
+      if (id === "custom" && customUrl) setCustomFeltBackgroundUrl(customUrl);
+    },
+    [],
+  );
 
-  useEffect(() => {
-    localStorage.setItem(FELT_BACKGROUND_STORAGE_KEY, feltBackgroundId);
-  }, [feltBackgroundId]);
+  const setSessionTableVisuals = useCallback((visuals: TableVisualsPayload | null) => {
+    setSessionVisuals(visuals);
+  }, []);
 
-  const feltGradient = TABLE_FELT_GRADIENTS[tableTheme];
-  const feltBorder = TABLE_FELT_BORDER[tableTheme];
-  const feltBackgroundUrl = TABLE_FELT_BACKGROUND_URLS[feltBackgroundId];
+  const effectiveTheme = sessionVisuals?.feltThemeId ?? tableTheme;
+  const effectiveCustomColor = sessionVisuals?.feltCustomColor ?? customFeltColor;
+  const effectiveBgId = sessionVisuals?.feltBackgroundId ?? feltBackgroundId;
+  const effectiveCustomBgUrl = sessionVisuals?.feltBackgroundUrl ?? customFeltBackgroundUrl;
+
+  const feltGradient = resolveGradient(effectiveTheme, effectiveCustomColor ?? null);
+  const feltBorder = FELT_RAIL_BROWN;
+  const feltBackgroundUrl = resolveBackgroundUrl(effectiveBgId, effectiveCustomBgUrl);
 
   const value = useMemo(
     () => ({
       tableTheme,
       setTableTheme,
+      customFeltColor,
+      setCustomFeltColor,
       feltGradient,
       feltBorder,
       feltBackgroundId,
       setFeltBackgroundId,
       feltBackgroundUrl,
+      setSessionTableVisuals,
     }),
-    [tableTheme, feltGradient, feltBorder, feltBackgroundId, feltBackgroundUrl]
+    [
+      tableTheme,
+      setTableTheme,
+      customFeltColor,
+      setCustomFeltColor,
+      feltGradient,
+      feltBorder,
+      feltBackgroundId,
+      setFeltBackgroundId,
+      feltBackgroundUrl,
+      setSessionTableVisuals,
+    ],
   );
 
-  return (
-    <TableThemeContext.Provider value={value}>
-      {children}
-    </TableThemeContext.Provider>
-  );
+  return <TableThemeContext.Provider value={value}>{children}</TableThemeContext.Provider>;
 }
 
 export function useTableTheme(): TableThemeContextType {

@@ -1082,6 +1082,8 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
     }
 
     const gameId = `game_${Date.now()}`;
+    const { resolveTableVisualsForUserId } = await import('../shop/tableTheme.service.js')
+    const hostTableVisuals = await resolveTableVisualsForUserId(room.hostId)
     const cashGame = new CashGameController({
       id: gameId,
       roomId,
@@ -1095,6 +1097,7 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
           : turbo === true || room.turbo
             ? TURBO_TURN_TIMEOUT_MS
             : undefined,
+      tableVisuals: hostTableVisuals,
     });
     cashGame.initFromRoomPlayers(
       room.players.map((rp) => ({

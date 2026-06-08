@@ -35,6 +35,13 @@ export type PublicPlayerCosmetics = {
   title: { id: string; nameKey: string; color: string } | null
 }
 
+export type TableVisuals = {
+  feltThemeId: 'default' | 'vegasRed' | 'vegasPurple' | 'darkBlue' | 'custom'
+  feltCustomColor?: string | null
+  feltBackgroundId: 'ba1' | 'ba2' | 'ba3' | 'ba4' | 'custom'
+  feltBackgroundUrl?: string | null
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -129,6 +136,8 @@ export interface GameState {
     windowType: 'PRE_HAND' | 'LIVE_FLOP' | 'LIVE_TURN' | 'LIVE_RIVER' | null
     closesAt?: number
   }
+  /** Visuels table (couleur + fond) — en multijoueur, ceux de l'hôte. */
+  tableVisuals?: TableVisuals
   /** Phase runtime détaillée (pilotage backend/front). */
   handRuntimePhase?:
     | 'HAND_IN_PROGRESS'

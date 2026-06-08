@@ -88,6 +88,7 @@ import {
   STORAGE_MATCHES_COUNTED_IDS,
 } from "../constants/storageKeys";
 import { useTableTheme } from "../contexts/TableThemeContext";
+import type { TableVisualsPayload } from "../utils/tableThemeShop";
 
 /** Toutes les `RATE_GAME_PROMPT_EVERY` parties terminées, on propose la notation. */
 const RATE_GAME_PROMPT_EVERY = 5;
@@ -322,7 +323,7 @@ export function Game() {
     if (!resolved.frame) return undefined;
     return { banner: null, frame: resolved.frame, title: null } satisfies PublicPlayerCosmetics;
   }, [shopCosmetics?.items, shopLoadout]);
-  const { feltBackgroundUrl } = useTableTheme();
+  const { feltBackgroundUrl, setSessionTableVisuals } = useTableTheme();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   const difficultyParam = (searchParams.get("difficulty") || "moyen").toLowerCase();
   // Mode bot : le solde compte (header / DB) ne bouge pas sauf difficulté « expert » (URL: difficulty=expert).
@@ -1983,7 +1984,7 @@ export function Game() {
       SHOWDOWN: "showdown",
       ENDED_OPPONENT_LEFT: "showdown",
     };
-    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; hasFoldedThisHand?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string; hiddenBetNextHandId?: string; hiddenBetWindowOpen?: boolean; hiddenBetState?: { currentHandId: string | null; nextHandId: string | null; windowOpen: boolean; windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null; closesAt?: number } | null }) => {
+    const onGameUpdate = (_source: "GAME_UPDATE" | "GAME_STATE_UPDATED", gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; hasFoldedThisHand?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; showdownWinnerId?: string; showdownWinnerIds?: string[]; showdownIsSplit?: boolean; showdownHandName?: string; showdownPot?: number; cashCountdownEndsAt?: number; cashCountdownRemainingSec?: number; cashSeats?: { seatIndex: number; userId: string | null; username: string | null; chips: number }[]; spectatorRejoinQueue?: string[]; turnTimeLimitSec?: number; handId?: string; actionVersion?: number; streetVersion?: number; updatedAt?: string; hiddenBetNextHandId?: string; hiddenBetWindowOpen?: boolean; hiddenBetState?: { currentHandId: string | null; nextHandId: string | null; windowOpen: boolean; windowType: "PRE_HAND" | "LIVE_FLOP" | "LIVE_TURN" | "LIVE_RIVER" | null; closesAt?: number } | null; tableVisuals?: { feltThemeId: string; feltCustomColor?: string | null; feltBackgroundId: string; feltBackgroundUrl?: string | null } }) => {
       console.log('[FRONT][GAME] socket_update_received', {
   source: _source,
   gameId: gameState?.id,
@@ -2003,6 +2004,15 @@ export function Game() {
       setHiddenBetNextHandId(gameState.hiddenBetNextHandId ?? null);
       setHiddenBetWindowOpen(Boolean(gameState.hiddenBetWindowOpen));
       setHiddenBetState(gameState.hiddenBetState ?? null);
+      if (!isBotMode && gameState.tableVisuals) {
+        const tv = gameState.tableVisuals;
+        setSessionTableVisuals({
+          feltThemeId: tv.feltThemeId as TableVisualsPayload["feltThemeId"],
+          feltCustomColor: tv.feltCustomColor ?? null,
+          feltBackgroundId: tv.feltBackgroundId as TableVisualsPayload["feltBackgroundId"],
+          feltBackgroundUrl: tv.feltBackgroundUrl ?? null,
+        });
+      }
       const stMeta = gameState as {
         updatedAt?: string;
         streetVersion?: number;
@@ -2709,6 +2719,7 @@ export function Game() {
       socket.off("CASH_WAITING_PLAYERS", onCashWaiting);
       socket.off("CASH_NEXT_HAND_READY_UPDATED", onNextHandReadyUpdated);
       socket.off("SPECTATOR_QUEUE_STATUS", onQueueStatus);
+      setSessionTableVisuals(null);
     };
   }, [
     socket,
@@ -2723,6 +2734,7 @@ export function Game() {
     clearMultiBustPromptTimer,
     searchParams,
     fetchBalanceFromServer,
+    setSessionTableVisuals,
   ]);
 
   useEffect(() => {

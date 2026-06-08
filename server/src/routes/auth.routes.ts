@@ -130,6 +130,34 @@ const balancePollLimiter = rateLimitWithMetrics({
 
 const router = express.Router()
 
+/** Fond de table personnalisé — lecture publique (UUID non devinable). */
+router.get('/table-backgrounds/:userId', async (req, res) => {
+  try {
+    const userId = typeof req.params.userId === 'string' ? req.params.userId : ''
+    if (!isUuidParam(userId)) {
+      return res.status(400).json({ error: 'Identifiant invalide' })
+    }
+    const result = await pgPool.query<{
+      tableFeltBackgroundImage: Buffer | null
+      tableFeltBackgroundMime: string | null
+      tableFeltBackgroundHasBinary: boolean
+    }>(
+      'SELECT "tableFeltBackgroundImage", "tableFeltBackgroundMime", "tableFeltBackgroundHasBinary" FROM "User" WHERE "id" = $1 LIMIT 1',
+      [userId],
+    )
+    const user = result.rows[0]
+    if (!user?.tableFeltBackgroundHasBinary || !user.tableFeltBackgroundImage?.length || !user.tableFeltBackgroundMime) {
+      return res.status(404).end()
+    }
+    res.setHeader('Content-Type', user.tableFeltBackgroundMime)
+    res.setHeader('Cache-Control', 'private, no-cache, max-age=0, must-revalidate')
+    return res.send(user.tableFeltBackgroundImage)
+  } catch (error) {
+    console.error('[AUTH] GET table-background error:', error)
+    return res.status(500).end()
+  }
+})
+
 /** Avatar binaire en base — lecture publique (UUID non devinable). */
 router.get('/avatars/:userId', async (req, res) => {
   try {

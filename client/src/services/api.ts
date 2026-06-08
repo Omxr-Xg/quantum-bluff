@@ -160,6 +160,34 @@ export type ShopAvatarPreset = {
   acquiredAt: string | null
 }
 
+export type TableThemeShopItem = {
+  id: string
+  kind: 'felt_theme' | 'felt_background' | 'custom_felt_color' | 'custom_background'
+  priceChips: number
+  free: boolean
+  owned: boolean
+}
+
+export type TableThemePreferences = {
+  visuals: {
+    feltThemeId: string
+    feltCustomColor: string | null
+    feltBackgroundId: string
+    feltBackgroundUrl: string | null
+  }
+  feltThemeId: string
+  feltCustomColor: string | null
+  feltBackgroundId: string
+  ownedUnlockIds: string[]
+}
+
+export type TableThemeShopResponse = {
+  feltThemes: TableThemeShopItem[]
+  feltBackgrounds: TableThemeShopItem[]
+  extras: TableThemeShopItem[]
+  preferences: TableThemePreferences
+}
+
 export type ShopLoadout = {
   bannerId: string | null
   frameId: string | null
@@ -633,6 +661,43 @@ export const api = createApi({
       invalidatesTags: ['Shop', 'User'],
     }),
 
+    getTableThemeShop: builder.query<TableThemeShopResponse, void>({
+      query: () => '/shop/table-themes',
+      providesTags: ['Shop'],
+    }),
+
+    purchaseTableUnlock: builder.mutation<{ ok: boolean; unlockId: string; chips: number }, string>({
+      query: (id) => ({
+        url: `/shop/table-themes/${encodeURIComponent(id)}/purchase`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Shop', 'User'],
+    }),
+
+    updateTablePreferences: builder.mutation<
+      { preferences: TableThemePreferences['visuals'] },
+      { feltThemeId?: string; feltCustomColor?: string | null; feltBackgroundId?: string }
+    >({
+      query: (body) => ({
+        url: '/shop/table-preferences',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Shop'],
+    }),
+
+    uploadTableBackground: builder.mutation<
+      { preferences: TableThemePreferences['visuals'] },
+      { imageData: string }
+    >({
+      query: (body) => ({
+        url: '/shop/table-background',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Shop'],
+    }),
+
     getShopCosmetics: builder.query<{ items: ShopCosmetic[] }, void>({
       query: () => '/shop/cosmetics',
       providesTags: ['Shop'],
@@ -753,6 +818,10 @@ export const {
   useGetMyAchievementsQuery,
   useGetShopAvatarsQuery,
   usePurchaseAvatarPresetMutation,
+  useGetTableThemeShopQuery,
+  usePurchaseTableUnlockMutation,
+  useUpdateTablePreferencesMutation,
+  useUploadTableBackgroundMutation,
   useGetShopCosmeticsQuery,
   usePurchaseCosmeticMutation,
   useGetShopLoadoutQuery,

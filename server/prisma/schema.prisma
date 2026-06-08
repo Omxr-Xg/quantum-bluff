@@ -58,6 +58,15 @@ model User {
   avatarMime               String?
   /// True si avatarImage est renseigné — évite de charger le BYTEA au login pour construire l'URL publique.
   avatarHasBinary          Boolean   @default(false)
+  /// Tapis : default | vegasRed | vegasPurple | darkBlue | custom
+  tableFeltThemeId         String    @default("default")
+  /// Couleur personnalisée (#RRGGBB) si tableFeltThemeId = custom
+  tableFeltCustomColor     String?
+  /// Fond salle : ba1 | ba2 | ba3 | ba4 | custom
+  tableFeltBackgroundId    String    @default("ba1")
+  tableFeltBackgroundImage Bytes?
+  tableFeltBackgroundMime  String?
+  tableFeltBackgroundHasBinary Boolean @default(false)
 
   // ============================================
   // DAILY LOGIN STREAK (récompense quotidienne progressive)
@@ -139,6 +148,7 @@ model User {
   userAchievements  UserAchievement[]
   userCosmetics     UserCosmetic[]
   userAvatarPresets UserAvatarPreset[]
+  userTableUnlocks  UserTableUnlock[]
   seasonScores      SeasonScore[]
   notifications     UserNotification[]
 
@@ -1369,6 +1379,17 @@ model UserAvatarPreset {
 
   @@id([userId, presetId])
   @@map("user_avatar_presets")
+}
+
+model UserTableUnlock {
+  userId     String
+  unlockId   String
+  acquiredAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, unlockId])
+  @@map("user_table_unlocks")
 }
 
 // ============================================
