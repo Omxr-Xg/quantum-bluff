@@ -37,13 +37,19 @@ async function performCleanup() {
 
   try {
     // Nettoyage des différentes tables historiques
-    const [hist, actions, results] = await Promise.all([
+    const tendencyCutoff = new Date();
+    tendencyCutoff.setDate(tendencyCutoff.getDate() - 90);
+
+    const [hist, actions, results, tendencyActions, tendencySummaries] = await Promise.all([
       prisma.gameHistory.deleteMany({ where: { createdAt: { lt: cutoff } } }),
       prisma.gameAction.deleteMany({ where: { timestamp: { lt: cutoff } } }),
-      prisma.gameResult.deleteMany({ where: { endedAt: { lt: cutoff } } })
+      prisma.gameResult.deleteMany({ where: { endedAt: { lt: cutoff } } }),
+      prisma.playerTendencyAction.deleteMany({ where: { createdAt: { lt: tendencyCutoff } } }),
+      prisma.playerTendencyHandSummary.deleteMany({ where: { endedAt: { lt: tendencyCutoff } } }),
     ]);
 
-    const totalDeleted = hist.count + actions.count + results.count;
+    const totalDeleted =
+      hist.count + actions.count + results.count + tendencyActions.count + tendencySummaries.count;
     console.log(` [DA4-CLEANUP] Archivage terminé : ${totalDeleted} entrées supprimées.`);
     
     // Après le nettoyage, on vérifie la taille pour voir le gain

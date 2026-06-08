@@ -243,6 +243,25 @@ export function BlackjackMultiTable() {
     }
   }, [gameId, navigate, addToast, t, applyRuntimeCode]);
 
+  const leaveTable = useCallback(async () => {
+    if (isSpectatorRef.current) return;
+    const rid = roomIdRef.current;
+    const gid = gameIdRef.current;
+    if (!rid || !gid) return;
+    if (!getAuthItem("token")) return;
+
+    socketRef.current?.emit("LEAVE_BLACKJACK_TABLE", { gameId: gid });
+    try {
+      await fetch(apiUrl(`/api/blackjack-tables/${rid}/leave`), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({}),
+      });
+    } catch {
+      /* navigation / fermeture onglet */
+    }
+  }, []);
+
   const postBet = useCallback(async () => {
     if (!gameId || isSpectator || acting) return;
     setActing(true);
@@ -278,10 +297,12 @@ export function BlackjackMultiTable() {
   }, [state?.roomId]);
 
   useEffect(() => {
-    const handleRequestQuit = () => navigate("/lobby?tab=blackjack");
+    const handleRequestQuit = () => {
+      void leaveTable().finally(() => navigate("/lobby?tab=blackjack"));
+    };
     window.addEventListener("request-blackjack-quit", handleRequestQuit);
     return () => window.removeEventListener("request-blackjack-quit", handleRequestQuit);
-  }, [navigate]);
+  }, [navigate, leaveTable]);
 
   useEffect(() => {
     const handleRequestTour = () => {
@@ -307,25 +328,6 @@ export function BlackjackMultiTable() {
 
   useEffect(() => {
     return () => window.dispatchEvent(new Event("game-hud-reset"));
-  }, []);
-
-  /** Quitter la table côté API au démontage (navigation) pour retirer le joueur des sièges côté serveur. */
-  useEffect(() => {
-    return () => {
-      if (isSpectatorRef.current) return;
-      const rid = roomIdRef.current;
-      const gid = gameIdRef.current;
-      if (!rid || !gid) return;
-      const token = getAuthItem("token");
-      if (!token) return;
-      void fetch(apiUrl(`/api/blackjack-tables/${rid}/leave`), {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({}),
-        keepalive: true,
-      }).catch(() => {});
-      socketRef.current?.emit("LEAVE_BLACKJACK_TABLE", { gameId: gid });
-    };
   }, []);
 
   useEffect(() => {

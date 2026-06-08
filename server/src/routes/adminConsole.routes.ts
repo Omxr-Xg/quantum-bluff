@@ -856,4 +856,35 @@ async function handleBroadcastSend(req: Request, res: Response) {
 router.post('/broadcast/preview', handleBroadcastPreview)
 router.post('/broadcast', handleBroadcastSend)
 
+router.get('/bot-analytics', async (_req: Request, res: Response) => {
+  try {
+    const { getBotAnalyticsSummary } = await import(
+      '../poker/simulation/massSim.job.js'
+    )
+    const summary = await getBotAnalyticsSummary(30)
+    return res.json(summary)
+  } catch (e) {
+    console.error('[adminConsole] bot-analytics', e)
+    return res.status(500).json({ error: 'Lecture analytics bots impossible' })
+  }
+})
+
+router.post('/bot-analytics/run', async (req: Request, res: Response) => {
+  try {
+    const tier = (req.body?.tier as string) ?? 'smoke'
+    const valid = ['smoke', 'nightly', 'release'] as const
+    const picked = valid.includes(tier as (typeof valid)[number])
+      ? (tier as (typeof valid)[number])
+      : 'smoke'
+    const { runMassSimulationJob } = await import(
+      '../poker/simulation/massSim.job.js'
+    )
+    const results = await runMassSimulationJob({ tier: picked, persist: true })
+    return res.json({ ok: true, tier: picked, results })
+  } catch (e) {
+    console.error('[adminConsole] bot-analytics run', e)
+    return res.status(500).json({ error: 'Simulation bots impossible' })
+  }
+})
+
 export default router

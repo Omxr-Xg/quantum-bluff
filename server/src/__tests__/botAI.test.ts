@@ -3,6 +3,10 @@ import {
   decideBotAction,
   compositeOpponentNormalizedStrength,
   expertOracleDecision,
+  heroShowdownEquity,
+  EXPERT_FOLD_MAX_WIN_PROB,
+  applyTendencyFoldThreshold,
+  applyTendencyBluffChance,
 } from '../logic/botAI.js'
 import type { Card } from '../types/poker.js'
 
@@ -49,7 +53,62 @@ describe('botAI — compositeOpponentNormalizedStrength', () => {
   })
 })
 
+describe('botAI — heroShowdownEquity', () => {
+  test('river : QQ bat 65 sur board neutre', () => {
+    const board: Card[] = [c('2'), c('7'), c('J'), c('4'), c('9')]
+    const hero: Card[] = [c('Q'), c('Q')]
+    const villain: Card[] = [c('6'), c('5')]
+    expect(heroShowdownEquity(hero, [villain], board)).toBeGreaterThan(0.95)
+  })
+
+  test('river : 72o perd face à AA', () => {
+    const board: Card[] = [c('2'), c('7'), c('J'), c('4'), c('9')]
+    const hero: Card[] = [c('7'), c('2')]
+    const villain: Card[] = [c('A'), c('A')]
+    expect(heroShowdownEquity(hero, [villain], board)).toBeLessThan(EXPERT_FOLD_MAX_WIN_PROB)
+  })
+})
+
 describe('botAI — expertOracleDecision multiway', () => {
+  test('QQ vs 65 preflop face à une relance : ne fold pas (équité >> 20%)', () => {
+    const hero: Card[] = [c('Q'), c('Q')]
+    const villain: Card[] = [c('6'), c('5')]
+    const req = {
+      playerCards: hero,
+      communityCards: [] as Card[],
+      difficulty: 'expert' as const,
+      currentBet: 200,
+      playerChips: 900,
+      callAmount: 150,
+      minRaise: 100,
+      potSize: 350,
+      position: 1,
+      playersCount: 2,
+    }
+    const d = expertOracleDecision(req, { opponentHoleCards: [villain] })
+    expect(d.action).not.toBe('FOLD')
+  })
+
+  test('72o vs AA river face à une grosse mise : fold (<20% win)', () => {
+    const board: Card[] = [c('2'), c('7'), c('J'), c('4'), c('9')]
+    const hero: Card[] = [c('7'), c('2')]
+    const villain: Card[] = [c('A'), c('A')]
+    const req = {
+      playerCards: hero,
+      communityCards: board,
+      difficulty: 'expert' as const,
+      currentBet: 400,
+      playerChips: 600,
+      callAmount: 300,
+      minRaise: 100,
+      potSize: 500,
+      position: 1,
+      playersCount: 2,
+    }
+    const d = expertOracleDecision(req, { opponentHoleCards: [villain] })
+    expect(d.action).toBe('FOLD')
+  })
+
   test('5 trous faibles + héros moyen + petite mise : pas fold systématique (random figé)', () => {
     const rnd = jest.spyOn(Math, 'random').mockReturnValue(0.99)
     const board: Card[] = [c('2'), c('7'), c('K')]
@@ -71,6 +130,61 @@ describe('botAI — expertOracleDecision multiway', () => {
     const d = expertOracleDecision(req, { opponentHoleCards: holes })
     rnd.mockRestore()
     expect(d.action).not.toBe('FOLD')
+  })
+})
+
+describe('botAI — tendency adjustments', () => {
+  test('confidence LOW → seuil fold inchangé', () => {
+    expect(
+      applyTendencyFoldThreshold({
+        vpip: 0.5,
+        pfr: 0.2,
+        bluffRaiseRate: 0.5,
+        foldToRaiseRate: 0.3,
+        styleTag: 'AGGRESSIVE',
+        confidence: 'LOW',
+      }),
+    ).toBe(EXPERT_FOLD_MAX_WIN_PROB)
+  })
+
+  test('bluffer MEDIUM → seuil fold abaissé', () => {
+    const threshold = applyTendencyFoldThreshold({
+      vpip: 0.4,
+      pfr: 0.2,
+      bluffRaiseRate: 0.4,
+      foldToRaiseRate: 0.3,
+      styleTag: 'AGGRESSIVE',
+      confidence: 'MEDIUM',
+    })
+    expect(threshold).toBeLessThan(EXPERT_FOLD_MAX_WIN_PROB)
+  })
+
+  test('profil bluffer MEDIUM abaisse le seuil de fold vs baseline', () => {
+    const blufferProfile = {
+      vpip: 0.55,
+      pfr: 0.18,
+      bluffRaiseRate: 0.42,
+      foldToRaiseRate: 0.25,
+      styleTag: 'AGGRESSIVE',
+      confidence: 'MEDIUM' as const,
+      styleScores: { aggressive: 70, tight: 15, callingStation: 15 },
+    }
+    const threshold = applyTendencyFoldThreshold(blufferProfile)
+    expect(threshold).toBeLessThan(EXPERT_FOLD_MAX_WIN_PROB)
+    expect(threshold).toBeGreaterThan(0.1)
+  })
+
+  test('foldToRaise élevé → plus de bluffs quand check possible', () => {
+    const base = applyTendencyBluffChance(0.42, null)
+    const adapted = applyTendencyBluffChance(0.42, {
+      vpip: 0.2,
+      pfr: 0.1,
+      bluffRaiseRate: 0.1,
+      foldToRaiseRate: 0.7,
+      styleTag: 'TIGHT',
+      confidence: 'HIGH',
+    })
+    expect(adapted).toBeGreaterThan(base)
   })
 })
 

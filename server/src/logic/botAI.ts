@@ -33,6 +33,125 @@ export interface BotActionResponse {
 /** Score max théorique (Evaluator — quinte flush royale, catégorie 9). */
 const MAX_HAND_SCORE = 9 * Math.pow(15, 5) + 14 * Math.pow(15, 4)
 
+/** Fold face à une mise uniquement si P(perdre) ≥ 80 % (P(gagner) < 20 %). */
+export const EXPERT_FOLD_MAX_WIN_PROB = 0.2
+
+const ALL_SUITS: Card['suit'][] = ['HEARTS', 'DIAMONDS', 'CLUBS', 'SPADES']
+const ALL_RANKS: Card['rank'][] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+const RANK_VALUES: Record<Card['rank'], number> = {
+  '2': 2,
+  '3': 3,
+  '4': 4,
+  '5': 5,
+  '6': 6,
+  '7': 7,
+  '8': 8,
+  '9': 9,
+  '10': 10,
+  J: 11,
+  Q: 12,
+  K: 13,
+  A: 14,
+}
+
+const FULL_DECK: Card[] = ALL_SUITS.flatMap((suit) =>
+  ALL_RANKS.map((rank) => ({ suit, rank, value: RANK_VALUES[rank] })),
+)
+
+function cardIdentity(c: Card): string {
+  return `${c.suit}:${c.rank}`
+}
+
+function remainingDeck(known: Card[]): Card[] {
+  const knownSet = new Set(known.map(cardIdentity))
+  return FULL_DECK.filter((c) => !knownSet.has(cardIdentity(c)))
+}
+
+function combinationsOfSize<T>(items: T[], size: number): T[][] {
+  if (size === 0) return [[]]
+  if (size > items.length) return []
+  const result: T[][] = []
+  const combo: T[] = []
+  const recurse = (start: number) => {
+    if (combo.length === size) {
+      result.push([...combo])
+      return
+    }
+    for (let i = start; i <= items.length - (size - combo.length); i++) {
+      combo.push(items[i]!)
+      recurse(i + 1)
+      combo.pop()
+    }
+  }
+  recurse(0)
+  return result
+}
+
+function sampleRunoutCards(deck: Card[], needed: number): Card[] {
+  const pool = [...deck]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = pool[i]!
+    pool[i] = pool[j]!
+    pool[j] = tmp
+  }
+  return pool.slice(0, needed)
+}
+
+/**
+ * Équité showdown multiway (0–1) avec trous adverses connus.
+ * Énumération exacte si ≤2 cartes à venir, sinon Monte Carlo (preflop).
+ */
+export function heroShowdownEquity(
+  heroCards: Card[],
+  opponentHoles: Card[][],
+  board: Card[],
+): number {
+  if (heroCards.length < 2 || opponentHoles.length === 0) {
+    return normalizedHandStrength(heroCards, board)
+  }
+
+  const known = [...heroCards, ...board, ...opponentHoles.flat().slice(0, opponentHoles.length * 2)]
+  const deck = remainingDeck(known)
+  const needed = Math.max(0, 5 - board.length)
+  const hands = [heroCards, ...opponentHoles.map((h) => h.slice(0, 2))]
+
+  let wins = 0
+  let tieShare = 0
+  let total = 0
+
+  const scoreRunout = (completeBoard: Card[]) => {
+    const scores = hands.map((h) => getHandValue([...h, ...completeBoard]))
+    const heroScore = scores[0]!
+    const maxScore = Math.max(...scores)
+    total++
+    if (heroScore < maxScore) return
+    const winners = scores.filter((s) => s === maxScore).length
+    if (winners === 1) wins++
+    else tieShare += 1 / winners
+  }
+
+  if (needed === 0) {
+    scoreRunout(board)
+    return total > 0 ? wins + tieShare : normalizedHandStrength(heroCards, board)
+  }
+
+  const combos = combinationsOfSize(deck, needed)
+  const useMonteCarlo = needed >= 3 && combos.length > 4000
+  if (useMonteCarlo) {
+    const samples = 2800
+    for (let i = 0; i < samples; i++) {
+      scoreRunout([...board, ...sampleRunoutCards(deck, needed)])
+    }
+  } else {
+    for (const extra of combos) {
+      scoreRunout([...board, ...extra])
+    }
+  }
+
+  return total > 0 ? (wins + tieShare) / total : normalizedHandStrength(heroCards, board)
+}
+
 /**
  * Force 0–1 à partir des cartes visibles (2–7 cartes).
  * Corrige l’ancien bug qui renvoyait 0.5 dès que < 5 cartes au total.
@@ -389,13 +508,243 @@ function advancedPotOddsDecision(req: BotActionRequest, p: AdvancedProfile): Bot
       return { action: 'CALL', amount: intChips(req.playerChips), reasoning: `${p.name}: stubborn short` }
     }
   }
-  return { action: 'FOLD', reasoning: `${p.name}: fold` }
+  if (req.callAmount > 0 && winProbability >= EXPERT_FOLD_MAX_WIN_PROB) {
+    if (req.playerChips >= req.callAmount) {
+      return {
+        action: 'CALL',
+        amount: intChips(req.callAmount),
+        reasoning: `${p.name}: call (win≈${(winProbability * 100).toFixed(0)}%)`,
+      }
+    }
+    if (req.playerChips > 0) {
+      return {
+        action: 'CALL',
+        amount: intChips(req.playerChips),
+        reasoning: `${p.name}: call short (win≈${(winProbability * 100).toFixed(0)}%)`,
+      }
+    }
+  }
+  if (req.callAmount > 0) {
+    return {
+      action: 'FOLD',
+      reasoning: `${p.name}: fold (win<${(EXPERT_FOLD_MAX_WIN_PROB * 100).toFixed(0)}%)`,
+    }
+  }
+  return { action: 'CHECK', reasoning: `${p.name}: check` }
+}
+
+/** Profil comportemental humain injecté par practice-bot expert. */
+export type ExpertPlayerTendency = {
+  vpip: number
+  pfr: number
+  bluffRaiseRate: number
+  foldToRaiseRate: number
+  styleTag: string
+  confidence: 'LOW' | 'MEDIUM' | 'HIGH'
+  styleScores?: { aggressive: number; tight: number; callingStation: number }
+  positionRates?: { vpip: number; pfr: number; foldToRaiseRate: number } | null
+  recentTendency?: { consecutiveBluffHands: number; consecutiveFoldStreak: number }
 }
 
 /** Contexte « voyant » : trous adverses connus (mode expert sans ou en secours du service Python). */
 export type ExpertOracleContext = {
   opponentHoleCards?: Card[][]
   opponentStack?: number
+  playerTendency?: ExpertPlayerTendency
+  /** Équité vs range estimée (Phase 3) — remplace oracle trous si présente. */
+  rangeWinProb?: number
+}
+
+export function tendencyAdjustmentIntensity(
+  profile: ExpertPlayerTendency,
+): number {
+  if (profile.confidence === 'HIGH') return 1
+  if (profile.confidence === 'MEDIUM') return 0.5
+  return 0
+}
+
+function normalizeStyleWeights(
+  profile: ExpertPlayerTendency,
+): { aggressive: number; tight: number; callingStation: number } | null {
+  const s = profile.styleScores
+  if (!s || profile.confidence === 'LOW') return null
+  const sum = s.aggressive + s.tight + s.callingStation
+  if (sum <= 0) return null
+  return {
+    aggressive: s.aggressive / sum,
+    tight: s.tight / sum,
+    callingStation: s.callingStation / sum,
+  }
+}
+
+function foldThresholdForArchetype(
+  archetype: 'aggressive' | 'tight' | 'callingStation',
+  profile: ExpertPlayerTendency,
+): number {
+  let t = EXPERT_FOLD_MAX_WIN_PROB
+  if (archetype === 'aggressive' && profile.bluffRaiseRate > 0.35) t -= 0.05
+  if (archetype === 'callingStation') t -= 0.04
+  if (archetype === 'tight') t += 0.03
+  return t
+}
+
+function bluffChanceForArchetype(
+  archetype: 'aggressive' | 'tight' | 'callingStation',
+  base: number,
+  profile: ExpertPlayerTendency,
+): number {
+  let c = base
+  if (archetype === 'aggressive' && profile.bluffRaiseRate > 0.3) c += 0.08
+  if (archetype === 'tight' && profile.foldToRaiseRate > 0.6) c += 0.14
+  if (archetype === 'callingStation') c -= 0.12
+  return c
+}
+
+function valueThresholdForArchetype(
+  archetype: 'aggressive' | 'tight' | 'callingStation',
+): number {
+  if (archetype === 'callingStation') return 0.52
+  if (archetype === 'tight') return 0.62
+  return 0.58
+}
+
+function blend3(
+  weights: { aggressive: number; tight: number; callingStation: number },
+  values: { aggressive: number; tight: number; callingStation: number },
+): number {
+  return (
+    weights.aggressive * values.aggressive +
+    weights.tight * values.tight +
+    weights.callingStation * values.callingStation
+  )
+}
+
+function effectiveRates(profile: ExpertPlayerTendency): ExpertPlayerTendency {
+  if (profile.positionRates) {
+    return {
+      ...profile,
+      vpip: profile.positionRates.vpip,
+      pfr: profile.positionRates.pfr,
+      foldToRaiseRate: profile.positionRates.foldToRaiseRate,
+    }
+  }
+  return profile
+}
+
+/** Seuil P(gagner) min pour call face à une mise — profil hybride pondéré. */
+export function applyTendencyFoldThreshold(
+  profile?: ExpertPlayerTendency | null,
+): number {
+  if (!profile || profile.confidence === 'LOW') {
+    return EXPERT_FOLD_MAX_WIN_PROB
+  }
+
+  const p = effectiveRates(profile)
+  const intensity = tendencyAdjustmentIntensity(p)
+  const weights = normalizeStyleWeights(p)
+
+  let threshold = EXPERT_FOLD_MAX_WIN_PROB
+  if (weights) {
+    threshold = blend3(weights, {
+      aggressive: foldThresholdForArchetype('aggressive', p),
+      tight: foldThresholdForArchetype('tight', p),
+      callingStation: foldThresholdForArchetype('callingStation', p),
+    })
+  } else {
+    if (p.bluffRaiseRate > 0.35) threshold -= 0.05 * intensity
+    if (p.styleTag === 'CALLING_STATION') threshold -= 0.03 * intensity
+  }
+
+  if ((p.recentTendency?.consecutiveBluffHands ?? 0) >= 3) {
+    threshold -= 0.04 * intensity
+  }
+
+  return Math.max(0.05, threshold)
+}
+
+/** Probabilité de bluff / pression quand check possible. */
+export function applyTendencyBluffChance(
+  baseChance: number,
+  profile?: ExpertPlayerTendency | null,
+): number {
+  if (!profile || profile.confidence === 'LOW') return baseChance
+
+  const p = effectiveRates(profile)
+  const intensity = tendencyAdjustmentIntensity(p)
+  const weights = normalizeStyleWeights(p)
+  let chance = baseChance
+
+  if (weights) {
+    chance = blend3(weights, {
+      aggressive: bluffChanceForArchetype('aggressive', baseChance, p),
+      tight: bluffChanceForArchetype('tight', baseChance, p),
+      callingStation: bluffChanceForArchetype('callingStation', baseChance, p),
+    })
+  } else {
+    if (p.foldToRaiseRate > 0.6) chance += 0.15 * intensity
+    if (p.styleTag === 'TIGHT') chance += 0.12 * intensity
+    if (p.styleTag === 'CALLING_STATION') chance -= 0.15 * intensity
+  }
+
+  if ((p.recentTendency?.consecutiveFoldStreak ?? 0) >= 4) {
+    chance += 0.1 * intensity
+  }
+
+  return Math.max(0, Math.min(0.85, chance))
+}
+
+/** Seuil P(gagner) pour value-bet quand check possible. */
+export function applyTendencyValueThreshold(
+  profile?: ExpertPlayerTendency | null,
+): number {
+  if (!profile || profile.confidence === 'LOW') return 0.58
+
+  const p = effectiveRates(profile)
+  const intensity = tendencyAdjustmentIntensity(p)
+  const weights = normalizeStyleWeights(p)
+  let threshold = 0.58
+
+  if (weights) {
+    threshold = blend3(weights, {
+      aggressive: valueThresholdForArchetype('aggressive'),
+      tight: valueThresholdForArchetype('tight'),
+      callingStation: valueThresholdForArchetype('callingStation'),
+    })
+  } else {
+    if (p.styleTag === 'CALLING_STATION') threshold -= 0.06 * intensity
+    if (p.styleTag === 'TIGHT') threshold += 0.04 * intensity
+  }
+
+  return Math.max(0.45, Math.min(0.72, threshold))
+}
+
+/** Sizing adaptatif (buckets pot-based) après décision raise. */
+export function pickAdaptiveRaiseSize(
+  req: BotActionRequest,
+  multiplier: number,
+  tendency?: ExpertPlayerTendency | null,
+  style: 'value' | 'bluff' = 'value',
+): number {
+  let mult = multiplier
+  if (tendency && tendency.confidence !== 'LOW') {
+    const intensity = tendencyAdjustmentIntensity(tendency)
+    const callingWeight =
+      (tendency.styleScores?.callingStation ?? 0) /
+      Math.max(
+        1,
+        (tendency.styleScores?.aggressive ?? 0) +
+          (tendency.styleScores?.tight ?? 0) +
+          (tendency.styleScores?.callingStation ?? 0),
+      )
+
+    if (style === 'value' && callingWeight > 0.35) mult += 0.45 * intensity
+    if (style === 'bluff' && tendency.foldToRaiseRate > 0.6) mult -= 0.25 * intensity
+    if (style === 'bluff' && (tendency.recentTendency?.consecutiveFoldStreak ?? 0) >= 4) {
+      mult -= 0.2 * intensity
+    }
+    if (tendency.styleTag === 'TIGHT' && style === 'bluff') mult -= 0.15 * intensity
+  }
+  return minRaiseAmount(req, Math.max(1.2, mult))
 }
 
 /**
@@ -420,103 +769,78 @@ export function compositeOpponentNormalizedStrength(sortedDesc: number[]): numbe
 export function expertOracleDecision(req: BotActionRequest, ctx: ExpertOracleContext): BotActionResponse {
   const board = req.communityCards
   const holes = (ctx.opponentHoleCards ?? []).filter((h) => Array.isArray(h) && h.length >= 2)
-  const hero = normalizedHandStrength(req.playerCards, board)
-  const oppStrengths = holes.map((h) => normalizedHandStrength(h, board)).sort((a, b) => b - a)
-  const oppBest = compositeOpponentNormalizedStrength(oppStrengths)
-  const edge = hero - oppBest
-
+  const winProb =
+    typeof ctx.rangeWinProb === 'number'
+      ? ctx.rangeWinProb
+      : holes.length > 0
+        ? heroShowdownEquity(req.playerCards, holes, board)
+        : normalizedHandStrength(req.playerCards, board)
   const potOdds = req.callAmount / Math.max(req.potSize + req.callAmount, 1)
-  const pressure = req.callAmount / Math.max(req.playerChips, 1)
-
-  const eq = Math.min(0.96, Math.max(0.06, hero + edge * 0.52))
+  const winPct = (winProb * 100).toFixed(0)
+  const tendency = ctx.playerTendency
+  const foldThreshold = applyTendencyFoldThreshold(tendency)
+  const valueThreshold = applyTendencyValueThreshold(tendency)
+  const bluffChance = applyTendencyBluffChance(0.42, tendency)
 
   if (req.callAmount === 0) {
-    if (edge > 0.02) {
+    if (winProb >= valueThreshold) {
       return {
         action: 'RAISE',
-        amount: minRaiseAmount(req, 2.35 + Math.random() * 0.75),
+        amount: pickAdaptiveRaiseSize(req, 2.35 + Math.random() * 0.75, tendency, 'value'),
         style: 'value',
-        reasoning: `expert-oracle: value (edge=${edge.toFixed(2)})`,
+        reasoning: `expert-oracle: value (win=${winPct}%, tendency=${tendency?.styleTag ?? 'none'})`,
       }
     }
-    if (edge > -0.14 && Math.random() < 0.44) {
+    if (winProb >= 0.34 && Math.random() < bluffChance) {
       return {
         action: 'RAISE',
-        amount: minRaiseAmount(req, 1.85 + Math.random() * 0.55),
+        amount: pickAdaptiveRaiseSize(req, 1.85 + Math.random() * 0.55, tendency, 'bluff'),
         style: 'bluff',
-        reasoning: `expert-oracle: bluff / pression (edge=${edge.toFixed(2)})`,
+        reasoning: `expert-oracle: bluff / pression (win=${winPct}%)`,
       }
     }
     return {
       action: 'CHECK',
       style: 'pot_control',
-      reasoning: `expert-oracle: check (edge=${edge.toFixed(2)})`,
+      reasoning: `expert-oracle: check (win=${winPct}%)`,
     }
   }
 
-  if (edge > 0.08) {
-    if (eq > potOdds + 0.1 && Math.random() < 0.5) {
-      return {
-        action: 'RAISE',
-        amount: minRaiseAmount(req, 2.15 + Math.random() * 0.5),
-        style: 'value',
-        reasoning: 'expert-oracle: relance value face à une mise',
-      }
-    }
+  if (winProb < foldThreshold) {
     return {
-      action: 'CALL',
-      amount: intChips(req.callAmount),
+      action: 'FOLD',
+      style: 'discipline',
+      reasoning: `expert-oracle: fold (win=${winPct}% < ${(foldThreshold * 100).toFixed(0)}%)`,
+    }
+  }
+
+  if (winProb >= 0.6 && (winProb > potOdds + 0.12 || winProb >= 0.72) && Math.random() < 0.52) {
+    return {
+      action: 'RAISE',
+      amount: pickAdaptiveRaiseSize(req, 2.15 + Math.random() * 0.5, tendency, 'value'),
       style: 'value',
-      reasoning: 'expert-oracle: call — devant',
+      reasoning: `expert-oracle: relance value face à une mise (win=${winPct}%)`,
     }
   }
 
-  if (edge >= -0.07 && eq + 0.05 >= potOdds) {
+  if (req.playerChips >= req.callAmount) {
     return {
       action: 'CALL',
       amount: intChips(req.callAmount),
-      style: 'showdown_value',
-      reasoning: 'expert-oracle: call — prix potable',
+      style: winProb >= potOdds ? 'showdown_value' : 'float',
+      reasoning: `expert-oracle: call (win=${winPct}%, seuil fold 80% lose)`,
     }
   }
-
-  if (edge >= -0.14 && req.callAmount <= req.potSize * 0.5) {
-    if (Math.random() < 0.68) {
-      return {
-        action: 'CALL',
-        amount: intChips(req.callAmount),
-        style: 'float',
-        reasoning: 'expert-oracle: call mise modérée',
-      }
-    }
-  }
-
-  if (edge < -0.22 && (pressure > 0.4 || req.callAmount > req.potSize * 0.9)) {
-    return {
-      action: 'FOLD',
-      style: 'discipline',
-      reasoning: 'expert-oracle: dominé + grosse pression',
-    }
-  }
-
-  if (edge < -0.16 && potOdds > 0.48) {
-    return {
-      action: 'FOLD',
-      style: 'discipline',
-      reasoning: 'expert-oracle: dominé, pot odds défavorables',
-    }
-  }
-
-  if (req.playerChips >= req.callAmount && Math.random() < 0.82) {
+  if (req.playerChips > 0) {
     return {
       action: 'CALL',
-      amount: intChips(req.callAmount),
+      amount: intChips(req.playerChips),
       style: 'hero',
-      reasoning: 'expert-oracle: call (évite fold systématique)',
+      reasoning: `expert-oracle: call tapis (win=${winPct}%)`,
     }
   }
 
-  return { action: 'FOLD', style: 'discipline', reasoning: 'expert-oracle: fold' }
+  return { action: 'FOLD', style: 'discipline', reasoning: 'expert-oracle: fold (plus de jetons)' }
 }
 
 export function decideBotAction(req: BotActionRequest): BotActionResponse {

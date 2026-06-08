@@ -14,6 +14,9 @@
     "test:coverage": "jest --coverage",
     "load-test": "tsx src/scripts/loadTest.ts",
     "load-test:ci": "bash scripts/ci-stress-test.sh",
+    "bot:selfplay": "tsx src/poker/simulation/runSelfPlayCli.ts",
+    "bot:mass-sim": "tsx src/poker/simulation/runMassSimCli.ts",
+    "bot:audit": "tsx src/poker/simulation/runCtoAudit.ts",
     "db:supabase-rls": "prisma db execute --file prisma/scripts/supabase-advisors-fix-all.sql --url \"${DIRECT_URL:-$DATABASE_URL}\""
   },
   "keywords": [],

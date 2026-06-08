@@ -109,6 +109,8 @@ model User {
 
   // RELATIONS EXISTANTES
   gameActions              GameAction[] // Actions effectuées par le joueur
+  playerTendencyProfile    PlayerTendencyProfile?
+  playerTendencyActions    PlayerTendencyAction[]
   gameWins                 GameResult[] // Parties gagnées par le joueur
   playerStats              PlayerStats? // Statistiques du joueur (relation 1-1)
   casinoStats              CasinoStats?
@@ -538,6 +540,99 @@ model GameResult {
   @@index([gameId])
   @@index([winnerId])
   @@index([endedAt])
+}
+
+/// Profil comportemental practice-bot expert (VPIP, PFR, bluff proxy, style).
+model PlayerTendencyProfile {
+  id        String @id @default(uuid())
+  playerId  String @unique
+  handsObserved Int @default(0)
+
+  vpipOpportunities Int @default(0)
+  vpipTaken         Int @default(0)
+  pfrOpportunities  Int @default(0)
+  pfrTaken          Int @default(0)
+  raisesFacing      Int @default(0)
+  foldsToRaise      Int @default(0)
+  raisesMade        Int @default(0)
+  raiseEquitySamples Int @default(0)
+  raiseEquitySumBp   Int @default(0)
+  lowEquityRaises   Int @default(0)
+
+  styleTag String @default("UNKNOWN")
+  styleScoreAggressive     Int @default(0)
+  styleScoreTight          Int @default(0)
+  styleScoreCallingStation Int @default(0)
+  lastStyleEvaluationAt    DateTime?
+  /// Stats VPIP/PFR/fold par position (BTN, CO, SB, BB, UTG…)
+  positionStats            Json?
+
+  updatedAt DateTime @updatedAt
+
+  player User @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  handSummaries PlayerTendencyHandSummary[]
+
+  @@index([playerId])
+}
+
+/// Journal minimal des actions humaines en practice expert (rétention 90j).
+model PlayerTendencyAction {
+  id        String   @id @default(uuid())
+  playerId  String
+  gameId    String
+  handId    String
+  phase     String
+  action    String
+  amount    Int?
+  equityBp  Int
+  position  String?
+  potBefore Int?
+  createdAt DateTime @default(now())
+
+  player User @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, createdAt])
+  @@index([gameId])
+  @@index([handId])
+}
+
+/// Résumé par main pour mémoire court terme (practice expert).
+model PlayerTendencyHandSummary {
+  id               String   @id @default(uuid())
+  playerId         String
+  profileId        String
+  gameId           String
+  handId           String
+  position         String?
+  vpip             Boolean  @default(false)
+  pfr              Boolean  @default(false)
+  raised           Boolean  @default(false)
+  lowEquityRaises  Int      @default(0)
+  foldsToRaise     Int      @default(0)
+  reachedShowdown  Boolean  @default(false)
+  wonPot           Boolean  @default(false)
+  endedAt          DateTime @default(now())
+
+  profile PlayerTendencyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, handId])
+  @@index([playerId, gameId, endedAt])
+}
+
+/// Runs de simulation bot-vs-bot (self-play / mass sim).
+model BotSimulationRun {
+  id           String   @id @default(uuid())
+  matchup      String
+  handsPlayed  Int
+  gitSha       String?
+  engineVersion String?
+  metricsJson  Json
+  isBaseline   Boolean  @default(false)
+  startedAt    DateTime
+  completedAt  DateTime @default(now())
+
+  @@index([matchup, completedAt])
+  @@index([isBaseline])
 }
 
 model PlayerStats {

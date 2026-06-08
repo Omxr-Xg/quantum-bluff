@@ -5,7 +5,9 @@ import {
   expertOracleDecision,
   type BotActionRequest,
   type BotActionResponse,
+  type ExpertPlayerTendency,
 } from '../logic/botAI.js'
+import type { PlayerTendencyView } from '../poker/services/playerTendency.service.js'
 import type { Card, GamePhase } from '../types/poker.js'
 import { rootLogger } from '../observability/logger.js'
 
@@ -19,6 +21,28 @@ export interface ExpertAiContext {
   actions?: unknown[]
   opponentStyle?: string
   opponentHoleCards?: Card[][]
+  playerTendency?: ExpertPlayerTendency
+  rangeWinProb?: number
+}
+
+export function toExpertPlayerTendency(
+  view: PlayerTendencyView,
+  extras?: {
+    positionRates?: ExpertPlayerTendency['positionRates']
+    recentTendency?: ExpertPlayerTendency['recentTendency']
+  },
+): ExpertPlayerTendency {
+  return {
+    vpip: view.vpip,
+    pfr: view.pfr,
+    bluffRaiseRate: view.bluffRaiseRate,
+    foldToRaiseRate: view.foldToRaiseRate,
+    styleTag: view.styleTag,
+    confidence: view.confidence,
+    styleScores: view.styleScores,
+    positionRates: extras?.positionRates ?? null,
+    recentTendency: extras?.recentTendency,
+  }
 }
 
 const aiResponseSchema = z.object({
@@ -202,6 +226,8 @@ export async function decideBotActionWithExpertAi(
     return expertOracleDecision(req, {
       opponentHoleCards: context.opponentHoleCards,
       opponentStack: context.opponentStack,
+      playerTendency: context.playerTendency,
+      rangeWinProb: context.rangeWinProb,
     })
   }
 

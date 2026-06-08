@@ -68,6 +68,9 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await tx.userStats.deleteMany({ where: { userId } })
     await tx.playerStats.deleteMany({ where: { playerId: userId } })
+    await tx.playerTendencyHandSummary.deleteMany({ where: { playerId: userId } })
+    await tx.playerTendencyAction.deleteMany({ where: { playerId: userId } })
+    await tx.playerTendencyProfile.deleteMany({ where: { playerId: userId } })
     await tx.gameAction.deleteMany({ where: { playerId: userId } })
     await tx.gameResult.deleteMany({ where: { winnerId: userId } })
     await tx.gameHistory.updateMany({ where: { winnerId: userId }, data: { winnerId: null } })

@@ -17,8 +17,17 @@ import { metrics } from "../../observability/metrics.js";
 import { rootLogger } from "../../observability/logger.js";
 import { getGameIo } from "../../sockets/gameIo.registry.js";
 import { CashGameController } from "../../logic/CashGameController.js";
-import { isPracticeBotGameId } from "../../shared/practiceBotGames.js";
+import {
+  getPracticeBotDifficulty,
+  isPracticeBotGameId,
+} from "../../shared/practiceBotGames.js";
 import type { ActiveGame } from "../../shared/activeGames.js";
+import { GameTable } from "../../logic/GameTable.js";
+import {
+  captureTendencyActionContext,
+  logHumanTendencyAction,
+  onPracticeExpertHandComplete,
+} from "./playerTendency.service.js";
 
 type ActionTarget = {
   getStateContext: () => {
@@ -34,6 +43,54 @@ type ActionTarget = {
   getMinRaise: () => number;
 };
 
+const QB_BOT_PREFIX = "qb-bot-";
+
+async function maybeRecordPracticeExpertTendency(
+  gameId: string,
+  game: ActiveGame,
+  playerId: string,
+  actionType: "FOLD" | "CALL" | "RAISE" | "CHECK",
+  amount?: number,
+): Promise<void> {
+  if (!isPracticeBotGameId(gameId)) return;
+  if (getPracticeBotDifficulty(gameId) !== "expert") return;
+  if (playerId.startsWith(QB_BOT_PREFIX)) return;
+  if (!(game instanceof GameTable)) return;
+
+  const ctx = captureTendencyActionContext(game, playerId, gameId);
+  if (!ctx) return;
+
+  try {
+    await logHumanTendencyAction(playerId, ctx, actionType, amount);
+  } catch (err) {
+    rootLogger.warn({
+      msg: "player_tendency_log_failed",
+      gameId,
+      playerId,
+      detail: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+async function maybeBumpPracticeExpertHand(
+  gameId: string,
+  game: ActiveGame,
+): Promise<void> {
+  if (!isPracticeBotGameId(gameId)) return;
+  if (getPracticeBotDifficulty(gameId) !== "expert") return;
+  if (!(game instanceof GameTable)) return;
+
+  try {
+    await onPracticeExpertHandComplete(gameId, game);
+  } catch (err) {
+    rootLogger.warn({
+      msg: "player_tendency_hand_complete_failed",
+      gameId,
+      detail: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 async function handleHandCompleteIfNeeded(
   gameId: string,
   game: ActiveGame,
@@ -41,6 +98,8 @@ async function handleHandCompleteIfNeeded(
   if (game.state.handRuntimePhase !== "HAND_COMPLETE") {
     return;
   }
+
+  await maybeBumpPracticeExpertHand(gameId, game);
 
   const io = getGameIo();
 
@@ -318,6 +377,14 @@ export async function applyPokerAction(
   await withPokerTableLock(payload.gameId, lockOwner, async () => {
     // 1. Le joueur fait son action (Fold, Call, Raise...)
     target.apply(payload.playerId, payload.actionType, payload.amount);
+
+    await maybeRecordPracticeExpertTendency(
+      payload.gameId,
+      game,
+      payload.playerId,
+      payload.actionType,
+      payload.amount,
+    );
 
     // 2. 🔄 GESTION DE LA FIN DE MAIN ET RELANCE AUTOMATIQUE
     await handleHandCompleteIfNeeded(payload.gameId, game);

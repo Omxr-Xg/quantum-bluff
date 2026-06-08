@@ -5,6 +5,12 @@ import { settlePots } from './poker/potSettlement.js'
 
 type PlayerAction = 'FOLD' | 'CALL' | 'RAISE' | 'CHECK'
 
+/** Désactivé en self-play (`SELFPLAY_QUIET=1`) pour accélérer les simulations massives. */
+function pokerTableLog(...args: Parameters<typeof console.log>): void {
+  if (process.env.SELFPLAY_QUIET === '1') return
+  console.log(...args)
+}
+
 export class GameTable {
   public readonly id: string
   private deck: Deck
@@ -422,7 +428,7 @@ export class GameTable {
    * @param lastActorId - Si fourni, le premier à jouer sur la nouvelle rue est le joueur APRÈS lastActorId (évite qu'un joueur joue deux fois de suite)
    */
   private moveToNextPhase(): void {
-    console.log('[POKER][PHASE] moveToNextPhase_called', {
+    pokerTableLog('[POKER][PHASE] moveToNextPhase_called', {
   gameId: this.id,
   fromPhase: this.state.phase,
   handId: this.state.handId,
@@ -457,7 +463,7 @@ export class GameTable {
     if (nextPhase === 'FLOP') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(...this.deck.dealFlop())
-      console.log('[POKER][PHASE] flop_generated', {
+      pokerTableLog('[POKER][PHASE] flop_generated', {
   gameId: this.id,
   handId: this.state.handId,
   phase: this.state.phase,
@@ -476,7 +482,7 @@ export class GameTable {
     if (nextPhase === 'TURN') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealTurn())
-      console.log('[POKER][PHASE] turn_generated', {
+      pokerTableLog('[POKER][PHASE] turn_generated', {
   gameId: this.id,
   handId: this.state.handId,
   phase: this.state.phase,
@@ -494,7 +500,7 @@ export class GameTable {
     if (nextPhase === 'RIVER') {
       this.resetBetsForNewRound()
       this.state.communityCards.push(this.deck.dealRiver())
-      console.log('[POKER][PHASE] river_generated', {
+      pokerTableLog('[POKER][PHASE] river_generated', {
   gameId: this.id,
   handId: this.state.handId,
   phase: this.state.phase,
@@ -574,7 +580,7 @@ export class GameTable {
       if (nextPhase === 'FLOP') {
         this.resetBetsForNewRound()
         this.state.communityCards.push(...this.deck.dealFlop())
-        console.log('[POKER][PHASE] flop_generated', {
+        pokerTableLog('[POKER][PHASE] flop_generated', {
   gameId: this.id,
   handId: this.state.handId,
   phase: this.state.phase,
@@ -583,7 +589,7 @@ export class GameTable {
 })
       } else if (nextPhase === 'TURN') {
         this.state.communityCards.push(this.deck.dealTurn())
-        console.log('[POKER][PHASE] turn_generated', {
+        pokerTableLog('[POKER][PHASE] turn_generated', {
   gameId: this.id,
   handId: this.state.handId,
   phase: this.state.phase,
@@ -592,7 +598,7 @@ export class GameTable {
 })
       } else if (nextPhase === 'RIVER') {
         this.state.communityCards.push(this.deck.dealRiver())
-        console.log('[POKER][PHASE] river_generated', {
+        pokerTableLog('[POKER][PHASE] river_generated', {
   gameId: this.id,
   handId: this.state.handId,
   phase: this.state.phase,
@@ -745,7 +751,7 @@ export class GameTable {
     this.state.showdownHandName = undefined
     this.state.showdownPot = undefined
     this.state.showdownWinningCards = undefined
-    console.log('[POKER][HAND] started', {
+    pokerTableLog('[POKER][HAND] started', {
   gameId: this.id,
   handId: this.state.handId,
   dealerIndex: this.dealerIndex,
@@ -868,7 +874,7 @@ export class GameTable {
   ): void {
     const player = this.getPlayerState(playerId)
 
-    console.log('[POKER][ACTION] handlePlayerAction_called', {
+    pokerTableLog('[POKER][ACTION] handlePlayerAction_called', {
   gameId: this.id,
   handId: this.state.handId,
   playerId,
@@ -1044,7 +1050,7 @@ export class GameTable {
   }
 
   private resolveShowdown(): void {
-    console.log('[POKER][SHOWDOWN] resolve_done', {
+    pokerTableLog('[POKER][SHOWDOWN] resolve_done', {
   gameId: this.id,
   handId: this.state.handId,
   showdownWinnerId: this.state.showdownWinnerId,
@@ -1072,7 +1078,7 @@ export class GameTable {
       settled.showdownWinningCards.length > 0 ? settled.showdownWinningCards : undefined
     this.state.handEndReason = this.state.handEndReason ?? 'SHOWDOWN'
     this.state.handRuntimePhase = 'HAND_COMPLETE'
-    console.log('[POKER][SHOWDOWN] resolve_done', {
+    pokerTableLog('[POKER][SHOWDOWN] resolve_done', {
   gameId: this.id,
   handId: this.state.handId,
   showdownWinnerId: this.state.showdownWinnerId,
@@ -1099,7 +1105,7 @@ export class GameTable {
     streetForLog: GamePhase,
     amount?: number
   ): void {
-    console.log('[POKER][ACTION] finishPlayerActionLedger', {
+    pokerTableLog('[POKER][ACTION] finishPlayerActionLedger', {
   gameId: this.id,
   handId: this.state.handId,
   playerId: player.id,
@@ -1165,7 +1171,7 @@ export class GameTable {
       if (player.chips <= 0) {
         player.isActive = false;
 
-        console.log(
+        pokerTableLog(
           `💀 [GameTable] ${player.name} (${player.id}) — 0 jeton après la main`,
         );
         playersEliminated = true;

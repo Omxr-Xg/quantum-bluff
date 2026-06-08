@@ -120,5 +120,41 @@ describe("BlackjackMultiTable runtime integration", () => {
     fireEvent.click(retryBtn);
     expect(fetch).toHaveBeenCalled();
   });
+
+  it("does not leave the table on unmount (page refresh keeps the seat)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        state: {
+          gameId: "game-1",
+          roomId: "room-1",
+          phase: "betting",
+          handNumber: 1,
+          minBet: 10,
+          dealerCards: [],
+          dealerHoleHidden: false,
+          seats: [],
+          currentSeatUserId: null,
+        },
+        hostId: "user-1",
+        roomId: "room-1",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const router = createMemoryRouter(
+      [{ path: "/blackjack/table/:gameId", element: <BlackjackMultiTable /> }],
+      { initialEntries: ["/blackjack/table/game-1"] },
+    );
+
+    const { unmount } = render(<RouterProvider router={router} />);
+    await screen.findByTestId("casino-table");
+    unmount();
+
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/leave")),
+    ).toBe(false);
+  });
 });
 

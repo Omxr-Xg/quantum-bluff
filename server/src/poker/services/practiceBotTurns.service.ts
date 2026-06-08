@@ -13,7 +13,21 @@ import {
 import { sanitizeBotDecision } from '../../logic/botDecisionSanitize.js'
 import { getPracticeBotDifficulty } from '../../shared/practiceBotGames.js'
 import { rootLogger } from '../../observability/logger.js'
-import { decideBotActionWithExpertAi } from '../../services/botAi.service.js'
+import {
+  decideBotActionWithExpertAi,
+  toExpertPlayerTendency,
+} from '../../services/botAi.service.js'
+import {
+  getPlayerTendencyProfile,
+  getRecentTendencySession,
+  positionRatesFromStats,
+  resolveHeroPosition,
+} from './playerTendency.service.js'
+import {
+  heroEquityVsRange,
+  narrowOpponentRange,
+  seedOpponentRange,
+} from './opponentRange.service.js'
 
 const QB_BOT_PREFIX = 'qb-bot-'
 
@@ -88,12 +102,62 @@ function buildBotRequest(
   }
 }
 
-function buildExpertAiContext(game: GameTable, gameId: string, botId: string) {
+async function buildExpertAiContext(game: GameTable, gameId: string, botId: string) {
   const bot = game.state.players.find((p) => p.id === botId)
   const activeOpponents = game.state.players.filter((p) => p.id !== botId && p.isActive !== false)
   const opponentStack =
     activeOpponents
       .sort((a, b) => b.chips - a.chips)[0]?.chips ?? bot?.chips ?? 0
+
+  const human = game.state.players.find((p) => !isBotSeatId(p.id))
+  let playerTendency
+  let rangeWinProb: number | undefined
+
+  if (human && getPracticeBotDifficulty(gameId) === 'expert') {
+    const profile = await getPlayerTendencyProfile(human.id)
+    const recent = await getRecentTendencySession(human.id, gameId, 5)
+    const heroPos = resolveHeroPosition(game, human.id)
+    const positionRates =
+      profile?.positionStats
+        ? positionRatesFromStats(profile.positionStats, heroPos)
+        : null
+
+    if (profile) {
+      playerTendency = toExpertPlayerTendency(profile, {
+        positionRates,
+        recentTendency: {
+          consecutiveBluffHands: recent.consecutiveBluffHands,
+          consecutiveFoldStreak: recent.consecutiveFoldStreak,
+        },
+      })
+    }
+
+    const bot = game.state.players.find((p) => p.id === botId)
+    if (bot?.cards && bot.cards.length >= 2) {
+      const known = [
+        ...bot.cards,
+        ...(game.state.communityCards ?? []),
+        ...(human.cards ?? []),
+      ]
+      let range = seedOpponentRange(known, playerTendency)
+      const last = game.state.lastHandAction as
+        | { playerId?: string; action?: string; equityBp?: number }
+        | undefined
+      if (last?.playerId === human.id && last.action) {
+        range = narrowOpponentRange(
+          range,
+          last.action as 'FOLD' | 'CALL' | 'RAISE' | 'CHECK',
+          last.equityBp ?? 5000,
+          game.state.phase ?? 'PREFLOP',
+        )
+      }
+      rangeWinProb = heroEquityVsRange(
+        bot.cards,
+        game.state.communityCards ?? [],
+        range,
+      )
+    }
+  }
 
   return {
     gameId,
@@ -104,6 +168,8 @@ function buildExpertAiContext(game: GameTable, gameId: string, botId: string) {
     opponentHoleCards: activeOpponents
       .map((p) => p.cards ?? [])
       .filter((cards) => cards.length >= 2),
+    playerTendency,
+    rangeWinProb,
   }
 }
 
@@ -237,7 +303,8 @@ async function runPracticeBotTurnsChainBody(
     }
 
     const decisionStart = Date.now()
-    const raw = await decideBotActionWithExpertAi(req, buildExpertAiContext(inner, gameId, turn))
+    const expertCtx = await buildExpertAiContext(inner, gameId, turn)
+    const raw = await decideBotActionWithExpertAi(req, expertCtx)
     const decision = sanitizeBotDecision(raw, req)
     const finalAmount = 'amount' in decision ? decision.amount : undefined
     rootLogger.info({

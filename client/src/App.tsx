@@ -58,6 +58,7 @@ import { TournamentWaiting } from "./features/tournament/pages/TournamentWaiting
 import { TournamentResults } from "./features/tournament/pages/TournamentResults";
 import { AdminAuth } from "./pages/AdminAuth";
 import { AdminConsole } from "./pages/AdminConsole";
+import { AdminBotAnalytics } from "./pages/AdminBotAnalytics";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 import { DiscoverPage } from "./pages/marketing/DiscoverPage";
 import { AboutPage } from "./pages/marketing/AboutPage";
@@ -163,6 +164,7 @@ function App() {
             <Route path="/auth/admin" element={<AdminAuth />} />
 
             <Route path="/admin/console" element={<AdminProtectedRoute><AdminConsole /></AdminProtectedRoute>} />
+            <Route path="/admin/bot-analytics" element={<AdminProtectedRoute><AdminBotAnalytics /></AdminProtectedRoute>} />
 
             <Route path="/lobby" element={<ProtectedRoute><Lobby /></ProtectedRoute>} />
             <Route path="/bot-configuration" element={<ProtectedRoute><BotConfiguration /></ProtectedRoute>} />

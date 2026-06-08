@@ -1,0 +1,25 @@
+name: bot-sim-smoke
+
+on:
+  pull_request:
+    paths:
+      - 'server/src/logic/botAI.ts'
+      - 'server/src/poker/**'
+      - 'server/src/services/botAi.service.ts'
+
+jobs:
+  selfplay-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+      - name: Self-play smoke
+        working-directory: server
+        run: npm run bot:selfplay -- --matchup=EXPERT_VS_EXPERT --hands=200

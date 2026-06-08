@@ -22,6 +22,7 @@ import type { BotDifficulty } from '../logic/botAI.js'
 import { intChips } from '../utils/chips.js'
 import { getActionLog } from '../config/redis.config.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
+import { getPlayerTendencyProfile } from '../poker/services/playerTendency.service.js'
 
 const router = express.Router()
 const gameReadLimiter = rateLimit({
@@ -415,6 +416,36 @@ router.get('/stats/:playerId', gameReadLimiter, async (req, res) => {
     })
   } catch (error) {
     console.error('Erreur stats:', error)
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+// GET /api/game/tendency/me — Profil comportemental practice expert (debug)
+router.get('/tendency/me', authMiddleware, gameReadLimiter, async (req, res) => {
+  try {
+    const userId = (req as express.Request & { userId?: string }).userId
+    if (!userId) {
+      return res.status(401).json({ error: 'Non authentifié', code: 'UNAUTHORIZED' })
+    }
+
+    const profile = await getPlayerTendencyProfile(userId)
+    if (!profile) {
+      return res.json({
+        handsObserved: 0,
+        vpip: 0,
+        pfr: 0,
+        bluffRaiseRate: 0,
+        foldToRaiseRate: 0,
+        styleTag: 'UNKNOWN',
+        styleScores: { aggressive: 0, tight: 0, callingStation: 0 },
+        confidence: 'LOW',
+        lastStyleEvaluationAt: null,
+      })
+    }
+
+    res.json(profile)
+  } catch (error) {
+    console.error('Erreur tendency/me:', error)
     res.status(500).json({ error: 'Erreur serveur' })
   }
 })
