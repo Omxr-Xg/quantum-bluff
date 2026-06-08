@@ -136,7 +136,7 @@ const formatWaitingRoomPayload = (room: {
   turbo?: boolean
   players: Array<{
     isReady: boolean
-    position: number
+    position: number | null
     avatarUrl?: string | null
     user: {
       id: string
@@ -162,7 +162,7 @@ const formatWaitingRoomPayload = (room: {
 
 function mapWaitingRoomPlayer(p: {
   isReady: boolean
-  position: number
+  position: number | null
   avatarUrl?: string | null
   user: {
     id: string
