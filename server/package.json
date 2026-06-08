@@ -17,6 +17,9 @@
     "bot:selfplay": "tsx src/poker/simulation/runSelfPlayCli.ts",
     "bot:mass-sim": "tsx src/poker/simulation/runMassSimCli.ts",
     "bot:audit": "tsx src/poker/simulation/runCtoAudit.ts",
+    "belote:benchmark": "tsx ../scripts/belote-benchmark.ts",
+    "belote:selfplay": "tsx ../scripts/belote-selfplay.ts",
+    "belote:replay": "tsx ../scripts/belote-replay-snapshots.ts",
     "db:supabase-rls": "prisma db execute --file prisma/scripts/supabase-advisors-fix-all.sql --url \"${DIRECT_URL:-$DATABASE_URL}\""
   },
   "keywords": [],

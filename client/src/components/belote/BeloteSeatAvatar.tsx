@@ -23,6 +23,8 @@ type Props = {
   forfeited?: boolean;
   isPresent?: boolean;
   isSpeaking?: boolean;
+  isBot?: boolean;
+  isThinking?: boolean;
   size?: "sm" | "md" | "hero";
 };
 
@@ -47,6 +49,8 @@ export function BeloteSeatAvatar({
   forfeited = false,
   isPresent = true,
   isSpeaking = false,
+  isBot = false,
+  isThinking = false,
   size = "md",
 }: Props) {
   const { t } = useTranslation();
@@ -99,6 +103,20 @@ export function BeloteSeatAvatar({
           >
             {team}
           </div>
+        </div>
+      ) : null}
+
+      {isBot ? (
+        <div className="pointer-events-none absolute -bottom-5 left-1/2 z-[55] flex -translate-x-1/2">
+          <span className="rounded-full border border-cyan-400/50 bg-cyan-950/90 px-2 py-0.5 text-[8px] font-black uppercase text-cyan-100">
+            {t("belote.aiBadge")}
+          </span>
+        </div>
+      ) : null}
+
+      {isThinking ? (
+        <div className="pointer-events-none absolute -top-8 left-1/2 z-[56] -translate-x-1/2 whitespace-nowrap rounded-full border border-cyan-300/40 bg-cyan-950/90 px-2 py-0.5 text-[8px] font-bold text-cyan-100 animate-pulse">
+          {t("belote.aiThinking")}
         </div>
       ) : null}
 

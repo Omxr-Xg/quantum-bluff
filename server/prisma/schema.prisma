@@ -787,21 +787,35 @@ enum BeloteGameVariant {
   MODERNE
 }
 
+enum BeloteParticipantType {
+  HUMAN
+  BOT
+}
+
+enum BeloteBotDifficulty {
+  EASY
+  NORMAL
+  EXPERT
+}
+
 model BeloteRoom {
-  id           String             @id @default(uuid())
-  name         String
-  hostId       String
-  maxPlayers   Int                @default(4)
-  visibility   RoomVisibility     @default(PUBLIC)
-  status       BeloteRoomStatus   @default(WAITING)
-  joinCode     String?
-  passwordHash String?
-  targetScore  Int                @default(1000)
-  buyIn        Int                @default(100)
-  variant      BeloteGameVariant  @default(CONTEE)
-  gameId       String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id                   String              @id @default(uuid())
+  name                 String
+  hostId               String
+  maxPlayers           Int                 @default(4)
+  visibility           RoomVisibility      @default(PUBLIC)
+  status               BeloteRoomStatus    @default(WAITING)
+  joinCode             String?
+  passwordHash         String?
+  targetScore          Int                 @default(1000)
+  buyIn                Int                 @default(100)
+  variant              BeloteGameVariant   @default(CONTEE)
+  gameId               String?
+  autoFillBotsEnabled  Boolean             @default(false)
+  autoFillBotsDelaySec Int                 @default(30)
+  defaultBotDifficulty BeloteBotDifficulty @default(NORMAL)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   host         User                  @relation("BeloteRoomHost", fields: [hostId], references: [id])
   seats        BeloteRoomSeat[]
@@ -817,22 +831,110 @@ model BeloteRoom {
 }
 
 model BeloteRoomSeat {
-  id        String   @id @default(uuid())
-  roomId    String
-  userId    String
-  position  Int
-  isReady   Boolean  @default(false)
-  team      String?
-  avatarUrl String?
-  joinedAt  DateTime @default(now())
+  id              String                @id @default(uuid())
+  roomId          String
+  participantType BeloteParticipantType @default(HUMAN)
+  userId          String?
+  botId           String?
+  displayName     String?
+  botDifficulty   BeloteBotDifficulty   @default(NORMAL)
+  position        Int
+  isReady         Boolean               @default(false)
+  team            String?
+  avatarUrl       String?
+  joinedAt        DateTime              @default(now())
 
   room BeloteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([roomId, userId])
   @@unique([roomId, position])
+  @@unique([roomId, botId])
   @@index([userId])
   @@map("belote_room_seats")
+}
+
+model BeloteModelVersion {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  label       String
+  artifactUrl String?
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  decisions  BeloteDecisionMetric[]
+  benchmarks BeloteBenchmarkRun[]
+
+  @@map("belote_model_versions")
+}
+
+model BeloteDecisionMetric {
+  id              String            @id @default(uuid())
+  gameId          String
+  handId          String
+  playerId        String
+  decisionSource  String
+  modelVersionId  String?
+  variant         BeloteGameVariant
+  phase           String
+  decisionTimeMs  Int
+  wonDeal         Boolean?
+  wonGame         Boolean?
+  teamScoreDelta  Int?
+  tricksWon       Int?
+  biddingError    Boolean           @default(false)
+  cutError        Boolean           @default(false)
+  neuralRejected  Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+
+  modelVersion BeloteModelVersion? @relation(fields: [modelVersionId], references: [id])
+
+  @@index([decisionSource, variant])
+  @@index([modelVersionId])
+  @@index([gameId, handId])
+  @@index([createdAt])
+  @@map("belote_decision_metrics")
+}
+
+model BeloteBenchmarkRun {
+  id             String            @id @default(uuid())
+  modelVersionId String?
+  matchup        String
+  variant        BeloteGameVariant
+  gamesPlayed    Int
+  teamAWins      Int
+  teamBWins      Int
+  avgScoreA      Float
+  avgScoreB      Float
+  illegalActions Int               @default(0)
+  avgDecisionMs  Float
+  startedAt      DateTime
+  finishedAt     DateTime
+
+  modelVersion BeloteModelVersion? @relation(fields: [modelVersionId], references: [id])
+
+  @@index([modelVersionId, matchup])
+  @@index([finishedAt])
+  @@map("belote_benchmark_runs")
+}
+
+model BeloteTrainingSample {
+  id               String            @id @default(uuid())
+  gameId           String
+  handId           String
+  playerId         String
+  phase            String
+  variant          BeloteGameVariant
+  gameStateJson    Json
+  legalActionsJson Json
+  chosenActionJson Json
+  reward           Float?
+  source           String
+  createdAt        DateTime          @default(now())
+
+  @@index([gameId, handId])
+  @@index([variant, phase])
+  @@index([createdAt])
+  @@map("belote_training_samples")
 }
 
 model BeloteJoinRequest {

@@ -359,12 +359,14 @@ describe('BeloteTableController flows', () => {
     expect(restored.getState().phase).toMatch(/BIDDING|CLASSIQUE/)
   })
 
-  it('disconnect timeout forfeits player', () => {
+  it('disconnect timeout replaces player with bot', () => {
     const table = makeTable('CONTEE', 5000)
     table.markDisconnected('u0')
-    expect(table.processDisconnectTimeouts(Date.now() + 61_000)).toBe(true)
-    const p = table.getState().players.find((x) => x.userId === 'u0')!
-    expect(p.forfeited).toBe(true)
+    expect(table.processDisconnectTimeouts(Date.now() + 61_000).changed).toBe(true)
+    const p = table.getState().players.find((x) => x.position === 0)!
+    expect(p.isBot).toBe(true)
+    expect(p.forfeited).toBe(false)
+    expect(p.userId.startsWith('qb-belote-bot-')).toBe(true)
     table.markReconnected('u1')
   })
 

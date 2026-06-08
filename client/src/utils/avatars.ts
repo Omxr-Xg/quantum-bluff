@@ -131,7 +131,12 @@ export function isFreeAvatarPresetId(id: string): boolean {
 function isBotSeat(playerId: string | number | undefined): boolean {
   if (playerId == null) return false;
   const s = String(playerId).toLowerCase();
-  return s === "bot" || s.startsWith("bot-") || s.startsWith("qb-bot-");
+  return (
+    s === "bot" ||
+    s.startsWith("bot-") ||
+    s.startsWith("qb-bot-") ||
+    s.startsWith("qb-belote-bot-")
+  );
 }
 
 /**

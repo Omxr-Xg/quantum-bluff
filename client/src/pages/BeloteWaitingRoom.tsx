@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Check, Loader2, LogOut, Play, Users } from "lucide-react";
+import { ArrowLeft, Bot, Check, Loader2, LogOut, Play, Users, X } from "lucide-react";
+import { addBeloteBot, fillBeloteBots, removeBeloteBot } from "../services/beloteApi";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
@@ -188,8 +189,51 @@ export function BeloteWaitingRoom() {
   }
 
   const me = room.players.find((p) => p.id === userId);
-  const allReady = room.players.length === 4 && room.players.every((p) => p.isReady);
+  const humanPlayers = room.players.filter((p) => !p.isBot);
+  const allReady =
+    room.canStart ??
+    (room.players.length === 4 && humanPlayers.every((p) => p.isReady));
   const isHost = room.hostId === userId;
+  const canFill = room.canFillTable ?? (isHost && (room.counts?.empty ?? 4 - room.players.length) > 0);
+
+  const handleFillTable = async () => {
+    setBusy(true);
+    try {
+      const data = await fillBeloteBots(roomId);
+      if (data.room) setRoom(data.room);
+      else await loadRoom();
+    } catch {
+      addToast(t("common.error"), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAddBot = async () => {
+    setBusy(true);
+    try {
+      const data = await addBeloteBot(roomId);
+      if (data.room) setRoom(data.room);
+      else await loadRoom();
+    } catch {
+      addToast(t("common.error"), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemoveBot = async (botId: string) => {
+    setBusy(true);
+    try {
+      const data = await removeBeloteBot(roomId, botId);
+      if (data.room) setRoom(data.room);
+      else await loadRoom();
+    } catch {
+      addToast(t("common.error"), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
   const presentSet = new Set(room.presentUserIds ?? []);
   if (userId) presentSet.add(userId);
 
@@ -234,6 +278,14 @@ export function BeloteWaitingRoom() {
               share: beloteWinnerShare(belotePotTotal(room.buyIn)),
             })}
           </p>
+          {room.counts ? (
+            <p className="mt-2 text-xs font-semibold text-cyan-200/90">
+              {t("belote.seatCounts", {
+                humans: room.counts.humans,
+                bots: room.counts.bots,
+              })}
+            </p>
+          ) : null}
         </div>
 
         <ul className="mb-6 space-y-3">
@@ -264,6 +316,11 @@ export function BeloteWaitingRoom() {
                   )}
                   <span className="font-semibold text-white">
                     {p ? p.username : t("belote.emptySeat")}
+                    {p?.isBot ? (
+                      <span className="ml-2 rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-200">
+                        {t("belote.aiBadge")}
+                      </span>
+                    ) : null}
                   </span>
                 </span>
                 {p ? (
@@ -275,14 +332,36 @@ export function BeloteWaitingRoom() {
                     ) : (
                       <span className="text-xs text-gray-500">{t("belote.notReady")}</span>
                     )}
-                    <span
-                      className={`text-[10px] font-semibold ${
-                        isPresent ? "text-emerald-400" : "text-slate-500"
-                      }`}
-                    >
-                      {isPresent ? t("belote.present") : t("belote.absent")}
-                    </span>
+                    {!p.isBot ? (
+                      <span
+                        className={`text-[10px] font-semibold ${
+                          isPresent ? "text-emerald-400" : "text-slate-500"
+                        }`}
+                      >
+                        {isPresent ? t("belote.present") : t("belote.absent")}
+                      </span>
+                    ) : isHost ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleRemoveBot(p.botId ?? p.id)}
+                        className="flex items-center gap-1 rounded-full border border-red-500/40 px-2 py-0.5 text-[10px] font-bold text-red-200 hover:bg-red-950/50"
+                      >
+                        <X className="h-3 w-3" />
+                        {t("belote.removeAi")}
+                      </button>
+                    ) : null}
                   </div>
+                ) : isHost ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void handleAddBot()}
+                    className="flex items-center gap-1 rounded-full border border-cyan-500/40 px-2 py-1 text-[10px] font-bold text-cyan-200"
+                  >
+                    <Bot className="h-3 w-3" />
+                    {t("belote.addAi")}
+                  </button>
                 ) : null}
               </li>
             );
@@ -305,6 +384,17 @@ export function BeloteWaitingRoom() {
           >
             {me?.isReady ? t("belote.unready") : t("belote.markReady")}
           </NeonButton>
+          {isHost && canFill ? (
+            <NeonButton
+              disabled={busy}
+              onClick={() => void handleFillTable()}
+              variant="green"
+              className="w-full py-4"
+              icon={<Bot className="h-5 w-5" />}
+            >
+              {t("belote.fillTable")}
+            </NeonButton>
+          ) : null}
           {isHost ? (
             <NeonButton
               disabled={busy || !allReady}

@@ -23,7 +23,7 @@ export function BeloteGame() {
   const isSpectating = searchParams.get("spectate") === "1";
   const { userId } = useUser();
   const { socket } = useSocket();
-  const { state, ended, presentUserIds, turnTimeLeft, sendAction } = useBeloteSocket(gameId, {
+  const { state, ended, presentUserIds, turnTimeLeft, botThinkingId, sendAction } = useBeloteSocket(gameId, {
     spectate: isSpectating,
   });
   const mySettlement = ended?.settlements?.find((s) => s.userId === userId);
@@ -124,6 +124,7 @@ export function BeloteGame() {
               presentUserIds={presentUserIds}
               turnTimeLeft={turnTimeLeft}
               speakingUserIds={voice.speakingUserIds}
+              botThinkingId={botThinkingId}
             />
             {!isSpectating ? (
               <div className="pointer-events-auto absolute bottom-[max(5.5rem,18%)] right-2 z-30 w-[min(100%,14rem)] sm:right-4">

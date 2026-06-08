@@ -41,6 +41,7 @@ export type BeloteSanitizedState = {
     disconnectedAt?: string | null;
     disconnectDeadline?: string | null;
     forfeited?: boolean;
+    isBot?: boolean;
   }>;
   buyIn?: number;
   potTotal?: number;
@@ -65,6 +66,7 @@ export function useBeloteSocket(
   const [state, setState] = useState<BeloteSanitizedState | null>(null);
   const [presentUserIds, setPresentUserIds] = useState<string[]>([]);
   const [turnTimeLeft, setTurnTimeLeft] = useState<number | null>(null);
+  const [botThinkingId, setBotThinkingId] = useState<string | null>(null);
   const [ended, setEnded] = useState<{
     winningTeam: string;
     teamScoreA: number;
@@ -154,15 +156,28 @@ export function useBeloteSocket(
       if (payload.gameId === gameId) setEnded(payload);
     };
 
+    const onBotAction = (payload: { gameId: string; botId: string }) => {
+      if (payload.gameId !== gameId) return;
+      setBotThinkingId(payload.botId);
+      window.setTimeout(() => setBotThinkingId((id) => (id === payload.botId ? null : id)), 900);
+    };
+    const onReplaced = () => {
+      void refreshHttp();
+    };
+
     socket.on("BELOTE_GAME_UPDATE", onUpdate);
     socket.on("BELOTE_TURN_TIMER", onTimer);
     socket.on("BELOTE_GAME_END", onEnd);
+    socket.on("BELOTE_BOT_ACTION", onBotAction);
+    socket.on("BELOTE_PLAYER_REPLACED_BY_BOT", onReplaced);
 
     return () => {
       socket.emit("LEAVE_BELOTE_GAME", { gameId });
       socket.off("BELOTE_GAME_UPDATE", onUpdate);
       socket.off("BELOTE_TURN_TIMER", onTimer);
       socket.off("BELOTE_GAME_END", onEnd);
+      socket.off("BELOTE_BOT_ACTION", onBotAction);
+      socket.off("BELOTE_PLAYER_REPLACED_BY_BOT", onReplaced);
     };
   }, [socket, gameId, refreshHttp, myUserId, spectate]);
 
@@ -179,6 +194,7 @@ export function useBeloteSocket(
     ended,
     presentUserIds,
     turnTimeLeft: effectiveTurnLeft,
+    botThinkingId,
     sendAction,
     refreshHttp,
     isSpectating: spectate,

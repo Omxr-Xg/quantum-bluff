@@ -10,6 +10,7 @@ import { legalBidOptions } from './conteeLegalBids.js'
 import { computeDealScore, detectBeloteInHand } from './conteeScoring.js'
 import { cardKey, createBeloteDeck, removeCardFromHand, shuffleBeloteDeck } from './deck.js'
 import { cardPoints, resolveTrumpContext } from './trumpContext.js'
+import { isBeloteBotId, makeBeloteBotId, beloteBotDisplayName } from '../../shared/beloteBots.js'
 import { canPlayCard, playableCards, trickWinnerPosition } from './trickPlay.js'
 import type {
   BeloteAction,
@@ -37,6 +38,7 @@ export type BeloteTableInit = {
     username: string
     position: number
     avatarUrl?: string | null
+    isBot?: boolean
   }>
 }
 
@@ -55,6 +57,7 @@ export class BeloteTableController {
       team: teamForPosition(p.position),
       hand: [],
       avatarUrl: p.avatarUrl ?? null,
+      isBot: p.isBot ?? isBeloteBotId(p.userId),
     }))
     const now = new Date().toISOString()
     this.gameId = init.gameId
@@ -173,6 +176,7 @@ export class BeloteTableController {
           team: p.team,
           handCount: p.hand.length,
           avatarUrl: p.avatarUrl ?? null,
+          isBot: p.isBot ?? isBeloteBotId(p.userId),
           disconnectedAt: p.disconnectedAt,
           disconnectDeadline: p.disconnectDeadline,
           forfeited: p.forfeited,
@@ -230,18 +234,56 @@ export class BeloteTableController {
     this.touch()
   }
 
-  processDisconnectTimeouts(now = Date.now()): boolean {
+  /** Remplace un humain déconnecté par une IA (même main / position / équipe). */
+  replacePlayerWithBot(userId: string, displayName?: string): string | null {
+    const p = this.state.players.find((x) => x.userId === userId)
+    if (!p || p.isBot || isBeloteBotId(p.userId)) return null
+    const botId = makeBeloteBotId()
+    p.userId = botId
+    p.username = displayName ?? beloteBotDisplayName(p.position)
+    p.isBot = true
+    delete p.disconnectedAt
+    delete p.disconnectDeadline
+    p.forfeited = false
+    this.touch()
+    return botId
+  }
+
+  processDisconnectTimeouts(now = Date.now()): {
+    changed: boolean
+    replacements: Array<{
+      oldUserId: string
+      botId: string
+      username: string
+      position: number
+    }>
+  } {
+    const replacements: Array<{
+      oldUserId: string
+      botId: string
+      username: string
+      position: number
+    }> = []
     let changed = false
     for (const p of this.state.players) {
       if (p.forfeited || !p.disconnectDeadline) continue
       if (new Date(p.disconnectDeadline).getTime() <= now) {
-        p.forfeited = true
-        delete p.disconnectDeadline
-        changed = true
+        const oldId = p.userId
+        const username = p.username
+        const position = p.position
+        const botId = this.replacePlayerWithBot(oldId)
+        if (botId) {
+          replacements.push({ oldUserId: oldId, botId, username, position })
+          changed = true
+        } else if (!p.isBot && !isBeloteBotId(p.userId)) {
+          p.forfeited = true
+          delete p.disconnectDeadline
+          changed = true
+        }
       }
     }
     if (changed) this.checkForfeitEnd()
-    return changed
+    return { changed, replacements }
   }
 
   forceEnd(winningTeam: BeloteTeam): void {

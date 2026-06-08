@@ -7,6 +7,11 @@ from pydantic import BaseModel, Field, field_validator
 
 from poker.decision import PUBLIC_ACTIONS, LinearPolicyModel, predict_decision
 
+try:
+    from belote.decision import predict_best_action as predict_belote_action
+except ImportError:
+    predict_belote_action = None
+
 
 class PokerPredictRequest(BaseModel):
     gameId: str | None = None
@@ -46,6 +51,20 @@ model = LinearPolicyModel.load()
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "model": "expert_bot.pt"}
+
+
+@app.post("/predict/belote")
+def predict_belote(request: dict) -> dict:
+    if predict_belote_action is None:
+        raise HTTPException(status_code=503, detail="Belote model not available")
+    decision = predict_belote_action(request)
+    if decision is None:
+        raise HTTPException(status_code=503, detail="Belote model not trained")
+    return {
+        "action": decision.action,
+        "confidence": decision.confidence,
+        "reason": decision.reason,
+    }
 
 
 @app.post("/predict/poker", response_model=PokerPredictResponse)

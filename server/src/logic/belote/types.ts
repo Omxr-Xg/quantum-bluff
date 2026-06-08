@@ -32,6 +32,7 @@ export type BelotePlayerState = {
   team: BeloteTeam
   hand: BeloteCard[]
   avatarUrl?: string | null
+  isBot?: boolean
   disconnectedAt?: string
   disconnectDeadline?: string
   forfeited?: boolean

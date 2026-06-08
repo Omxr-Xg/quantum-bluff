@@ -7,8 +7,12 @@ import {
   broadcastBeloteGame,
   syncBeloteAfterAction,
 } from '../belote/services/beloteSettlement.service.js'
-import { emitBeloteRoomUpdated } from '../routes/beloteRoom.routes.js'
+import { emitBeloteRoomUpdated } from '../belote/services/beloteRoomEvents.service.js'
 import { scheduleBeloteTurnTimer } from '../belote/services/beloteTurnTimer.service.js'
+import { scheduleBeloteBotTurns } from '../belote/services/beloteBotTurns.service.js'
+import { recordBeloteHumanDecision } from '../belote/services/beloteAnalytics.service.js'
+import { journalBeloteTrainingSample } from '../belote/services/beloteTrainingJournal.service.js'
+import { getLegalActions } from '../belote/services/beloteLegalEngine.js'
 import sanitizeHtml from 'sanitize-html'
 
 interface BeloteSocket extends Socket {
@@ -28,7 +32,17 @@ function startDisconnectPoller(io: Server, gameId: string): void {
       disconnectTimers.delete(gameId)
       return
     }
-    if (table.processDisconnectTimeouts()) {
+    const dc = table.processDisconnectTimeouts()
+    if (dc.changed) {
+      for (const r of dc.replacements) {
+        io.to(`belote-game:${gameId}`).emit('BELOTE_PLAYER_REPLACED_BY_BOT', {
+          gameId,
+          oldUserId: r.oldUserId,
+          botId: r.botId,
+          username: r.username,
+          position: r.position,
+        })
+      }
       void syncBeloteAfterAction(table, io)
     } else {
       void broadcastBeloteGame(io, gameId)
@@ -86,6 +100,7 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
       await broadcastBeloteGame(io, gameId)
       startDisconnectPoller(io, gameId)
       scheduleBeloteTurnTimer(io, gameId, table)
+      scheduleBeloteBotTurns(io, gameId)
     } catch (err) {
       console.error('[belote] JOIN_BELOTE_GAME', err)
     }
@@ -152,11 +167,25 @@ export function registerBeloteGatewayHandlers(io: Server, socket: BeloteSocket):
         return
       }
 
+      const legalBefore = getLegalActions(table, socket.userId)
+      const actionStart = Date.now()
       const result = table.applyAction(socket.userId, parsed.data)
       if (!result.ok) {
         socket.emit('ERROR', { code: result.error, message: result.error })
         return
       }
+
+      void recordBeloteHumanDecision(table, socket.userId, Date.now() - actionStart)
+      void journalBeloteTrainingSample({
+        table,
+        playerId: socket.userId,
+        legalActions: legalBefore,
+        decision: {
+          action: parsed.data as import('../belote/services/beloteLegalEngine.js').BeloteLegalAction,
+          reason: 'human',
+        },
+        source: 'HUMAN',
+      })
 
       await syncBeloteAfterAction(table, io)
     } catch (err) {

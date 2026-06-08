@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io'
 import type { BeloteTableController } from '../../logic/belote/BeloteTableController.js'
 import { activeBeloteGames } from '../../shared/activeBeloteGames.js'
+import { isBeloteBotId } from '../../shared/beloteBots.js'
 import { syncBeloteAfterAction } from './beloteSettlement.service.js'
 
 export const BELOTE_TURN_TIME_SEC = 30
@@ -33,6 +34,25 @@ function emitTurnTimer(io: Server, gameId: string, timeLeft: number): void {
   })
 }
 
+function currentTurnPlayerIsBot(table: BeloteTableController): boolean {
+  const state = table.getState()
+  let pos: number | undefined
+  if (state.phase === 'PLAYING') {
+    pos = state.deal.currentPlayerPosition
+  } else if (
+    state.phase === 'BIDDING' ||
+    state.phase === 'CONTREE_ROUND' ||
+    state.phase === 'CLASSIQUE_TAKE' ||
+    state.phase === 'CLASSIQUE_CHOOSE'
+  ) {
+    pos = state.biddingTurnPosition
+  } else {
+    return false
+  }
+  const player = state.players.find((p) => p.position === pos && !p.forfeited)
+  return !!(player && (player.isBot || isBeloteBotId(player.userId)))
+}
+
 /** (Re)démarre le chrono du joueur courant et émet BELOTE_TURN_TIMER. */
 export function scheduleBeloteTurnTimer(
   io: Server | undefined,
@@ -41,6 +61,13 @@ export function scheduleBeloteTurnTimer(
 ): void {
   if (!io) return
   clearBeloteTurnTimer(gameId)
+
+  if (currentTurnPlayerIsBot(table)) {
+    void import('./beloteBotTurns.service.js').then(({ scheduleBeloteBotTurns }) =>
+      scheduleBeloteBotTurns(io, gameId),
+    )
+    return
+  }
 
   const state = table.getState()
   if (
@@ -88,6 +115,11 @@ export function scheduleBeloteTurnTimer(
     void (async () => {
       const live = activeBeloteGames.getSync(gameId)
       if (!live) return
+      if (currentTurnPlayerIsBot(live)) {
+        const { scheduleBeloteBotTurns } = await import('./beloteBotTurns.service.js')
+        scheduleBeloteBotTurns(io, gameId)
+        return
+      }
       const applied = live.applyTurnTimeout()
       if (applied) {
         await syncBeloteAfterAction(live, io)

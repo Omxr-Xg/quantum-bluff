@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 
@@ -84,14 +85,22 @@ export function AdminBotAnalytics() {
               VPIP, PFR, BB/100, win rate — self-play expert / adaptive
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void runSmoke()}
-            disabled={running}
-            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {running ? "Simulation…" : "Lancer smoke (1k mains)"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/admin/belote-analytics"
+              className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm hover:bg-slate-700"
+            >
+              Belote IA
+            </Link>
+            <button
+              type="button"
+              onClick={() => void runSmoke()}
+              disabled={running}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
+            >
+              {running ? "Simulation…" : "Lancer smoke (1k mains)"}
+            </button>
+          </div>
         </header>
 
         {error && (

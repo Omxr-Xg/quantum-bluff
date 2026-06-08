@@ -28,12 +28,14 @@ export function BeloteCasinoTable({
   presentUserIds = [],
   turnTimeLeft = null,
   speakingUserIds = [],
+  botThinkingId = null,
 }: {
   state: BeloteSanitizedState;
   userId: string;
   presentUserIds?: string[];
   turnTimeLeft?: number | null;
   speakingUserIds?: string[];
+  botThinkingId?: string | null;
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -193,6 +195,8 @@ export function BeloteCasinoTable({
                       forfeited={p.forfeited}
                       isPresent={isPresent}
                       isSpeaking={isSpeaking}
+                      isBot={p.isBot}
+                      isThinking={botThinkingId === p.userId}
                       size="sm"
                     />
                     <span className="mt-0.5 max-w-[7rem] truncate text-[10px] font-bold text-amber-200">
@@ -230,6 +234,8 @@ export function BeloteCasinoTable({
                         forfeited={p.forfeited}
                         isPresent={isPresent}
                         isSpeaking={isSpeaking}
+                        isBot={p.isBot}
+                        isThinking={botThinkingId === p.userId}
                         size="sm"
                       />
                       <span className="max-w-full truncate text-[9px] font-bold text-white/90">

@@ -26,10 +26,24 @@ import {
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { getGameIo } from '../sockets/gameIo.registry.js'
 import { broadcastBeloteGame, syncBeloteAfterAction } from '../belote/services/beloteSettlement.service.js'
+import { getBeloteGamePresentUserIds } from '../belote/services/belotePresence.service.js'
 import {
-  getBeloteGamePresentUserIds,
-  getBeloteRoomPresentUserIds,
-} from '../belote/services/belotePresence.service.js'
+  emitBeloteRoomUpdated,
+  loadBeloteRoomWithSeats,
+} from '../belote/services/beloteRoomEvents.service.js'
+import {
+  formatBeloteRoom,
+  type BeloteRoomRow,
+  type BeloteRoomSeatRow,
+} from '../belote/services/beloteRoomFormat.js'
+import {
+  addBeloteBotToRoom,
+  fillBeloteRoomWithBots,
+  removeBeloteBotFromRoom,
+} from '../belote/services/beloteRoomBots.service.js'
+import { rescheduleBeloteAutoFill } from '../belote/services/beloteRoomAutoFill.service.js'
+import { scheduleBeloteBotTurns } from '../belote/services/beloteBotTurns.service.js'
+import { isBeloteBotId, normalizeBeloteBotDifficulty } from '../shared/beloteBots.js'
 
 const router = express.Router()
 
@@ -41,93 +55,11 @@ function makeJoinCode(): string {
   return randomBytes(4).toString('hex').toUpperCase()
 }
 
-type RoomWithSeats = {
-  id: string
-  name: string
-  hostId: string
-  maxPlayers: number
-  visibility: 'PUBLIC' | 'PRIVATE'
-  status: string
-  joinCode: string | null
-  targetScore: number
-  buyIn: number
-  variant: string
-  gameId: string | null
-  seats: Array<{
-    position: number
-    isReady: boolean
-    team: string | null
-    avatarUrl: string | null
-    user: { id: string; username: string; level: number; avatarUrl?: string | null; avatarHasBinary?: boolean }
-  }>
+function formatRoomResponse(room: BeloteRoomRow, hostUserId?: string) {
+  return formatBeloteRoom(room, hostUserId ? { hostUserId } : undefined)
 }
 
-function formatRoom(room: RoomWithSeats) {
-  return {
-    id: room.id,
-    name: room.name,
-    hostId: room.hostId,
-    maxPlayers: room.maxPlayers,
-    visibility: room.visibility,
-    status: room.status,
-    joinCode: room.visibility === 'PRIVATE' ? room.joinCode : undefined,
-    targetScore: room.targetScore,
-    buyIn: room.buyIn,
-    variant: room.variant,
-    gameId: room.gameId,
-    players: room.seats.map((s) => ({
-      id: s.user.id,
-      username: s.user.username,
-      level: s.user.level,
-      position: s.position,
-      isReady: s.isReady,
-      team: s.team,
-      avatarUrl: s.avatarUrl ?? clientAvatarUrlFromUser(s.user),
-    })),
-  }
-}
-
-async function loadRoom(roomId: string) {
-  return prisma.beloteRoom.findUnique({
-    where: { id: roomId },
-    include: {
-      seats: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              level: true,
-              avatarUrl: true,
-              avatarHasBinary: true,
-            },
-          },
-        },
-        orderBy: { position: 'asc' },
-      },
-    },
-  })
-}
-
-export async function emitBeloteRoomUpdated(
-  roomId: string,
-  io?: Server,
-): Promise<void> {
-  const socketIo = io ?? getGameIo()
-  if (!socketIo) return
-  const room = await loadRoom(roomId)
-  if (!room) {
-    socketIo.to(`belote-room:${roomId}`).emit('BELOTE_ROOM_UPDATED', null)
-    return
-  }
-  const presentUserIds = await getBeloteRoomPresentUserIds(socketIo, roomId)
-  socketIo
-    .to(`belote-room:${roomId}`)
-    .emit('BELOTE_ROOM_UPDATED', {
-      ...formatRoom(room as RoomWithSeats),
-      presentUserIds,
-    })
-}
+export { emitBeloteRoomUpdated }
 
 /** POST /create */
 router.post('/create', authMiddleware, async (req, res) => {
@@ -157,6 +89,8 @@ router.post('/create', authMiddleware, async (req, res) => {
     }
 
     const joinCode = visibility === 'PRIVATE' ? makeJoinCode() : null
+    const autoFillBotsEnabled = req.body?.autoFillBotsEnabled === true
+    const defaultBotDifficulty = normalizeBeloteBotDifficulty(req.body?.defaultBotDifficulty)
 
     const roomId = await prisma.$transaction(async (tx) => {
       const r = await tx.beloteRoom.create({
@@ -170,6 +104,8 @@ router.post('/create', authMiddleware, async (req, res) => {
           buyIn,
           variant,
           status: 'WAITING',
+          autoFillBotsEnabled,
+          defaultBotDifficulty,
         },
       })
       await tx.beloteRoomSeat.create({
@@ -178,12 +114,14 @@ router.post('/create', authMiddleware, async (req, res) => {
       return r.id
     })
 
-    const room = await loadRoom(roomId)
+    const room = await loadBeloteRoomWithSeats(roomId)
     if (!room) {
       return res.status(500).json({ error: 'Salle créée mais chargement impossible' })
     }
 
-    return res.status(201).json({ room: formatRoom(room as RoomWithSeats) })
+    const io = getIo(req)
+    rescheduleBeloteAutoFill(roomId, io)
+    return res.status(201).json({ room: formatRoomResponse(room as BeloteRoomRow, userId) })
   } catch (e) {
     console.error('[belote-rooms] create', e)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -228,7 +166,7 @@ router.get('/', authMiddleware, async (req, res) => {
     })
 
     return res.json({
-      rooms: rooms.map((r) => formatRoom(r as RoomWithSeats)),
+      rooms: rooms.map((r) => formatRoomResponse(r as BeloteRoomRow)),
     })
   } catch (e) {
     console.error('[belote-rooms] list', e)
@@ -294,7 +232,9 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
       })
       if (!fresh?.gameId || fresh.status !== 'IN_GAME') continue
 
-      const seatUserIds = room.seats.map((s) => s.userId)
+      const seatUserIds = room.seats
+        .map((s) => s.userId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
       const userInGame = seatUserIds.includes(userId)
       const hasFriendInGame = seatUserIds.some((id) => myFriends.has(id))
 
@@ -349,9 +289,9 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
 /** GET /:id */
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const room = await loadRoom(req.params.id)
+    const room = await loadBeloteRoomWithSeats(req.params.id)
     if (!room) return res.status(404).json({ error: 'Salle introuvable' })
-    return res.json({ room: formatRoom(room as RoomWithSeats) })
+    return res.json({ room: formatRoomResponse(room as BeloteRoomRow, req.userId) })
   } catch (e) {
     console.error('[belote-rooms] get', e)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -364,7 +304,7 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const room = await loadRoom(req.params.id)
+    const room = await loadBeloteRoomWithSeats(req.params.id)
     if (!room) return res.status(404).json({ error: 'Salle introuvable' })
     if (room.status !== 'WAITING') {
       return res.status(400).json({ error: 'Partie en cours' })
@@ -417,10 +357,11 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
       })
     }
 
-    const refreshed = await loadRoom(room.id)
+    const refreshed = await loadBeloteRoomWithSeats(room.id)
     const io = getIo(req)
+    rescheduleBeloteAutoFill(room.id, io)
     await emitBeloteRoomUpdated(room.id, io)
-    return res.json({ room: formatRoom(refreshed! as RoomWithSeats) })
+    return res.json({ room: formatRoomResponse(refreshed! as BeloteRoomRow, userId) })
   } catch (e) {
     console.error('[belote-rooms] join', e)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -453,10 +394,14 @@ router.post('/:id/leave', authMiddleware, async (req, res) => {
 
     if (room.hostId === userId) {
       const nextHost = await prisma.beloteRoomSeat.findFirst({
-        where: { roomId: room.id },
+        where: {
+          roomId: room.id,
+          participantType: 'HUMAN',
+          userId: { not: null },
+        },
         orderBy: { position: 'asc' },
       })
-      if (nextHost) {
+      if (nextHost?.userId) {
         await prisma.beloteRoom.update({
           where: { id: room.id },
           data: { hostId: nextHost.userId },
@@ -464,6 +409,7 @@ router.post('/:id/leave', authMiddleware, async (req, res) => {
       }
     }
 
+    rescheduleBeloteAutoFill(room.id, io)
     await emitBeloteRoomUpdated(room.id, io)
     return res.json({ ok: true })
   } catch (e) {
@@ -479,7 +425,7 @@ router.post('/:id/ready', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
     const seat = await prisma.beloteRoomSeat.findFirst({
-      where: { roomId: req.params.id, userId },
+      where: { roomId: req.params.id, userId, participantType: 'HUMAN' },
     })
     if (!seat) return res.status(404).json({ error: 'Pas dans la salle' })
 
@@ -503,7 +449,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
-    const room = await loadRoom(req.params.id)
+    const room = await loadBeloteRoomWithSeats(req.params.id)
     if (!room) return res.status(404).json({ error: 'Salle introuvable' })
     if (room.hostId !== userId) {
       return res.status(403).json({ error: 'Seul l’hôte peut démarrer' })
@@ -511,38 +457,46 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
     if (room.status !== 'WAITING') {
       return res.status(409).json({ error: 'Déjà démarré' })
     }
-    if (room.seats.length !== 4) {
+    const seats = room.seats as BeloteRoomSeatRow[]
+    if (seats.length !== 4) {
       return res.status(400).json({ error: '4 joueurs requis' })
     }
-    if (!room.seats.every((s) => s.isReady)) {
-      return res.status(400).json({ error: 'Tous les joueurs doivent être prêts' })
+    const humanSeats = seats.filter((s) => s.participantType === 'HUMAN')
+    if (!humanSeats.every((s) => s.isReady)) {
+      return res.status(400).json({ error: 'Tous les joueurs humains doivent être prêts' })
     }
 
     const gameId = newBeloteGameId()
-    const players = room.seats.map((s) => ({
-      userId: s.user.id,
-      username: s.user.username,
-      position: s.position,
-      avatarUrl: s.avatarUrl ?? clientAvatarUrlFromUser(s.user),
-    }))
+    const players = seats.map((s) => {
+      const isBot = s.participantType === 'BOT'
+      const userId = isBot ? (s.botId ?? s.id) : (s.user?.id ?? s.userId ?? s.id)
+      const username = isBot
+        ? (s.displayName ?? 'QB Bot')
+        : (s.user?.username ?? 'Joueur')
+      return {
+        userId,
+        username,
+        position: s.position,
+        avatarUrl: isBot ? null : (s.avatarUrl ?? (s.user ? clientAvatarUrlFromUser(s.user) : null)),
+        isBot,
+      }
+    })
+
+    const humanBuyInSeats = players
+      .filter((p) => !p.isBot && !isBeloteBotId(p.userId))
+      .map((p) => ({ userId: p.userId, username: p.username }))
 
     try {
       await prisma.$transaction(async (tx) => {
-        await chargeBeloteBuyIns(
-          tx,
-          gameId,
-          room.id,
-          players.map((p) => ({ userId: p.userId, username: p.username })),
-          room.buyIn,
-        )
+        await chargeBeloteBuyIns(tx, gameId, room.id, humanBuyInSeats, room.buyIn)
         await tx.beloteRoom.update({
           where: { id: room.id },
           data: { status: 'IN_GAME', gameId },
         })
-        for (const s of room.seats) {
+        for (const s of seats) {
           const team = s.position % 2 === 0 ? 'A' : 'B'
           await tx.beloteRoomSeat.update({
-            where: { roomId_userId: { roomId: room.id, userId: s.user.id } },
+            where: { id: s.id },
             data: { team },
           })
         }
@@ -574,10 +528,84 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
     const io = getIo(req)
     await broadcastBeloteGame(io, gameId)
     await emitBeloteRoomUpdated(room.id, io)
+    scheduleBeloteBotTurns(io, gameId)
 
     return res.json({ gameId, roomId: room.id, buyIn: room.buyIn, potTotal: table.getState().potTotal })
   } catch (e) {
     console.error('[belote-rooms] start', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** POST /:id/bots — ajouter une IA */
+router.post('/:id/bots', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const result = await addBeloteBotToRoom(
+      req.params.id,
+      userId,
+      req.body?.difficulty,
+      getIo(req),
+    )
+    if (!result.ok) return res.status(result.status).json({ error: result.error })
+
+    rescheduleBeloteAutoFill(req.params.id, getIo(req))
+    const room = await loadBeloteRoomWithSeats(req.params.id)
+    return res.json({ ok: true, room: room ? formatRoomResponse(room as BeloteRoomRow, userId) : null })
+  } catch (e) {
+    console.error('[belote-rooms] add-bot', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** POST /:id/bots/fill — compléter la table avec des IA */
+router.post('/:id/bots/fill', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const result = await fillBeloteRoomWithBots(
+      req.params.id,
+      userId,
+      req.body?.difficulty,
+      getIo(req),
+    )
+    if (!result.ok) return res.status(result.status).json({ error: result.error })
+
+    rescheduleBeloteAutoFill(req.params.id, getIo(req))
+    const room = await loadBeloteRoomWithSeats(req.params.id)
+    return res.json({
+      ok: true,
+      added: result.added,
+      room: room ? formatRoomResponse(room as BeloteRoomRow, userId) : null,
+    })
+  } catch (e) {
+    console.error('[belote-rooms] fill-bots', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** DELETE /:id/bots/:botId — retirer une IA */
+router.delete('/:id/bots/:botId', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const result = await removeBeloteBotFromRoom(
+      req.params.id,
+      userId,
+      req.params.botId,
+      getIo(req),
+    )
+    if (!result.ok) return res.status(result.status).json({ error: result.error })
+
+    rescheduleBeloteAutoFill(req.params.id, getIo(req))
+    const room = await loadBeloteRoomWithSeats(req.params.id)
+    return res.json({ ok: true, room: room ? formatRoomResponse(room as BeloteRoomRow, userId) : null })
+  } catch (e) {
+    console.error('[belote-rooms] remove-bot', e)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 })

@@ -18,6 +18,11 @@ import { appendWalletLedgerEntry } from '../../casino/services/walletLedger.serv
 import { createCasinoRoundContext } from '../../casino/services/roundContext.service.js'
 import { beloteWinnerPayout } from '../../logic/belote/beloteBuyIn.js'
 import { intChips } from '../../utils/chips.js'
+import { isBeloteBotId } from '../../shared/beloteBots.js'
+import {
+  recordBeloteDealOutcome,
+  recordBeloteGameOutcome,
+} from './beloteAnalytics.service.js'
 
 /** Retire runtime, snapshot et remet la salle en attente (partie déjà réglée ou abandonnée). */
 export async function closeBelotePlaySession(
@@ -26,6 +31,9 @@ export async function closeBelotePlaySession(
 ): Promise<void> {
   activeBeloteGames.delete(gameId)
   stopBeloteTimersForGame(gameId)
+  void import('./beloteBotTurns.service.js').then(({ clearBeloteBotSession }) =>
+    clearBeloteBotSession(gameId),
+  )
   await prisma.beloteRoom.updateMany({
     where: { id: roomId },
     data: { status: 'WAITING', gameId: null },
@@ -53,6 +61,8 @@ export async function settleBeloteGame(
   const winningTeam = table.winningTeam()
   if (!winningTeam) return
 
+  void recordBeloteGameOutcome(table, winningTeam)
+
   const endedAt = new Date()
 
   const settlements: Array<{
@@ -66,8 +76,12 @@ export async function settleBeloteGame(
   const potTotal = state.potTotal
   const payoutPerWinner = beloteWinnerPayout(potTotal, 2)
 
+  const humanPlayers = state.players.filter(
+    (p) => !p.isBot && !isBeloteBotId(p.userId),
+  )
+
   await prisma.$transaction(async (tx) => {
-    for (const p of state.players) {
+    for (const p of humanPlayers) {
       const won = p.team === winningTeam
       const chipsAwarded = won ? payoutPerWinner : 0
       const xpAwarded = won ? XP_BELOTE_PLAY + XP_BELOTE_WIN : XP_BELOTE_PLAY
@@ -145,7 +159,7 @@ export async function settleBeloteGame(
           payoutPerWinner,
         } as object,
         players: {
-          create: state.players.map((p) => ({
+          create: humanPlayers.map((p) => ({
             userId: p.userId,
             username: p.username,
             team: p.team,
@@ -223,6 +237,7 @@ export async function syncBeloteAfterAction(
   io?: Server,
 ): Promise<void> {
   if (table.getState().phase === 'DEAL_END') {
+    void recordBeloteDealOutcome(table)
     table.startNextDeal()
   }
 
@@ -237,4 +252,6 @@ export async function syncBeloteAfterAction(
 
   await broadcastBeloteGame(io, table.gameId)
   scheduleBeloteTurnTimer(io, table.gameId, table)
+  const { scheduleBeloteBotTurns } = await import('./beloteBotTurns.service.js')
+  scheduleBeloteBotTurns(io, table.gameId)
 }

@@ -9,6 +9,7 @@ import {
 } from '../services/beloteSettlement.service.js'
 import { getBeloteGamePresentUserIds } from '../services/belotePresence.service.js'
 import { scheduleBeloteTurnTimer } from '../services/beloteTurnTimer.service.js'
+import { scheduleBeloteBotTurns } from '../services/beloteBotTurns.service.js'
 import { rootLogger } from '../../observability/logger.js'
 
 /** Aucun joueur connecté à la partie depuis ce délai → clôture. */
@@ -151,5 +152,6 @@ export async function recoverBeloteAtBoot(io?: Server): Promise<void> {
       continue
     }
     scheduleBeloteTurnTimer(io, room.gameId, table)
+    scheduleBeloteBotTurns(io, room.gameId)
   }
 }

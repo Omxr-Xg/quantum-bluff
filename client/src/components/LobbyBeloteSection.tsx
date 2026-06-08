@@ -35,8 +35,18 @@ export type BeloteRoomListItem = {
   buyIn: number;
   variant: BeloteGameVariant;
   gameId: string | null;
+  autoFillBotsEnabled?: boolean;
+  autoFillBotsDelaySec?: number;
+  defaultBotDifficulty?: string;
+  counts?: { humans: number; bots: number; total: number; empty: number };
+  canFillTable?: boolean;
+  canStart?: boolean;
   players: Array<{
     id: string;
+    seatId?: string;
+    type?: "HUMAN" | "BOT";
+     isBot?: boolean;
+    botId?: string;
     username: string;
     position: number;
     isReady: boolean;
@@ -107,6 +117,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const [newBuyIn, setNewBuyIn] = useState(BELOTE_BUY_IN_DEFAULT);
   const [customBuyIn, setCustomBuyIn] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [autoFillBots, setAutoFillBots] = useState(false);
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
 
   const waitingRooms = useMemo(
@@ -177,6 +188,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
     setNewBuyIn(BELOTE_BUY_IN_DEFAULT);
     setCustomBuyIn("");
     setNewPassword("");
+    setAutoFillBots(false);
   };
 
   const closeCreateModal = () => {
@@ -199,6 +211,8 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
           buyIn: newBuyIn,
           variant: newVariant,
           ...(newPassword ? { password: newPassword } : {}),
+          autoFillBotsEnabled: autoFillBots,
+          defaultBotDifficulty: "NORMAL",
         }),
       });
       if (!res.ok) {
@@ -299,6 +313,14 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                         <span className="shrink-0 text-[10px] text-gray-400">
                           {t("lobby.playersCount", { count, max: room.maxPlayers })}
                         </span>
+                        {room.counts ? (
+                          <span className="shrink-0 text-[10px] text-cyan-200/80">
+                            {t("belote.seatCounts", {
+                              humans: room.counts.humans,
+                              bots: room.counts.bots,
+                            })}
+                          </span>
+                        ) : null}
                         <span className={`shrink-0 text-[10px] ${beloteAccent.minBalance}`}>
                           {room.targetScore} {t("belote.points")}
                         </span>
@@ -562,6 +584,16 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                 })}
               </p>
             </div>
+
+            <label className="mb-6 flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <input
+                type="checkbox"
+                checked={autoFillBots}
+                onChange={(e) => setAutoFillBots(e.target.checked)}
+                className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500"
+              />
+              <span className="text-sm text-slate-200">{t("belote.autoFillBots")}</span>
+            </label>
 
             <div className="mb-6">
               <label htmlFor="belote-create-password" className="mb-2 block text-sm font-medium text-slate-300">

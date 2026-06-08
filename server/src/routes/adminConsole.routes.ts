@@ -22,6 +22,8 @@ import {
   type BroadcastAudience,
   type BroadcastSegment,
 } from '../notifications/adminBroadcast.service.js'
+import beloteAnalyticsRoutes from './admin.beloteAnalytics.routes.js'
+
 const router = Router()
 
 router.use(adminConsoleAuthMiddleware)
@@ -868,6 +870,8 @@ router.get('/bot-analytics', async (_req: Request, res: Response) => {
     return res.status(500).json({ error: 'Lecture analytics bots impossible' })
   }
 })
+
+router.use('/belote-analytics', beloteAnalyticsRoutes)
 
 router.post('/bot-analytics/run', async (req: Request, res: Response) => {
   try {

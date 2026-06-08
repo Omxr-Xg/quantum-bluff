@@ -68,7 +68,9 @@ async function mayJoinBeloteWaitingRoom(userId: string, roomId: string): Promise
   const check: RoomMemberCheck = {
     hostId: room.hostId,
     visibility: room.visibility,
-    memberIds: room.seats.map((s) => s.userId),
+    memberIds: room.seats
+      .map((s) => s.userId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0),
   }
   if (isRoomMember(check, userId)) return true
   if (room.visibility === 'PUBLIC') return true
@@ -151,7 +153,9 @@ async function mayJoinTableChannel(
     isRoomMember(
       {
         hostId: beloteRoom.hostId,
-        memberIds: beloteRoom.seats.map((s) => s.userId),
+        memberIds: beloteRoom.seats
+          .map((s) => s.userId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
       },
       userId,
     )
