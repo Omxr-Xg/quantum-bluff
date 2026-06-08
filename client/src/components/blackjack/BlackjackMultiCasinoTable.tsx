@@ -97,19 +97,25 @@ function dealerDisplayTotal(
 
 const DEAL_STAGGER_SEC = 0.055;
 
+const PLAYER_CARD_CLASSES =
+  "!w-[min(4.5rem,min(28vw,6.5rem))] !h-auto aspect-[63/88] shrink-0 md:!w-[min(3.2rem,13vw)] lg:!w-[min(3rem,11vw)]";
+const DEALER_CARD_CLASSES =
+  "!w-[min(5.25rem,min(32vw,7.5rem))] !h-auto aspect-[63/88] shrink-0 md:!w-[min(3.6rem,15vw)] lg:!w-[min(3.4rem,13vw)]";
+
 export function PlayingCard({
   card,
   hidden,
   className = "",
   style,
+  size = "dealer",
 }: {
   card?: BjCard;
   hidden?: boolean;
   className?: string;
   style?: CSSProperties;
+  size?: "dealer" | "player";
 }) {
-  /** +15 % vs tailles précédentes ; le tapis est plus compact, les cartes restent lisibles. */
-  const responsiveClasses = `!w-[min(7.65rem,min(48.3vw,11.5rem))] !h-auto aspect-[63/88] shrink-0 md:!w-[min(5rem,25.3vw)] lg:!w-[min(4.77rem,23vw)] ${className}`;
+  const responsiveClasses = `${size === "player" ? PLAYER_CARD_CLASSES : DEALER_CARD_CLASSES} ${className}`;
 
   if (hidden || !card || card.suit === "?" || card.rank === "?") {
     return (
@@ -243,7 +249,7 @@ export function BlackjackMultiCasinoTable({
           style={containerStyle}
         >
           <div
-            className="relative overflow-hidden rounded-[1.75rem] border-[clamp(6px,1.8vw,10px)] p-1 shadow-[0_24px_60px_rgba(0,0,0,0.65),inset_0_2px_0_rgba(255,255,255,0.08)] sm:rounded-[2.25rem] sm:border-[10px] sm:p-2"
+            className="relative overflow-visible rounded-[1.75rem] border-[clamp(6px,1.8vw,10px)] p-1 shadow-[0_24px_60px_rgba(0,0,0,0.65),inset_0_2px_0_rgba(255,255,255,0.08)] sm:rounded-[2.25rem] sm:border-[10px] sm:p-2"
             style={{
               background:
                 "linear-gradient(145deg, rgba(2,6,23,0.98) 0%, rgba(12,18,32,0.98) 45%, rgba(50,35,15,0.94) 100%)",
@@ -251,7 +257,7 @@ export function BlackjackMultiCasinoTable({
             }}
           >
             <div
-              className="relative h-[clamp(17rem,min(56dvh,calc(100dvh-16.5rem)),30rem)] overflow-hidden rounded-[1.5rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:rounded-[2rem] [@media_(min-width:1024px)_and_(max-height:820px)]:h-[clamp(15rem,min(50dvh,calc(100dvh-15rem)),26rem)]"
+              className="relative flex h-[clamp(17rem,min(56dvh,calc(100dvh-16.5rem)),30rem)] flex-col overflow-visible rounded-[1.5rem] border-[clamp(3px,0.8vw,8px)] shadow-[inset_0_0_110px_rgba(0,0,0,0.38),inset_0_12px_32px_rgba(255,255,255,0.045)] sm:rounded-[2rem] [@media_(min-width:1024px)_and_(max-height:820px)]:h-[clamp(15rem,min(50dvh,calc(100dvh-15rem)),26rem)]"
             style={{
               backgroundImage: `
                 radial-gradient(ellipse 115% 78% at 50% 18%, rgba(255,255,255,0.08) 0%, transparent 50%),
@@ -323,7 +329,7 @@ export function BlackjackMultiCasinoTable({
                   ) : null}
                 </div>
               </div>
-              <div className="flex min-h-[4.25rem] items-center justify-center pl-3 sm:min-h-[5.25rem] sm:pl-4 [@media_(min-width:1024px)_and_(max-height:820px)]:min-h-[4.5rem]">
+              <div className="flex min-h-[3.5rem] items-center justify-center pl-3 sm:min-h-[4rem] sm:pl-4 [@media_(min-width:1024px)_and_(max-height:820px)]:min-h-[3.75rem]">
                 {state.dealerCards.length === 0 ? (
                   <div className="pointer-events-none opacity-0" aria-hidden>
                     <PlayingCard hidden />
@@ -362,7 +368,7 @@ export function BlackjackMultiCasinoTable({
               </div>
             </div>
 
-            <div className="relative z-10 mx-auto mt-1 flex w-full min-w-0 max-w-full flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-1.5 px-1.5 pb-3 sm:mt-3 sm:gap-3 sm:px-2 sm:pb-4 md:mt-4 [@media_(min-width:1024px)_and_(max-height:820px)]:mt-2 [@media_(min-width:1024px)_and_(max-height:820px)]:pb-3 scroll-smooth snap-x snap-mandatory scrollbar-hide">
+            <div className="relative z-10 mx-auto mt-auto flex w-full min-w-0 max-w-full flex-1 flex-wrap md:flex-nowrap overflow-x-auto md:overflow-visible items-end justify-center gap-1.5 px-1.5 pb-4 sm:mt-2 sm:gap-2 sm:px-2 sm:pb-5 md:pb-4 [@media_(min-width:1024px)_and_(max-height:820px)]:pb-3 scroll-smooth snap-x snap-mandatory scrollbar-hide">
               {sortedSeats.map((s) => {
                 const isYou = s.userId === userId;
                 const seatAvatar = getPlayerAvatar(s.username, s.userId, userId, s.avatarUrl);
@@ -439,11 +445,11 @@ export function BlackjackMultiCasinoTable({
                           ) : null}
                         </div>
                       ) : null}
-                      <div className="mt-1.5 flex min-h-[3.5rem] justify-center pb-0.5 pl-2 sm:min-h-[4.25rem] sm:pl-4 md:min-h-[4rem]">
+                      <div className="mt-1 flex min-h-[2.75rem] justify-center pb-0.5 pl-1 sm:min-h-[3rem] sm:pl-2">
                         {s.cards.map((c, ci) => (
                           <motion.div
                             key={`${state.handNumber}-${s.userId}-c-${ci}-${c.rank}-${c.suit}`}
-                            className="-ml-1.5 first:ml-0 sm:-ml-3 md:-ml-3.5"
+                            className="-ml-1 first:ml-0 sm:-ml-2"
                             initial={{ opacity: 0, y: 12, scale: 0.97, rotate: -1 }}
                             animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
                             transition={{
@@ -452,7 +458,7 @@ export function BlackjackMultiCasinoTable({
                               ease: [0.25, 0.1, 0.25, 1],
                             }}
                           >
-                            <PlayingCard card={c} />
+                            <PlayingCard card={c} size="player" />
                           </motion.div>
                         ))}
                       </div>
