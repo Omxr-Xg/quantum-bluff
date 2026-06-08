@@ -29,6 +29,12 @@ export interface Deck {
 
 export type PlayerRole = 'DEALER' | 'SMALL_BLIND' | 'BIG_BLIND' | 'PLAYER'
 
+export type PublicPlayerCosmetics = {
+  banner: { id: string; gradient: string } | null
+  frame: { id: string; border: string; glow?: string } | null
+  title: { id: string; nameKey: string; color: string } | null
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -47,6 +53,8 @@ export interface Player {
   isConnected?: boolean;
   /** URL d’avatar (cash multi), fournie par le client au join / sit. */
   avatar?: string;
+  /** Cosmétiques équipés (cadre visible à la table). */
+  cosmetics?: PublicPlayerCosmetics;
 }
 
 export type GamePhase = 'WAITING' | 'PREFLOP' | 'FLOP' | 'TURN' | 'RIVER' | 'SHOWDOWN' | 'ENDED_OPPONENT_LEFT'

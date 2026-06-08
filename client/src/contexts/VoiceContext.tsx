@@ -482,6 +482,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         memberIds.includes(userId) &&
         (participants.length === 0 ||
           participants.every((p) => memberIds.includes(p.userId)))
+      pendingVoiceJoinRef.current = hint.toChannelId
       if (onSourceChannel && overlap && hint.mode === 'continue') {
         switchChannel(hint.toChannelId, {
           mode: 'continue',
@@ -493,10 +494,10 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
           fromChannelId: hint.fromChannelId,
         })
       } else if (hint.mode === 'continue') {
-        joinChannel(hint.toChannelId)
+        scheduleVoiceJoinRetries(hint.toChannelId)
       }
     },
-    [userId, socket, participants, switchChannel, joinChannel],
+    [userId, socket, participants, switchChannel, scheduleVoiceJoinRetries],
   )
 
   const returnFromTableToWaiting = useCallback(

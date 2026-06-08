@@ -42,14 +42,16 @@ export function useTableVoiceChat(
 ): TableVoiceChatState {
   const voice = useVoice()
 
+  const { joinTable, leaveChannel, shouldSkipLeaveOnTableUnmount } = voice
+
   useEffect(() => {
     if (!enabled || !gameId) return
-    voice.joinTable(gameId)
+    joinTable(gameId)
     return () => {
-      if (gameId && voice.shouldSkipLeaveOnTableUnmount(gameId)) return
-      voice.leaveChannel()
+      if (gameId && shouldSkipLeaveOnTableUnmount(gameId)) return
+      leaveChannel()
     }
-  }, [enabled, gameId, voice])
+  }, [enabled, gameId, joinTable, leaveChannel, shouldSkipLeaveOnTableUnmount])
 
   return {
     settings: voice.settings,

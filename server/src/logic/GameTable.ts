@@ -1243,6 +1243,7 @@ export class GameTable {
         isDealer: player.isDealer || false,
         isConnected: player.isConnected !== false,
         ...(player.avatar ? { avatar: player.avatar } : {}),
+        ...(player.cosmetics ? { cosmetics: player.cosmetics } : {}),
         // Règles de révélation des cartes :
         // - Spectateur (forSpectator) : pas de cartes hors showdown (le client affiche des dos) ; au showdown, même logique que les observateurs
         // - Pas de joueur cible : []

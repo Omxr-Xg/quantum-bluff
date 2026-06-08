@@ -1105,6 +1105,7 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
         // l'avatar persistant du profil pour que la photo s'affiche en partie
         // (cohérent avec la page Amis et la salle d'attente).
         avatarUrl: rp.avatarUrl ?? clientAvatarUrlFromUser(rp.user),
+        cosmetics: resolvePublicCosmetics(rp.user),
       }))
     );
     cashGame.startHand();
@@ -1165,6 +1166,15 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
     const size = activeGames.size();
     console.log(`✅ Partie cash ${gameId} créée et stockée. Taille du cache: ${size}`);
 
+    // Lier gameId en base avant GAME_STARTED : la migration vocale (VOICE_SWITCH) vérifie l'accès table via cette colonne.
+    await prisma.waitingRoom.update({
+      where: { id: roomId },
+      data: {
+        status: 'IN_GAME',
+        gameId
+      }
+    });
+
     const io = req.app.get('io') as import('socket.io').Server | undefined;
     if (io) {
       cashGame.setOnLiveBetWindowClosed(async () => {
@@ -1183,15 +1193,6 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
         voiceMigrate: voiceMigrateHintForGameStart(roomId, gameId),
       });
     }
-
-    // Mettre à jour la salle
-    await prisma.waitingRoom.update({
-      where: { id: roomId },
-      data: {
-        status: 'IN_GAME',
-        gameId
-      }
-    });
 
     const playersForClient = room.players.map((rp) => ({
       id: rp.user.id,

@@ -72,6 +72,9 @@ import { validateGiftCode, validateTopUpPromo } from "../utils/wallet";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
 import { getPokerTableAvatar } from "../utils/avatars";
+import type { PublicPlayerCosmetics } from "../utils/publicCosmetics";
+import { resolvePublicCosmeticsFromShop } from "../utils/publicCosmetics";
+import { useGetShopCosmeticsQuery, useGetShopLoadoutQuery } from "../services/api";
 import { getAuthItem } from "../utils/authStorage";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import {
@@ -254,6 +257,18 @@ function buildExpertOraclePayload(
   return out;
 }
 
+function cosmeticsFrameForTable(
+  serverCosmetics: PublicPlayerCosmetics | undefined,
+  isMe: boolean,
+  localFrameCosmetics: PublicPlayerCosmetics | undefined,
+): PublicPlayerCosmetics | undefined {
+  const frame = isMe
+    ? (serverCosmetics?.frame ?? localFrameCosmetics?.frame)
+    : serverCosmetics?.frame;
+  if (!frame) return undefined;
+  return { banner: null, frame, title: null };
+}
+
 interface BasePlayer {
   id: number | string;
   name: string;
@@ -267,6 +282,7 @@ interface BasePlayer {
   hasFolded?: boolean;
   role?: "SB" | "BB" | "PLAYER";
   avatar?: string;
+  cosmetics?: PublicPlayerCosmetics;
 }
 
 /** `hasFoldedThisHand` côté serveur ; sans champ, repli hors showdown uniquement (vieux API). */
@@ -299,6 +315,13 @@ export function Game() {
     gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX),
   );
   const { userId } = useUser();
+  const { data: shopCosmetics } = useGetShopCosmeticsQuery(undefined, { skip: !userId || isBotMode });
+  const { data: shopLoadout } = useGetShopLoadoutQuery(undefined, { skip: !userId || isBotMode });
+  const localFrameCosmetics = useMemo(() => {
+    const resolved = resolvePublicCosmeticsFromShop(shopCosmetics?.items, shopLoadout);
+    if (!resolved.frame) return undefined;
+    return { banner: null, frame: resolved.frame, title: null } satisfies PublicPlayerCosmetics;
+  }, [shopCosmetics?.items, shopLoadout]);
   const { feltBackgroundUrl } = useTableTheme();
   const { updateFromCards: updateQuantumHUD } = useQuantumHUD();
   const difficultyParam = (searchParams.get("difficulty") || "moyen").toLowerCase();
@@ -1748,6 +1771,11 @@ export function Game() {
             isBot: String(p.id).startsWith("qb-bot-"),
             role: mapServerRoleToTableRole(p.role),
             avatar: (p as { avatar?: string }).avatar,
+            cosmetics: cosmeticsFrameForTable(
+              (p as { cosmetics?: PublicPlayerCosmetics }).cosmetics,
+              isMe,
+              localFrameCosmetics,
+            ),
           };
         });
         setPlayersState(mapped);
@@ -2166,6 +2194,11 @@ export function Game() {
             isBot: String(p.id).startsWith("qb-bot-"),
             role: mapServerRoleToTableRole(p.role),
             avatar: (p as { avatar?: string }).avatar,
+            cosmetics: cosmeticsFrameForTable(
+              (p as { cosmetics?: PublicPlayerCosmetics }).cosmetics,
+              isMe,
+              localFrameCosmetics,
+            ),
           };
         });
         return mapped;

@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 import { ChipIcon } from "./ChipIcon";
 import tableNappeImage from "../assets/nappe/NA1.webp";
 import { getPokerTableAvatar } from "../utils/avatars";
+import type { PublicPlayerCosmetics } from "../utils/publicCosmetics";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { CosmeticAvatar } from "./PlayerCosmetics";
 import { PokerCard } from "./PokerCard";
 import { Clock } from "lucide-react";
 import { useDeviceType } from "./ui/use-mobile";
@@ -30,6 +32,7 @@ interface Player {
   hasFolded?: boolean;
   lastAction?: string | null;
   avatar?: string;
+  cosmetics?: PublicPlayerCosmetics;
 }
 
 interface PokerTableProps {
@@ -327,12 +330,14 @@ export function PokerTable({
                       </>
                     );
 
-                    const shellClass = `rounded-full overflow-hidden transition relative ${avatarBorderClass}
-                      ${avatarSizeClass}
+                    const tableCosmetics = player.hasFolded ? null : player.cosmetics;
+                    const shellClass = `rounded-full overflow-hidden transition relative block ${avatarSizeClass}
                       ${
                         player.hasFolded
-                          ? "bg-red-900/60 border-red-500 grayscale"
-                          : "bg-slate-950 border-cyan-100/80"
+                          ? "bg-red-900/60 border-2 border-red-500 grayscale"
+                          : tableCosmetics?.frame
+                            ? "bg-slate-950"
+                            : `bg-slate-950 ${avatarBorderClass} border-cyan-100/80`
                       }
                       shadow-[0_10px_24px_rgba(0,0,0,0.45)]
                       ${player.isActive && !isHeroDisplay ? "ring-2 ring-yellow-300/80" : ""}
@@ -389,6 +394,16 @@ export function PokerTable({
                         </div>
                       ) : null;
 
+                    const avatarShell = (
+                      <CosmeticAvatar
+                        cosmetics={tableCosmetics}
+                        sizeClass="h-full w-full"
+                        className={shellClass}
+                      >
+                        {avatarInner}
+                      </CosmeticAvatar>
+                    );
+
                     const avatarBaseNode = clickable ? (
                         <button
                           type="button"
@@ -396,14 +411,14 @@ export function PokerTable({
                             e.stopPropagation();
                             onOpponentAvatarClick(player);
                           }}
-                          className={`${shellClass} cursor-pointer hover:ring-2 hover:ring-amber-400/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400`}
+                          className={`${avatarSizeClass} cursor-pointer rounded-full hover:ring-2 hover:ring-amber-400/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400`}
                           title={t("game.playerMenu.openMenu")}
                           aria-label={t("game.playerMenu.openMenu")}
                         >
-                          {avatarInner}
+                          {avatarShell}
                         </button>
                     ) : (
-                      <div className={shellClass}>{avatarInner}</div>
+                      <div className={avatarSizeClass}>{avatarShell}</div>
                     );
                     const avatarNode = (
                       <div className="relative overflow-visible">

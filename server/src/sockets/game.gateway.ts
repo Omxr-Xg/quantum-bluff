@@ -47,6 +47,8 @@ import {
 } from "../dailyChallenges/dailyChallenge.service.js";
 import { sanitizePublicAvatarUrl } from "../utils/avatarUrl.js";
 import { clientAvatarUrlFromUser } from "../utils/userAvatarPublic.js";
+import { resolvePublicCosmetics } from "../shop/publicCosmetics.js";
+import type { PublicPlayerCosmetics } from "../types/poker.js";
 import {
   censorChatLinks,
   isChatContentEffectivelyEmpty,
@@ -95,23 +97,51 @@ interface AuthenticatedSocket extends Socket {
  * Retourne `null` si on n'a strictement rien (l'avatar est alors une initiale
  * côté client via `getPlayerAvatar`).
  */
+const EMPTY_SEAT_COSMETICS: PublicPlayerCosmetics = {
+  banner: null,
+  frame: null,
+  title: null,
+};
+
+async function resolveSeatPublicProfile(
+  rawAvatarUrl: unknown,
+  userId: string | null | undefined,
+): Promise<{ avatarUrl: string | null; cosmetics: PublicPlayerCosmetics }> {
+  const sanitized = sanitizePublicAvatarUrl(rawAvatarUrl);
+  if (!userId) {
+    return { avatarUrl: sanitized, cosmetics: EMPTY_SEAT_COSMETICS };
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        avatarUrl: true,
+        avatarHasBinary: true,
+        equippedBannerId: true,
+        equippedFrameId: true,
+        equippedTitleId: true,
+      },
+    });
+    if (!user) {
+      return { avatarUrl: sanitized, cosmetics: EMPTY_SEAT_COSMETICS };
+    }
+    const avatarUrl = sanitized ?? clientAvatarUrlFromUser(user);
+    return {
+      avatarUrl,
+      cosmetics: resolvePublicCosmetics(user),
+    };
+  } catch {
+    return { avatarUrl: sanitized, cosmetics: EMPTY_SEAT_COSMETICS };
+  }
+}
+
 async function resolveSeatAvatarUrl(
   rawAvatarUrl: unknown,
   userId: string | null | undefined,
 ): Promise<string | null> {
-  const sanitized = sanitizePublicAvatarUrl(rawAvatarUrl);
-  if (sanitized) return sanitized;
-  if (!userId) return null;
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, avatarUrl: true, avatarHasBinary: true },
-    });
-    if (!user) return null;
-    return clientAvatarUrlFromUser(user);
-  } catch {
-    return null;
-  }
+  const profile = await resolveSeatPublicProfile(rawAvatarUrl, userId);
+  return profile.avatarUrl;
 }
 
 export class GameGateway {
@@ -607,8 +637,8 @@ export class GameGateway {
                   void this.broadcastCashGameSnapshot(gameId);
                 });
 
-                const url = await resolveSeatAvatarUrl(data.avatarUrl, playerId);
-                if (url) game.setSeatAvatar(playerId, url);
+                const profile = await resolveSeatPublicProfile(data.avatarUrl, playerId);
+                game.setSeatPublicProfile(playerId, profile);
 
                 const socketsInRoom = await this.io.in(gameId).fetchSockets();
 
@@ -636,10 +666,12 @@ export class GameGateway {
                 }
                 void this.ensureTurnTimerForActiveHand(gameId);
               } else if (game instanceof GameTable) {
-                const url = await resolveSeatAvatarUrl(data.avatarUrl, playerId);
-                if (url) {
-                  const pl = game.getPlayerState(playerId);
-                  if (pl) pl.avatar = url;
+                const profile = await resolveSeatPublicProfile(data.avatarUrl, playerId);
+                const pl = game.getPlayerState(playerId);
+                if (pl) {
+                  if (profile.avatarUrl) pl.avatar = profile.avatarUrl;
+                  else delete pl.avatar;
+                  pl.cosmetics = profile.cosmetics;
                 }
                 const socketsInRoom = await this.io.in(gameId).fetchSockets();
                 for (const s of socketsInRoom) {
@@ -1309,14 +1341,15 @@ export class GameGateway {
                 select: { username: true, chips: true },
               });
               const wallet = intChips(user?.chips ?? 0);
-              const avatarUrl = await resolveSeatAvatarUrl(data.avatarUrl, userId);
+              const profile = await resolveSeatPublicProfile(data.avatarUrl, userId);
               const result = game.sit(
                 userId,
                 user?.username ?? "Joueur",
                 seatIndex,
                 buyIn ?? 100,
-                avatarUrl,
+                profile.avatarUrl,
                 wallet,
+                profile.cosmetics,
               );
               if (!result.ok) {
                 socket.emit("ERROR", {
@@ -1694,8 +1727,8 @@ export class GameGateway {
               if (player) player.isConnected = true;
 
               if (pokerGame instanceof CashGameController) {
-                const url = await resolveSeatAvatarUrl(data.avatarUrl, socket.userId);
-                if (url) pokerGame.setSeatAvatar(socket.userId, url);
+                const profile = await resolveSeatPublicProfile(data.avatarUrl, socket.userId);
+                pokerGame.setSeatPublicProfile(socket.userId, profile);
 
                 const socketsInRoom = await this.io.in(gameId).fetchSockets();
                 for (const s of socketsInRoom) {
@@ -1740,10 +1773,14 @@ export class GameGateway {
                   }
                 }
               } else if (pokerGame instanceof GameTable) {
-                const url = await resolveSeatAvatarUrl(data.avatarUrl, socket.userId);
-                if (url && socket.userId) {
+                const profile = await resolveSeatPublicProfile(data.avatarUrl, socket.userId);
+                if (socket.userId) {
                   const pl = pokerGame.getPlayerState(socket.userId);
-                  if (pl) pl.avatar = url;
+                  if (pl) {
+                    if (profile.avatarUrl) pl.avatar = profile.avatarUrl;
+                    else delete pl.avatar;
+                    pl.cosmetics = profile.cosmetics;
+                  }
                 }
                 const socketsInRoom = await this.io.in(gameId).fetchSockets();
                 for (const s of socketsInRoom) {

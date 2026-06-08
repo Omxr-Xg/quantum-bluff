@@ -25,8 +25,11 @@ function readCache(key: string): AccessResult | undefined {
   return hit.value
 }
 
-function writeCache(key: string, value: AccessResult): void {
-  const ttl = value.ok ? OK_TTL_MS : DENY_TTL_MS
+function writeCache(key: string, value: AccessResult, channelId?: string): void {
+  let ttl = value.ok ? OK_TTL_MS : DENY_TTL_MS
+  if (!value.ok && value.code === 'NOT_IN_GAME' && channelId?.startsWith('table:')) {
+    ttl = 2_500
+  }
   cache.set(key, { expiresAt: Date.now() + ttl, value })
 }
 
@@ -62,7 +65,7 @@ export async function assertMayJoinVoiceChannelCached(
 
   const promise = assertMayJoinVoiceChannel(socket, userId, parsed)
     .then((result) => {
-      writeCache(key, result)
+      writeCache(key, result, parsed.channelId)
       return result
     })
     .finally(() => {

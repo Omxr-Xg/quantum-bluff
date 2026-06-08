@@ -4,7 +4,7 @@
  * et les commandes sit / leave / rebuy.
  */
 import { randomUUID } from 'node:crypto'
-import type { GameState, Player } from '../types/poker.js'
+import type { GameState, Player, PublicPlayerCosmetics } from '../types/poker.js'
 import { GameTable } from './GameTable.js'
 import { intChips } from '../utils/chips.js'
 
@@ -22,6 +22,14 @@ export interface CashSeat {
   chips: number
   /** URL d’avatar (client), diffusée aux autres joueurs. */
   avatarUrl?: string | null
+  cosmetics?: PublicPlayerCosmetics | null
+}
+
+function seatPlayerExtras(seat: CashSeat): Pick<Player, 'avatar' | 'cosmetics'> {
+  const extras: Pick<Player, 'avatar' | 'cosmetics'> = {}
+  if (seat.avatarUrl) extras.avatar = seat.avatarUrl
+  if (seat.cosmetics) extras.cosmetics = seat.cosmetics
+  return extras
 }
 
 /** Stacks finales des joueurs encore liés à la main, pour sync DB post-showdown. */
@@ -225,7 +233,15 @@ export class CashGameController implements IGameSession {
   }
 
   /** Initialiser avec des joueurs (depuis la salle d'attente) */
-  initFromRoomPlayers(players: { userId: string; username: string; chips?: number; avatarUrl?: string | null }[]): void {
+  initFromRoomPlayers(
+    players: {
+      userId: string
+      username: string
+      chips?: number
+      avatarUrl?: string | null
+      cosmetics?: PublicPlayerCosmetics | null
+    }[],
+  ): void {
     for (let i = 0; i < players.length && i < this.maxSeats; i++) {
       const p = players[i]
       this.seats[i] = {
@@ -233,7 +249,8 @@ export class CashGameController implements IGameSession {
         userId: p.userId,
         username: p.username,
         chips: p.chips ?? this.defaultBuyIn,
-        avatarUrl: p.avatarUrl ?? null
+        avatarUrl: p.avatarUrl ?? null,
+        cosmetics: p.cosmetics ?? null,
       }
     }
   }
@@ -242,14 +259,28 @@ export class CashGameController implements IGameSession {
    * Met à jour l’URL d’avatar d’un siège (join socket, sit, etc.) et la main courante si elle existe.
    */
   setSeatAvatar(userId: string, avatarUrl: string | null): void {
+    this.setSeatPublicProfile(userId, { avatarUrl })
+  }
+
+  /** Met à jour avatar + cosmétiques d’un siège et synchronise la main en cours. */
+  setSeatPublicProfile(
+    userId: string,
+    profile: { avatarUrl?: string | null; cosmetics?: PublicPlayerCosmetics | null },
+  ): void {
     const seat = this.seats.find((s) => s.userId === userId)
     if (!seat) return
-    seat.avatarUrl = avatarUrl
+    if (profile.avatarUrl !== undefined) seat.avatarUrl = profile.avatarUrl
+    if (profile.cosmetics !== undefined) seat.cosmetics = profile.cosmetics
     if (this.gameTable) {
       const pl = this.gameTable.state.players.find((p) => p.id === userId)
-      if (pl) {
-        if (avatarUrl) pl.avatar = avatarUrl
+      if (!pl) return
+      if (profile.avatarUrl !== undefined) {
+        if (profile.avatarUrl) pl.avatar = profile.avatarUrl
         else delete pl.avatar
+      }
+      if (profile.cosmetics !== undefined) {
+        if (profile.cosmetics) pl.cosmetics = profile.cosmetics
+        else delete pl.cosmetics
       }
     }
   }
@@ -386,7 +417,7 @@ export class CashGameController implements IGameSession {
         position: pos,
         isDealer: false,
         isConnected: true,
-        ...(s.avatarUrl ? { avatar: s.avatarUrl } : {})
+        ...seatPlayerExtras(s),
       }))
     }
 
@@ -400,7 +431,7 @@ export class CashGameController implements IGameSession {
       position: pos,
       isDealer: false,
       isConnected: true,
-      ...(s.avatarUrl ? { avatar: s.avatarUrl } : {})
+      ...seatPlayerExtras(s),
     }))
   }
 
@@ -618,7 +649,8 @@ export class CashGameController implements IGameSession {
     seatIndex: number,
     buyIn: number,
     avatarUrl?: string | null,
-    walletChips?: number
+    walletChips?: number,
+    cosmetics?: PublicPlayerCosmetics | null,
   ): { ok: boolean; error?: string } {
     if (this.gameTable != null) return { ok: false, error: 'Une main est en cours' }
     if (seatIndex < 0 || seatIndex >= this.maxSeats) return { ok: false, error: 'Siège invalide' }
@@ -634,7 +666,14 @@ export class CashGameController implements IGameSession {
         error: `Solde insuffisant : il faut au moins ${amount} jetons pour s'asseoir (buy-in min. ${this.defaultBuyIn}).`,
       }
     }
-    this.seats[seatIndex] = { seatIndex, userId, username, chips: amount, avatarUrl: avatarUrl ?? null }
+    this.seats[seatIndex] = {
+      seatIndex,
+      userId,
+      username,
+      chips: amount,
+      avatarUrl: avatarUrl ?? null,
+      cosmetics: cosmetics ?? null,
+    }
     // Entre deux mains : chaque nouvel assis réinitialise les « prêt », sinon des joueurs déjà
     // cochés peuvent laisser croire côté client que la table est prête alors qu’un arrivant
     // (rejoin / siège libre) doit encore confirmer — ou l’inverse (UI bloquée).
@@ -746,7 +785,7 @@ export class CashGameController implements IGameSession {
         position: i,
         isDealer: false,
         isConnected: true,
-        ...(s.avatarUrl ? { avatar: s.avatarUrl } : {})
+        ...seatPlayerExtras(s),
       })),
       currentTurn: '',
       phase: this.countdownEndsAt ? 'WAITING' : 'WAITING',
