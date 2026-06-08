@@ -47,6 +47,8 @@ import {
   getUserAvatar,
   fetchBalanceFromServer,
   POKER_WALLET_DISPLAY_EVENT,
+  BALANCE_CHANGED_EVENT,
+  updateUserBalance,
 } from "../utils/userProfile";
 import { RoundTransition } from "../components/RoundTransition";
 import { GameInteractiveTour } from "../components/GameInteractiveTour";
@@ -68,7 +70,7 @@ import {
   type PromoDiscountInfo,
   simulatedEurFromChips,
 } from "../components/FakeCardTopUpForm";
-import { validateGiftCode, validateTopUpPromo } from "../utils/wallet";
+import { resolvePaymentPromoCode } from "../utils/wallet";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
 import { apiUrl } from "../utils/apiBase";
 import { getPokerTableAvatar } from "../utils/avatars";
@@ -334,6 +336,14 @@ export function Game() {
   const pokerVoiceEnabled = Boolean(gameIdParam && userId && !isBotMode && !isSpectating);
   const pokerVoice = useTableVoiceChat(gameIdParam, userId, socket, pokerVoiceEnabled);
   const voice = useVoice();
+
+  const exitToLobby = useCallback(
+    (opts?: { replace?: boolean; state?: unknown }) => {
+      voice.leaveChannel();
+      navigate("/lobby", { replace: opts?.replace, state: opts?.state });
+    },
+    [navigate, voice],
+  );
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hiddenBetNextHandId, setHiddenBetNextHandId] = useState<string | null>(null);
   const [hiddenBetWindowOpen, setHiddenBetWindowOpen] = useState(false);
@@ -473,6 +483,7 @@ export function Game() {
   const [promoCode, setPromoCode] = useState("");
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
   const [freeCheckoutPromo, setFreeCheckoutPromo] = useState(false);
+  const [promoTokensApplied, setPromoTokensApplied] = useState(false);
   const [promoValidating, setPromoValidating] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDigits, setCardDigits] = useState("");
@@ -693,6 +704,8 @@ export function Game() {
   const emitTournamentJoinRef = useRef<(() => void) | null>(null);
   const tournamentJoinNotFoundAttemptsRef = useRef(0);
 
+  const CASH_BUY_IN_AMOUNT = 100;
+
   const scheduleCashBalanceServerSync = useCallback(() => {
     if (!gameIdParam || isBotMode || isSpectating || isTournamentTable) return;
     if (cashBalanceSyncTimerRef.current) clearTimeout(cashBalanceSyncTimerRef.current);
@@ -708,7 +721,7 @@ export function Game() {
         .finally(() => {
           cashBalanceFetchInFlightRef.current = false;
         });
-    }, 2200);
+    }, 400);
   }, [gameIdParam, isBotMode, isSpectating, isTournamentTable, emitPokerWalletDisplay]);
 
   useEffect(() => {
@@ -749,6 +762,42 @@ export function Game() {
   useEffect(() => {
     emitPokerWalletDisplay();
   }, [playersState, cashSeats, emitPokerWalletDisplay]);
+
+  const syncCashWalletFromServer = useCallback(() => {
+    if (!gameIdParam || isBotMode || isSpectating || isTournamentTable) return;
+    void fetchBalanceFromServer({ authoritative: true }).then((v) => {
+      cashLiquidOffTableRef.current = v;
+      emitPokerWalletDisplay();
+    });
+  }, [gameIdParam, isBotMode, isSpectating, isTournamentTable, emitPokerWalletDisplay]);
+
+  const cashSeatedRef = useRef(false);
+  useEffect(() => {
+    if (!gameIdParam || isBotMode || isSpectating || isTournamentTable || !userId) return;
+    const seated = cashSeats.some(
+      (s) => s.userId != null && String(s.userId) === String(userId),
+    );
+    if (seated && !cashSeatedRef.current) {
+      cashSeatedRef.current = true;
+      syncCashWalletFromServer();
+    }
+    if (!seated) cashSeatedRef.current = false;
+  }, [
+    cashSeats,
+    gameIdParam,
+    isBotMode,
+    isSpectating,
+    isTournamentTable,
+    userId,
+    syncCashWalletFromServer,
+  ]);
+
+  useEffect(() => {
+    if (!gameIdParam || isBotMode || isSpectating || isTournamentTable) return;
+    const onBalanceChanged = () => syncCashWalletFromServer();
+    window.addEventListener(BALANCE_CHANGED_EVENT, onBalanceChanged);
+    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, onBalanceChanged);
+  }, [gameIdParam, isBotMode, isSpectating, isTournamentTable, syncCashWalletFromServer]);
 
   useEffect(() => {
     if (!socket || !gameIdParam || isBotMode || isSpectating || isTournamentTable) return;
@@ -1107,6 +1156,7 @@ export function Game() {
     setPromoCode("");
     setPromoDiscount(null);
     setFreeCheckoutPromo(false);
+    setPromoTokensApplied(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -1120,6 +1170,7 @@ export function Game() {
     setPromoCode("");
     setPromoDiscount(null);
     setFreeCheckoutPromo(false);
+    setPromoTokensApplied(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -1127,42 +1178,76 @@ export function Game() {
     setAddSuccess(false);
   };
 
-  const validatePaymentPromo = useCallback(async (code: string) => {
-    if (!code.trim()) {
-      setPromoDiscount(null);
-      setFreeCheckoutPromo(false);
-      return;
-    }
-    setPromoValidating(true);
-    try {
-      const top = await validateTopUpPromo(code);
-      if (top?.valid && top.freeCheckout) {
-        setFreeCheckoutPromo(true);
+  const applyCashWalletBalance = useCallback(
+    (newBalance: number) => {
+      if (Boolean(gameIdParam) && !isSpectating) {
+        cashLiquidOffTableRef.current = newBalance;
+        emitPokerWalletDisplay();
+      }
+    },
+    [gameIdParam, isSpectating, emitPokerWalletDisplay],
+  );
+
+  const validatePaymentPromo = useCallback(
+    async (code: string) => {
+      if (!code.trim()) {
         setPromoDiscount(null);
+        setFreeCheckoutPromo(false);
+        setPromoTokensApplied(false);
         return;
       }
-      setFreeCheckoutPromo(false);
-      const result = await validateGiftCode(code);
-      if (result && result.success && result.discountType) {
-        // C'est un code de réduction
-        setPromoDiscount({
-          discountType: result.discountType as "FIXED_DISCOUNT" | "PERCENTAGE_DISCOUNT",
-          discountValue: result.discountValue || 0,
-        });
-      } else {
+      setPromoValidating(true);
+      try {
+        const resolved = await resolvePaymentPromoCode(code);
+        if (resolved.kind === "empty") {
+          setPromoDiscount(null);
+          setFreeCheckoutPromo(false);
+          setPromoTokensApplied(false);
+          return;
+        }
+        if (resolved.kind === "free_checkout") {
+          setFreeCheckoutPromo(true);
+          setPromoDiscount(null);
+          setPromoTokensApplied(false);
+          return;
+        }
+        if (resolved.kind === "discount") {
+          setFreeCheckoutPromo(false);
+          setPromoTokensApplied(false);
+          setPromoDiscount({
+            discountType: resolved.discountType,
+            discountValue: resolved.discountValue,
+          });
+          return;
+        }
+        setFreeCheckoutPromo(false);
         setPromoDiscount(null);
+        setPromoTokensApplied(true);
+        updateUserBalance(resolved.newBalance);
+        applyCashWalletBalance(resolved.newBalance);
+        setPromoCode("");
+      } catch (error) {
+        console.error("[payment] Promo validation error:", error);
+        setPromoDiscount(null);
+        setFreeCheckoutPromo(false);
+        setPromoTokensApplied(false);
+      } finally {
+        setPromoValidating(false);
       }
-    } catch (error) {
-      console.error("[payment] Promo validation error:", error);
-      setPromoDiscount(null);
-      setFreeCheckoutPromo(false);
-    } finally {
-      setPromoValidating(false);
-    }
-  }, []);
+    },
+    [applyCashWalletBalance],
+  );
 
   const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
+    if (
+      promoCode.trim() &&
+      !promoDiscount &&
+      !freeCheckoutPromo &&
+      !promoTokensApplied
+    ) {
+      await validatePaymentPromo(promoCode);
+    }
     // Vérifier si c'est un paiement gratuit (réduction 100% ou code solde)
     const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
     const isFreePayment = freeCheckoutPromo || finalPrice === 0;
@@ -1186,10 +1271,7 @@ export function Game() {
       // Cash multi : le header affiche `pokerDisplayTotal = cashLiquidOffTableRef + stack`.
       // `addDevMoney` met à jour le solde serveur + localStorage, mais sans rafraîchir
       // la part hors-table le header reste figé sur l’ancien total.
-      if (Boolean(gameIdParam) && !isSpectating) {
-        cashLiquidOffTableRef.current = newBalance;
-        emitPokerWalletDisplay();
-      }
+      applyCashWalletBalance(newBalance);
     }
     setAddSuccess(true);
     setTimeout(() => closeAddMoney(), 800);
@@ -1725,7 +1807,7 @@ export function Game() {
             navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
             return null;
           }
-          navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
+          exitToLobby({ state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
           return null;
         }
         if (!res.ok) throw new Error(String(res.status));
@@ -1819,7 +1901,7 @@ export function Game() {
         if (!cancelled) console.error("Erreur récupération état partie:", err);
       });
     return () => { cancelled = true; };
-  }, [gameIdParam, userId, navigate, isSpectating, searchParams]);
+  }, [gameIdParam, userId, navigate, isSpectating, searchParams, exitToLobby]);
 
   useEffect(() => {
   if (!socket || !gameIdParam) return;
@@ -1882,7 +1964,7 @@ export function Game() {
           navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
           return;
         }
-        navigate("/lobby", { state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
+        exitToLobby({ state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
       }
         else if (payload?.code === "ACTION_ERROR" || payload?.code === "INVALID_RAISE" || payload?.code === "TOO_MANY_ACTIONS") {
           addToast(payload?.message || t('common.error'), "error");
@@ -1896,7 +1978,7 @@ export function Game() {
       socket.off("GAME_CHAT", onChatMessage);
       socket.off("ERROR", onError);
     };
-  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating, searchParams]);
+  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating, searchParams, exitToLobby]);
 
   useEffect(() => {
     /* Toujours annuler le timer de fin de table : sans ça, un passage demi-finale → finale
@@ -3543,9 +3625,9 @@ export function Game() {
   useEffect(() => {
     if (!gameOverReason) return;
     if (isBotMode) return;
-    const timer = setTimeout(() => { navigate("/lobby"); }, 5000);
+    const timer = setTimeout(() => { exitToLobby(); }, 5000);
     return () => clearTimeout(timer);
-  }, [gameOverReason, navigate, isBotMode]);
+  }, [gameOverReason, exitToLobby, isBotMode]);
 
   useEffect(() => {
     if (!gameIdParam || !isBotMode || gameOverReason) return;
@@ -3749,32 +3831,32 @@ export function Game() {
     setIsLoading(false);
     setHasPlayerActed(false);
     hasPlayerActedRef.current = false;
-    navigate("/lobby");
-  }, [navigate]);
+    exitToLobby();
+  }, [exitToLobby]);
 
   const handlePracticeBackToLobby = useCallback(() => {
-    navigate("/lobby");
-  }, [navigate]);
+    exitToLobby();
+  }, [exitToLobby]);
   const handleStaySpectatorAfterBust = useCallback(() => {
     const targetGameId = multiBustGameIdRef.current ?? gameIdParam;
     if (!targetGameId) {
-      navigate("/lobby");
+      exitToLobby();
       return;
     }
     setShowMultiBustPrompt(false);
     navigate(`/game?gameId=${encodeURIComponent(targetGameId)}&spectate=1`, {
       replace: true,
     });
-  }, [navigate, gameIdParam]);
+  }, [navigate, gameIdParam, exitToLobby]);
   const handleBackToLobbyAfterBust = useCallback(() => {
     setShowMultiBustPrompt(false);
-    navigate("/lobby");
-  }, [navigate]);
+    exitToLobby();
+  }, [exitToLobby]);
 
   const handleCashClosedGoWaitingRoom = useCallback(() => {
     if (!cashGameClosedModal?.roomId) {
       setCashGameClosedModal(null);
-      navigate("/lobby", { replace: true, state: { outcome: "lost" as const, reason: "table_closed" } });
+      exitToLobby({ replace: true, state: { outcome: "lost" as const, reason: "table_closed" } });
       return;
     }
     const { roomId, message } = cashGameClosedModal;
@@ -3797,8 +3879,8 @@ export function Game() {
 
   const handleCashClosedGoLobby = useCallback(() => {
     setCashGameClosedModal(null);
-    navigate("/lobby", { replace: true, state: { outcome: "lost" as const, reason: "table_closed" } });
-  }, [navigate]);
+    exitToLobby({ replace: true, state: { outcome: "lost" as const, reason: "table_closed" } });
+  }, [exitToLobby]);
 
   /** Bot local (sans gameId) : même flux que RoundTransition — relance la table avec les params d’URL. */
   const handleLocalBotPlayAgain = useCallback(() => {
@@ -3808,7 +3890,7 @@ export function Game() {
   const handlePracticePlayAgain = useCallback(async () => {
     const token = getAuthItem("token");
     if (!token) {
-      navigate("/lobby");
+      exitToLobby();
       return;
     }
     const raw = sessionStorage.getItem("qb_last_practice_bot_config");
@@ -3863,7 +3945,7 @@ export function Game() {
       console.error(e);
       addToast(t("errors.network", "Erreur réseau"), "error");
     }
-  }, [addToast, navigate, t]);
+  }, [addToast, navigate, t, exitToLobby]);
 
   useEffect(() => {
     if (!isBotMode || gameIdParam || playersState.length === 0) return;
@@ -5044,7 +5126,7 @@ export function Game() {
               if (gameIdParam && socket && !isBotMode && !isSpectating) {
                 socket.emit("CASH_LEAVE", { gameId: gameIdParam });
               }
-              navigate("/lobby");
+              exitToLobby();
             }}
           />
         )}
@@ -5087,12 +5169,11 @@ export function Game() {
                       compact
                       addMoneyAmount={addMoneyAmount}
                       promoCode={promoCode}
-                      setPromoCode={(code) => {
-                        setPromoCode(code);
-                        void validatePaymentPromo(code);
-                      }}
+                      setPromoCode={setPromoCode}
+                      onPromoValidate={(code) => void validatePaymentPromo(code)}
                       promoDiscount={promoDiscount}
                       promoFreeCheckout={freeCheckoutPromo}
+                      promoTokensApplied={promoTokensApplied}
                       isPromoValidating={promoValidating}
                       cardName={cardName}
                       setCardName={setCardName}
@@ -5127,7 +5208,7 @@ export function Game() {
           if (gameIdParam && socket) {
             socket.emit("CASH_LEAVE", { gameId: gameIdParam });
           }
-          navigate("/lobby");
+          exitToLobby();
         }}
       />
 
@@ -5264,7 +5345,22 @@ export function Game() {
                   type="button"
                   onClick={() => {
                     const free = cashSeats.findIndex((s) => !s.userId);
-                    if (free >= 0 && socket) socket.emit("CASH_SIT", { gameId: gameIdParam, seatIndex: free, buyIn: 100, avatarUrl: getUserAvatar() });
+                    if (free >= 0 && socket) {
+                      if (cashLiquidOffTableRef.current != null) {
+                        cashLiquidOffTableRef.current = Math.max(
+                          0,
+                          cashLiquidOffTableRef.current - CASH_BUY_IN_AMOUNT,
+                        );
+                        emitPokerWalletDisplay();
+                      }
+                      socket.emit("CASH_SIT", {
+                        gameId: gameIdParam,
+                        seatIndex: free,
+                        buyIn: CASH_BUY_IN_AMOUNT,
+                        avatarUrl: getUserAvatar(),
+                      });
+                      syncCashWalletFromServer();
+                    }
                   }}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg"
                 >

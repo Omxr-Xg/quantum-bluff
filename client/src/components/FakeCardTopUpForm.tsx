@@ -109,21 +109,27 @@ export function isFakeCardComplete(
 export type FakePromoCodeFieldProps = {
   promoCode: string;
   setPromoCode: (v: string) => void;
+  /** Valide le code (blur / confirmation) — pas à chaque frappe. */
+  onPromoValidate?: (code: string) => void;
   compact?: boolean;
   isValidating?: boolean;
   hasDiscount?: boolean;
   /** Code serveur validé : paiement fictif offert + crédit des jetons. */
   hasFreeCheckoutPromo?: boolean;
+  /** Code jetons : crédit immédiat du solde. */
+  hasTokensApplied?: boolean;
 };
 
 /** Zone code promo (à placer en haut du formulaire). */
 export function FakePromoCodeField({
   promoCode,
   setPromoCode,
+  onPromoValidate,
   compact,
   isValidating,
   hasDiscount,
   hasFreeCheckoutPromo,
+  hasTokensApplied,
 }: FakePromoCodeFieldProps) {
   const { t } = useTranslation();
   const labelCls = compact ? "text-slate-400 text-xs" : "text-slate-300 text-sm";
@@ -145,10 +151,16 @@ export function FakePromoCodeField({
             {t("lobby.fakePaymentPromoAppliedShort")}
           </span>
         )}
-        {!hasFreeCheckoutPromo && hasDiscount && (
+        {!hasFreeCheckoutPromo && !hasTokensApplied && hasDiscount && (
           <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
             <Check className="h-3 w-3 shrink-0" aria-hidden />
             {t("lobby.fakePaymentDiscountAppliedShort")}
+          </span>
+        )}
+        {hasTokensApplied && (
+          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
+            <Check className="h-3 w-3 shrink-0" aria-hidden />
+            {t("lobby.fakePaymentTokensAppliedShort")}
           </span>
         )}
       </div>
@@ -156,6 +168,7 @@ export function FakePromoCodeField({
         type="text"
         value={promoCode}
         onChange={(e) => setPromoCode(e.target.value)}
+        onBlur={() => onPromoValidate?.(promoCode)}
         placeholder={t("lobby.fakePaymentPromoPlaceholder")}
         className={inputCls}
         autoComplete="off"
@@ -169,9 +182,11 @@ export type FakeCardTopUpFieldsProps = {
   addMoneyAmount: number;
   promoCode: string;
   setPromoCode?: (v: string) => void;
+  onPromoValidate?: (code: string) => void;
   promoDiscount: PromoDiscountInfo;
   /** Code promo serveur : montant fictif 0 € + crédit des jetons (pas de saisie carte). */
   promoFreeCheckout?: boolean;
+  promoTokensApplied?: boolean;
   isPromoValidating?: boolean;
   cardName: string;
   setCardName: (v: string) => void;
@@ -189,8 +204,10 @@ export function FakeCardTopUpFields({
   addMoneyAmount,
   promoCode,
   setPromoCode,
+  onPromoValidate,
   promoDiscount,
   promoFreeCheckout,
+  promoTokensApplied,
   isPromoValidating,
   cardName,
   setCardName,
@@ -227,10 +244,12 @@ export function FakeCardTopUpFields({
         <FakePromoCodeField
           promoCode={promoCode}
           setPromoCode={setPromoCode}
+          onPromoValidate={onPromoValidate}
           compact={compact}
           isValidating={isPromoValidating}
           hasDiscount={!!promoDiscount}
           hasFreeCheckoutPromo={!!promoFreeCheckout}
+          hasTokensApplied={!!promoTokensApplied}
         />
       )}
 

@@ -31,8 +31,8 @@ describe('CashGameController — init', () => {
   })
 })
 
-describe('CashGameController — effectiveSitBuyInAmount (salle d’attente vs sit)', () => {
-  test('gros portefeuille est plafonné à 10k', () => {
+describe('CashGameController — effectiveSitBuyInAmount (buy-in demandé)', () => {
+  test('buy-in explicite plafonné à 10k', () => {
     const c = new CashGameController({
       id: 'g',
       roomId: 'r',
@@ -41,7 +41,7 @@ describe('CashGameController — effectiveSitBuyInAmount (salle d’attente vs s
     expect(c.effectiveSitBuyInAmount(506_958)).toBe(10_000)
   })
 
-  test('respecte le plancher defaultBuyIn quand le wallet est élevé mais < 10k', () => {
+  test('respecte le plancher defaultBuyIn', () => {
     const c = new CashGameController({
       id: 'g',
       roomId: 'r',
@@ -49,6 +49,25 @@ describe('CashGameController — effectiveSitBuyInAmount (salle d’attente vs s
     })
     expect(c.effectiveSitBuyInAmount(800)).toBe(800)
     expect(c.effectiveSitBuyInAmount(400)).toBe(500)
+    expect(c.effectiveSitBuyInAmount(c.getDefaultBuyIn())).toBe(500)
+  })
+})
+
+describe('CashGameController — processRejoinQueue buy-in', () => {
+  test('utilise defaultBuyIn, pas tout le portefeuille', async () => {
+    const c = new CashGameController({
+      id: 'g',
+      roomId: 'r',
+      defaultBuyIn: 100,
+    })
+    c.addSpectatorToRejoinQueue('u1')
+    const buyIns = await c.processRejoinQueue(async () => ({
+      username: 'Alice',
+      chips: 5000,
+    }))
+    expect(buyIns).toHaveLength(1)
+    expect(buyIns[0]!.buyInAmount).toBe(100)
+    expect(c.getOccupiedSeats()[0]!.chips).toBe(100)
   })
 })
 

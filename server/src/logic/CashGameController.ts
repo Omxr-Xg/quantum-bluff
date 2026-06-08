@@ -362,6 +362,10 @@ export class CashGameController implements IGameSession {
     return false
   }
 
+  getDefaultBuyIn(): number {
+    return this.defaultBuyIn
+  }
+
   /** Buy-in effectif (plancher salle / plafond 10k), aligné sur `sit`. */
   effectiveSitBuyInAmount(requestedBuyIn: number): number {
     return intChips(Math.max(this.defaultBuyIn, Math.min(requestedBuyIn, 10000)))
@@ -968,7 +972,7 @@ export class CashGameController implements IGameSession {
       }
       const free = this.seats.findIndex((s) => s.userId == null)
       if (free >= 0) {
-        const buyIn = Math.min(wallet, 10_000)
+        const buyIn = this.defaultBuyIn
         const r = this.sit(userId, user.username, free, buyIn, null, wallet)
         if (r.ok) {
           const amount = intChips(this.seats[free]?.chips ?? buyIn)

@@ -1103,7 +1103,8 @@ router.post('/:roomId/start', waitingRoomHostLimiter, authMiddleware, async (req
       room.players.map((rp) => ({
         userId: rp.user.id,
         username: rp.user.username,
-        chips: cashGame.effectiveSitBuyInAmount(intChips(rp.user.chips ?? 0)),
+        // Buy-in fixe (minBal / defaultBuyIn), pas le portefeuille entier — sinon wallet → 0 à l’ouverture.
+        chips: cashGame.effectiveSitBuyInAmount(minBal),
         // Fallback : si le snapshot RoomPlayer.avatarUrl est vide, on prend
         // l'avatar persistant du profil pour que la photo s'affiche en partie
         // (cohérent avec la page Amis et la salle d'attente).

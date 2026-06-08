@@ -22,6 +22,7 @@ import { getAuthItem } from "../utils/authStorage";
 import { getPlayerAvatar } from "../utils/avatars";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useVoice } from "../contexts/VoiceContext";
+import { buildWaitingChannelId } from "../features/voice/voiceTypes";
 import { TableVoicePanel } from "../features/voice/TableVoicePanel";
 import { pickVoicePanelState } from "../features/voice/useTableVoiceChat";
 
@@ -379,8 +380,12 @@ export function WaitingRoom() {
     return () => {
       window.clearTimeout(voiceTimer);
       leaveRoom(rawRoomId);
+      const waitingCid = buildWaitingChannelId(rawRoomId);
+      if (voice.channelId === waitingCid) {
+        voice.leaveChannel();
+      }
     };
-  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom, voice.joinWaitingRoom]);
+  }, [userId, rawRoomId, roomLoading, joinRoom, leaveRoom, voice.joinWaitingRoom, voice.channelId, voice.leaveChannel]);
 
   useEffect(() => {
     if (!socket || !navigate) return;

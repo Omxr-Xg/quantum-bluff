@@ -47,13 +47,7 @@ import {
   POKER_WALLET_DISPLAY_EVENT,
   updateUserBalance,
 } from "../utils/userProfile";
-import {
-  fetchAvailableGiftCodes,
-  validateGiftCode,
-  validateTopUpPromo,
-  type GiftCode,
-} from "../utils/wallet";
-import { giftCodeRewardLabel } from "../utils/giftCodesClient";
+import { validateGiftCode, resolvePaymentPromoCode } from "../utils/wallet";
 import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
 import { InvitationBanner } from "./InvitationBanner";
@@ -214,6 +208,7 @@ export function Layout({ children }: LayoutProps) {
   const [promoCode, setPromoCode] = useState("");
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscountInfo>(null);
   const [freeCheckoutPromo, setFreeCheckoutPromo] = useState(false);
+  const [promoTokensApplied, setPromoTokensApplied] = useState(false);
   const [promoValidating, setPromoValidating] = useState(false);
   const [cardName, setCardName] = useState("");
   const [cardDigits, setCardDigits] = useState("");
@@ -223,7 +218,6 @@ export function Layout({ children }: LayoutProps) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<BalanceHistoryEntry[]>([]);
-  const [giftCodes, setGiftCodes] = useState<GiftCode[]>([]);
   const [codeInput, setCodeInput] = useState("");
   const [codesLoading, setCodesLoading] = useState(false);
   const [codesError, setCodesError] = useState<string | null>(null);
@@ -711,24 +705,6 @@ export function Layout({ children }: LayoutProps) {
     },
     [t],
   );
-  const loadGiftCodes = useCallback(async () => {
-    setCodesLoading(true);
-    setCodesError(null);
-    try {
-      const codes = await fetchAvailableGiftCodes();
-      if (codes === null) {
-        setGiftCodes([]);
-        setCodesError(t("lobby.giftCodesLoadError"));
-        return;
-      }
-      setGiftCodes(codes);
-    } catch (err) {
-      setCodesError(err instanceof Error ? err.message : t("lobby.giftCodesLoadError"));
-    } finally {
-      setCodesLoading(false);
-    }
-  }, [t]);
-
   const handleValidateCode = async () => {
     if (!codeInput.trim()) {
       setCodesError(t("lobby.giftCodeEnterError"));
@@ -745,15 +721,11 @@ export function Layout({ children }: LayoutProps) {
         setCodesSuccess(result.message);
         setCodeInput("");
         if (typeof result.newBalance === "number" && Number.isFinite(result.newBalance)) {
-          // Persiste + déclenche BALANCE_CHANGED_EVENT pour synchroniser tous les listeners
-          // (Layout, Lobby, etc.) au lieu de ne mettre à jour que l'état local.
           updateUserBalance(result.newBalance);
+          setBalance(result.newBalance);
         }
-        setBalance(result.newBalance);
 
-        // Reload codes and history
         setTimeout(() => {
-          void loadGiftCodes();
           void loadBalanceHistory();
           setCodesSuccess(null);
         }, 2000);
@@ -772,6 +744,7 @@ export function Layout({ children }: LayoutProps) {
     setPromoCode("");
     setPromoDiscount(null);
     setFreeCheckoutPromo(false);
+    setPromoTokensApplied(false);
     setCardName("");
     setCardDigits("");
     setCardExpiry("");
@@ -794,31 +767,44 @@ export function Layout({ children }: LayoutProps) {
     if (!code.trim()) {
       setPromoDiscount(null);
       setFreeCheckoutPromo(false);
+      setPromoTokensApplied(false);
       return;
     }
     setPromoValidating(true);
     try {
-      const top = await validateTopUpPromo(code);
-      if (top?.valid && top.freeCheckout) {
+      const resolved = await resolvePaymentPromoCode(code);
+      if (resolved.kind === "empty") {
+        setPromoDiscount(null);
+        setFreeCheckoutPromo(false);
+        setPromoTokensApplied(false);
+        return;
+      }
+      if (resolved.kind === "free_checkout") {
         setFreeCheckoutPromo(true);
         setPromoDiscount(null);
+        setPromoTokensApplied(false);
+        return;
+      }
+      if (resolved.kind === "discount") {
+        setFreeCheckoutPromo(false);
+        setPromoTokensApplied(false);
+        setPromoDiscount({
+          discountType: resolved.discountType,
+          discountValue: resolved.discountValue,
+        });
         return;
       }
       setFreeCheckoutPromo(false);
-      const result = await validateGiftCode(code);
-      if (result && result.success && result.discountType) {
-        // C'est un code de réduction
-        setPromoDiscount({
-          discountType: result.discountType as "FIXED_DISCOUNT" | "PERCENTAGE_DISCOUNT",
-          discountValue: result.discountValue || 0,
-        });
-      } else {
-        setPromoDiscount(null);
-      }
+      setPromoDiscount(null);
+      setPromoTokensApplied(true);
+      updateUserBalance(resolved.newBalance);
+      setBalance(resolved.newBalance);
+      setPromoCode("");
     } catch (error) {
       console.error("[payment] Promo validation error:", error);
       setPromoDiscount(null);
       setFreeCheckoutPromo(false);
+      setPromoTokensApplied(false);
     } finally {
       setPromoValidating(false);
     }
@@ -826,6 +812,14 @@ export function Layout({ children }: LayoutProps) {
 
   const submitAddMoney = async () => {
     if (addMoneyAmount == null || addMoneyAmount <= 0) return;
+    if (
+      promoCode.trim() &&
+      !promoDiscount &&
+      !freeCheckoutPromo &&
+      !promoTokensApplied
+    ) {
+      await validatePaymentPromo(promoCode);
+    }
     // Vérifier si c'est un paiement gratuit (réduction 100% ou code promo solde)
     const finalPrice = simulatedEurFromChips(addMoneyAmount, promoDiscount);
     const isFreePayment = freeCheckoutPromo || finalPrice === 0;
@@ -1623,7 +1617,8 @@ export function Layout({ children }: LayoutProps) {
                 type="button"
                 onClick={() => {
                   setBalanceModalTab("codes");
-                  void loadGiftCodes();
+                  setCodesError(null);
+                  setCodesSuccess(null);
                 }}
                 aria-label={t("lobby.balanceTabGiftAria")}
                 title={t("lobby.balanceTabGiftAria")}
@@ -1705,50 +1700,13 @@ export function Layout({ children }: LayoutProps) {
               </>
             ) : balanceModalTab === "codes" ? (
               <div className="space-y-4">
-                <div>
-                  <p className="mb-3 flex items-center gap-2 text-sm text-slate-300">
-                    <Gift className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
-                    {t("lobby.giftCodesAvailable")}
-                  </p>
-                  {codesLoading ? (
-                    <div className="text-center py-8 text-slate-400">{t("common.loading")}</div>
-                  ) : giftCodes.length > 0 ? (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {giftCodes.map((code) => (
-                        <div
-                          key={code.id}
-                          className="bg-slate-800/40 border border-amber-300/16 rounded-lg p-3 flex items-center justify-between"
-                        >
-                          <div>
-                            <p className="font-mono text-amber-300 font-bold text-sm">{code.code}</p>
-                            {code.description && (
-                              <p className="text-xs text-slate-400">{code.description}</p>
-                            )}
-                            {code.expiresAt && (
-                              <p className="text-xs text-rose-400 mt-1">
-                                {t("lobby.giftCodeExpires")}{" "}
-                                {new Date(code.expiresAt).toLocaleDateString(i18n.language)}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="text-amber-300 font-bold flex items-center justify-end gap-1 text-sm">
-                              {code.usageType === "TOKENS" ? (
-                                <ChipIcon className="w-4 h-4" />
-                              ) : null}
-                              {giftCodeRewardLabel(code, t)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-slate-400 text-center py-4">{t("lobby.giftCodesNone")}</p>
-                  )}
-                </div>
+                <p className="flex items-start gap-2 text-sm text-slate-400">
+                  <Gift className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+                  {t("lobby.giftCodeHint")}
+                </p>
 
                 <div>
-                  <p className="text-slate-300 text-sm mb-2">{t("lobby.giftCodeEnterLabel")}</p>
+                  <p className="mb-2 text-sm text-slate-300">{t("lobby.giftCodeEnterLabel")}</p>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -2066,12 +2024,11 @@ export function Layout({ children }: LayoutProps) {
                     <FakeCardTopUpFields
                       addMoneyAmount={addMoneyAmount}
                       promoCode={promoCode}
-                      setPromoCode={(code) => {
-                        setPromoCode(code);
-                        void validatePaymentPromo(code);
-                      }}
+                      setPromoCode={setPromoCode}
+                      onPromoValidate={(code) => void validatePaymentPromo(code)}
                       promoDiscount={promoDiscount}
                       promoFreeCheckout={freeCheckoutPromo}
+                      promoTokensApplied={promoTokensApplied}
                       isPromoValidating={promoValidating}
                       cardName={cardName}
                       setCardName={setCardName}

@@ -93,3 +93,37 @@ export async function validateGiftCode(code: string): Promise<PromoCodeValidatio
     throw error
   }
 }
+
+export type PaymentPromoResolution =
+  | { kind: 'empty' }
+  | { kind: 'free_checkout' }
+  | { kind: 'discount'; discountType: 'FIXED_DISCOUNT' | 'PERCENTAGE_DISCOUNT'; discountValue: number }
+  | { kind: 'tokens'; newBalance: number; message: string }
+
+/** Valide un code promo de paiement (réduction ou jetons) — à appeler au blur ou à la confirmation. */
+export async function resolvePaymentPromoCode(code: string): Promise<PaymentPromoResolution> {
+  const trimmed = code.trim()
+  if (!trimmed) return { kind: 'empty' }
+
+  const top = await validateTopUpPromo(trimmed)
+  if (top?.valid && top.freeCheckout) return { kind: 'free_checkout' }
+
+  const result = await validateGiftCode(trimmed)
+  if (!result?.success) {
+    throw new Error(result?.message ?? 'Code invalide')
+  }
+
+  if (result.discountType) {
+    return {
+      kind: 'discount',
+      discountType: result.discountType as 'FIXED_DISCOUNT' | 'PERCENTAGE_DISCOUNT',
+      discountValue: result.discountValue ?? 0,
+    }
+  }
+
+  if (typeof result.newBalance === 'number' && Number.isFinite(result.newBalance)) {
+    return { kind: 'tokens', newBalance: result.newBalance, message: result.message }
+  }
+
+  return { kind: 'empty' }
+}

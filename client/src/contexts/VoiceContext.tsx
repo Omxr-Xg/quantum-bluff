@@ -308,15 +308,21 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   )
 
   const leaveChannel = useCallback(() => {
-    if (!socket) return
+    clearVoiceJoinRetries()
+    pendingVoiceJoinRef.current = null
+    preserveTableUnmountRef.current = null
+    if (!socket) {
+      teardownMesh()
+      channelIdRef.current = null
+      setChannelId(null)
+      setChannel(null)
+      setParticipants([])
+      return
+    }
     const cid = channelIdRef.current
     if (cid) socket.emit('VOICE_LEAVE', { channelId: cid })
-    if (cid?.startsWith('call:')) teardownCallManager()
-    teardownMesh()
-    channelIdRef.current = null
-    setChannelId(null)
-    setChannel(null)
     if (cid?.startsWith('call:')) {
+      teardownCallManager()
       clearCallUi()
     } else {
       setOutgoingCall((prev) => {
@@ -324,7 +330,12 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         return prev
       })
     }
-  }, [socket, teardownCallManager, teardownMesh, clearCallUi])
+    teardownMesh()
+    channelIdRef.current = null
+    setChannelId(null)
+    setChannel(null)
+    setParticipants([])
+  }, [socket, teardownCallManager, teardownMesh, clearCallUi, clearVoiceJoinRetries])
 
   const isInCallChannel = useCallback((cid: string | null | undefined) => {
     return typeof cid === 'string' && cid.startsWith('call:')
