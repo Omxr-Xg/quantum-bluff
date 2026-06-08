@@ -68,3 +68,35 @@ export async function markAllNotificationsRead(userId: string): Promise<number> 
   })
   return result.count
 }
+
+/** Diffusion admin : insertion par lots + push socket (sans id individuel côté client). */
+export async function createAdminNotificationsBulk(
+  userIds: string[],
+  payload: Record<string, unknown>,
+): Promise<number> {
+  if (userIds.length === 0) return 0
+
+  const io = notifyIo ?? getGameIo()
+  const createdAt = new Date().toISOString()
+  const CHUNK = 250
+
+  for (let i = 0; i < userIds.length; i += CHUNK) {
+    const chunk = userIds.slice(i, i + CHUNK)
+    await prisma.userNotification.createMany({
+      data: chunk.map((userId) => ({
+        userId,
+        type: 'ADMIN_MESSAGE',
+        payload: payload as Prisma.InputJsonValue,
+      })),
+    })
+    for (const userId of chunk) {
+      io?.to(`user:${userId}`).emit('NOTIFICATION_NEW', {
+        type: 'ADMIN_MESSAGE',
+        payload,
+        createdAt,
+      })
+    }
+  }
+
+  return userIds.length
+}

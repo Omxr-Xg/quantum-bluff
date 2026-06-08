@@ -53,6 +53,7 @@ import {
   validateTopUpPromo,
   type GiftCode,
 } from "../utils/wallet";
+import { giftCodeRewardLabel } from "../utils/giftCodesClient";
 import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
 import { InvitationBanner } from "./InvitationBanner";
@@ -715,7 +716,12 @@ export function Layout({ children }: LayoutProps) {
     setCodesError(null);
     try {
       const codes = await fetchAvailableGiftCodes();
-      setGiftCodes(codes || []);
+      if (codes === null) {
+        setGiftCodes([]);
+        setCodesError(t("lobby.giftCodesLoadError"));
+        return;
+      }
+      setGiftCodes(codes);
     } catch (err) {
       setCodesError(err instanceof Error ? err.message : t("lobby.giftCodesLoadError"));
     } finally {
@@ -1726,9 +1732,11 @@ export function Layout({ children }: LayoutProps) {
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="text-amber-300 font-bold flex items-center gap-1 text-sm">
-                              <ChipIcon className="w-4 h-4" />
-                              +{code.amount}
+                            <p className="text-amber-300 font-bold flex items-center justify-end gap-1 text-sm">
+                              {code.usageType === "TOKENS" ? (
+                                <ChipIcon className="w-4 h-4" />
+                              ) : null}
+                              {giftCodeRewardLabel(code, t)}
                             </p>
                           </div>
                         </div>

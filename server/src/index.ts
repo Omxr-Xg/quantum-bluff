@@ -188,7 +188,8 @@ const limiter = rateLimitWithMetrics({
       p === '/api/health/ready' ||
       p.startsWith('/api/admin/console') ||
       p.startsWith('/api/auth/admin/gift-codes') ||
-      p.startsWith('/api/gift-codes/admin')
+      p.startsWith('/api/auth/gift-codes') ||
+      p.startsWith('/api/gift-codes/')
     ) {
       return true
     }

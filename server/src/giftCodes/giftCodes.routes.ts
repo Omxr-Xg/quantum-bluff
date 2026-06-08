@@ -106,7 +106,7 @@ router.get('/available', async (req: express.Request, res: express.Response) => 
     }
 
     const codes = await giftCodesService.getAvailableCodesForUser(userId)
-    res.json(codes)
+    res.json({ codes })
   } catch (error) {
     console.error('Error fetching available codes:', error)
     res.status(500).json({ error: 'Failed to fetch codes' })

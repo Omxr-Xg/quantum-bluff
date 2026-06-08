@@ -253,6 +253,7 @@ export type NotificationType =
   | 'ACHIEVEMENT'
   | 'SEASON_ENDED'
   | 'REFERRAL'
+  | 'ADMIN_MESSAGE'
 
 export type AppNotification = {
   id: string

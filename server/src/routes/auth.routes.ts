@@ -1145,6 +1145,35 @@ router.post('/admin/login', adminConsoleLoginLimiter, async (req, res) => {
   })
 })
 
+/** Codes cadeaux joueur — miroir de /api/gift-codes/* (certaines VM n’exposent pas ce préfixe). */
+router.get('/gift-codes/available', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const codes = await giftCodesService.getAvailableCodesForUser(userId)
+    return res.json({ codes })
+  } catch (e) {
+    console.error('[auth] gift-codes available', e)
+    return res.status(500).json({ error: 'Impossible de charger les codes cadeaux' })
+  }
+})
+
+router.post('/gift-codes/validate', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : ''
+    if (!code) return res.status(400).json({ error: 'Code invalide' })
+    const result = await giftCodesService.validateAndUseCode(userId, code)
+    return res.json(result)
+  } catch (e) {
+    console.error('[auth] gift-codes validate', e)
+    return res.status(400).json({
+      error: e instanceof Error ? e.message : 'Code invalide',
+    })
+  }
+})
+
 /** Codes cadeaux console admin — sous /api/auth/admin/* (même JWT que /admin/login). */
 const adminGiftCodeCreateSchema = z.object({
   code: z.string().min(1).max(64),

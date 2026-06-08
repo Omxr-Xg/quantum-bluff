@@ -49,6 +49,11 @@ export function formatGrowthNotificationMessage(
       return t("growthNotifications.invitation", {
         username: String(p.username ?? "—"),
       });
+    case "ADMIN_MESSAGE":
+      return t("growthNotifications.adminMessage", {
+        title: String(p.title ?? t("growthNotifications.adminMessageDefaultTitle")),
+        body: String(p.body ?? ""),
+      });
     default:
       return t("growthNotifications.generic");
   }

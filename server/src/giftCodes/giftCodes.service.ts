@@ -61,18 +61,19 @@ export async function getAllGiftCodes(limit = 50, offset = 0) {
 }
 
 export async function getAvailableCodesForUser(userId: string) {
-  // Récupère les codes qui ne sont pas expirés et que l'utilisateur n'a pas encore utilisés
+  const now = new Date()
   const codes = await prisma.giftCode.findMany({
     where: {
-      OR: [
-        { expiresAt: null }, // Pas d'expiration
-        { expiresAt: { gt: new Date() } } // Expiration dans le futur
+      AND: [
+        {
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        {
+          usedByUsers: {
+            none: { userId },
+          },
+        },
       ],
-      usedByUsers: {
-        none: {
-          userId: userId
-        }
-      }
     },
     select: {
       id: true,
@@ -83,11 +84,12 @@ export async function getAvailableCodesForUser(userId: string) {
       description: true,
       expiresAt: true,
       usedCount: true,
-      maxUses: true
-    }
+      maxUses: true,
+    },
+    orderBy: { createdAt: 'desc' },
   })
 
-  return codes
+  return codes.filter((row) => row.maxUses === -1 || row.usedCount < row.maxUses)
 }
 
 export async function validateAndUseCode(userId: string, code: string) {

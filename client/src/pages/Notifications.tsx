@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Bell, CheckCheck, Home, Loader2 } from "lucide-react";
-import { notificationChipsLabel } from "../utils/notificationPayload";
+import { formatGrowthNotificationMessage } from "../utils/notificationPayload";
 import {
   useGetNotificationsQuery,
   useMarkAllNotificationsReadMutation,
@@ -16,37 +16,8 @@ const profileMutedButton =
 const profileButton =
   "rounded-full border border-blue-300/15 bg-blue-950/75 px-4 py-2 text-sm font-semibold text-white transition hover:border-blue-200/25 hover:bg-blue-900/80 disabled:opacity-50";
 
-function formatMessage(
-  n: AppNotification,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string {
-  const p = n.payload ?? {};
-  switch (n.type) {
-    case "ACHIEVEMENT":
-      return t("growthNotifications.achievement", { name: String(p.achievementId ?? "—") });
-    case "REFERRAL":
-      if (p.role === "referrer") {
-        return t("growthNotifications.referralReferrer", {
-          username: String(p.username ?? "—"),
-          chips: notificationChipsLabel(p),
-        });
-      }
-      return t("growthNotifications.referralReferred", {
-        chips: notificationChipsLabel(p),
-      });
-    case "DAILY_REWARD":
-      return t("growthNotifications.dailyReward", {
-        chips: notificationChipsLabel(p),
-      });
-    case "SEASON_ENDED":
-      return t("growthNotifications.seasonEnded", { season: String(p.seasonName ?? "—") });
-    case "FRIEND_ONLINE":
-      return t("growthNotifications.friendOnline", { username: String(p.username ?? "—") });
-    case "INVITATION":
-      return t("growthNotifications.invitation", { username: String(p.username ?? "—") });
-    default:
-      return t("growthNotifications.generic");
-  }
+function isAdminMessage(n: AppNotification): boolean {
+  return n.type === "ADMIN_MESSAGE";
 }
 
 export function Notifications() {
@@ -121,7 +92,23 @@ export function Notifications() {
                         : "border-cyan-500/30 bg-cyan-950/20"
                     }`}
                   >
-                    <p className="text-sm font-medium text-white">{formatMessage(n, t)}</p>
+                    {isAdminMessage(n) ? (
+                      <>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
+                          {t("growthNotifications.adminBadge")}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-white">
+                          {String(n.payload?.title ?? t("growthNotifications.adminMessageDefaultTitle"))}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-300 whitespace-pre-wrap">
+                          {String(n.payload?.body ?? "")}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm font-medium text-white">
+                        {formatGrowthNotificationMessage(n, t)}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-slate-500">{new Date(n.createdAt).toLocaleString()}</p>
                   </button>
                 </li>

@@ -15,6 +15,13 @@ import { getGameIo } from '../sockets/gameIo.registry.js'
 import type { ActiveGame } from '../shared/activeGames.js'
 import * as giftCodesService from '../giftCodes/giftCodes.service.js'
 import { deleteUserAccount, UserDeletionError } from '../services/userDeletion.service.js'
+import {
+  AdminBroadcastError,
+  countBroadcastRecipients,
+  sendAdminBroadcast,
+  type BroadcastAudience,
+  type BroadcastSegment,
+} from '../notifications/adminBroadcast.service.js'
 const router = Router()
 
 router.use(adminConsoleAuthMiddleware)
@@ -752,5 +759,101 @@ router.post('/gift-codes', async (req, res) => {
     })
   }
 })
+
+const broadcastSegmentSchema = z.enum([
+  'new_7d',
+  'new_30d',
+  'active_7d',
+  'low_chips',
+  'high_chips',
+  'level_beginner',
+  'level_advanced',
+  'custom',
+])
+
+const broadcastFiltersSchema = z.object({
+  minLevel: z.number().int().min(1).max(100).optional(),
+  maxLevel: z.number().int().min(1).max(100).optional(),
+  minChips: z.number().int().min(0).optional(),
+  maxChips: z.number().int().min(0).optional(),
+  registeredWithinDays: z.number().int().min(1).max(365).optional(),
+})
+
+const broadcastBodySchema = z.object({
+  title: z.string().max(120).optional(),
+  body: z.string().min(1).max(2000),
+  audience: z.enum(['all', 'users', 'segment']),
+  usernames: z.array(z.string().max(200)).optional(),
+  usernamesText: z.string().max(5000).optional(),
+  segment: broadcastSegmentSchema.optional(),
+  filters: broadcastFiltersSchema.optional(),
+})
+
+function parseBroadcastAudience(body: z.infer<typeof broadcastBodySchema>): BroadcastAudience | null {
+  if (body.audience === 'all') return { kind: 'all' }
+
+  if (body.audience === 'users') {
+    const fromList = body.usernames ?? []
+    const fromText =
+      body.usernamesText
+        ?.split(/[\n,;]+/)
+        .map((s) => s.trim())
+        .filter(Boolean) ?? []
+    return { kind: 'users', usernames: [...fromList, ...fromText] }
+  }
+
+  if (!body.segment) return null
+  return {
+    kind: 'segment',
+    segment: body.segment as BroadcastSegment,
+    filters: body.filters,
+  }
+}
+
+async function handleBroadcastPreview(req: Request, res: Response) {
+  const parsed = broadcastBodySchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Données invalides' })
+  }
+  const audience = parseBroadcastAudience(parsed.data)
+  if (!audience) {
+    return res.status(400).json({ error: 'Segment requis pour une diffusion ciblée.' })
+  }
+  try {
+    const recipientCount = await countBroadcastRecipients(audience)
+    return res.json({ recipientCount })
+  } catch (e) {
+    console.error('[adminConsole] broadcast preview', e)
+    return res.status(500).json({ error: 'Prévisualisation impossible' })
+  }
+}
+
+async function handleBroadcastSend(req: Request, res: Response) {
+  const parsed = broadcastBodySchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Données invalides' })
+  }
+  const audience = parseBroadcastAudience(parsed.data)
+  if (!audience) {
+    return res.status(400).json({ error: 'Segment requis pour une diffusion ciblée.' })
+  }
+  try {
+    const result = await sendAdminBroadcast({
+      title: parsed.data.title,
+      body: parsed.data.body,
+      audience,
+    })
+    return res.json(result)
+  } catch (e) {
+    if (e instanceof AdminBroadcastError) {
+      return res.status(e.statusCode).json({ error: e.message, code: e.code })
+    }
+    console.error('[adminConsole] broadcast send', e)
+    return res.status(500).json({ error: 'Envoi impossible' })
+  }
+}
+
+router.post('/broadcast/preview', handleBroadcastPreview)
+router.post('/broadcast', handleBroadcastSend)
 
 export default router

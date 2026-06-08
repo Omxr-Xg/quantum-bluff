@@ -16,6 +16,7 @@ import {
   Gift,
   ClipboardList,
   Eye,
+  Megaphone,
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
@@ -47,7 +48,18 @@ type Tab =
   | "bj"
   | "ratings"
   | "reports"
-  | "giftCodes";
+  | "giftCodes"
+  | "broadcast";
+
+type BroadcastSegment =
+  | "new_7d"
+  | "new_30d"
+  | "active_7d"
+  | "low_chips"
+  | "high_chips"
+  | "level_beginner"
+  | "level_advanced"
+  | "custom";
 
 const PAGE_SIZE = 25;
 
@@ -164,6 +176,134 @@ export function AdminConsole() {
   const [codeLoading, setCodeLoading] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [codeSuccess, setCodeSuccess] = useState<string | null>(null);
+
+  const [broadcastForm, setBroadcastForm] = useState({
+    title: "",
+    body: "",
+    audience: "all" as "all" | "users" | "segment",
+    usernamesText: "",
+    segment: "new_7d" as BroadcastSegment,
+    minLevel: "",
+    maxLevel: "",
+    minChips: "",
+    maxChips: "",
+    registeredWithinDays: "",
+  });
+  const [broadcastPreviewCount, setBroadcastPreviewCount] = useState<number | null>(null);
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+  const [broadcastError, setBroadcastError] = useState<string | null>(null);
+  const [broadcastSuccess, setBroadcastSuccess] = useState<string | null>(null);
+
+  const buildBroadcastPayload = useCallback(() => {
+    const payload: Record<string, unknown> = {
+      title: broadcastForm.title.trim() || undefined,
+      body: broadcastForm.body.trim(),
+      audience: broadcastForm.audience,
+    };
+    if (broadcastForm.audience === "users") {
+      payload.usernamesText = broadcastForm.usernamesText;
+    }
+    if (broadcastForm.audience === "segment") {
+      payload.segment = broadcastForm.segment;
+      if (broadcastForm.segment === "custom") {
+        const filters: Record<string, number> = {};
+        const minLevel = Number.parseInt(broadcastForm.minLevel, 10);
+        const maxLevel = Number.parseInt(broadcastForm.maxLevel, 10);
+        const minChips = Number.parseInt(broadcastForm.minChips, 10);
+        const maxChips = Number.parseInt(broadcastForm.maxChips, 10);
+        const registeredWithinDays = Number.parseInt(broadcastForm.registeredWithinDays, 10);
+        if (Number.isFinite(minLevel)) filters.minLevel = minLevel;
+        if (Number.isFinite(maxLevel)) filters.maxLevel = maxLevel;
+        if (Number.isFinite(minChips)) filters.minChips = minChips;
+        if (Number.isFinite(maxChips)) filters.maxChips = maxChips;
+        if (Number.isFinite(registeredWithinDays)) filters.registeredWithinDays = registeredWithinDays;
+        payload.filters = filters;
+      }
+    }
+    return payload;
+  }, [broadcastForm]);
+
+  const previewBroadcast = useCallback(async () => {
+    if (!broadcastForm.body.trim()) {
+      setBroadcastError(t("adminConsole.broadcastError"));
+      return;
+    }
+    setBroadcastLoading(true);
+    setBroadcastError(null);
+    setBroadcastSuccess(null);
+    try {
+      const res = await fetch(apiUrl("/api/admin/console/broadcast/preview"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(buildBroadcastPayload()),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        recipientCount?: number;
+        error?: string;
+      };
+      if (res.status === 401) {
+        clearAuthStorage();
+        navigate("/auth/admin", { replace: true });
+        return;
+      }
+      if (!res.ok) {
+        setBroadcastError(data.error ?? t("adminConsole.broadcastError"));
+        setBroadcastPreviewCount(null);
+        return;
+      }
+      setBroadcastPreviewCount(
+        typeof data.recipientCount === "number" ? data.recipientCount : 0,
+      );
+    } catch {
+      setBroadcastError(t("adminConsole.networkError"));
+    } finally {
+      setBroadcastLoading(false);
+    }
+  }, [broadcastForm.body, buildBroadcastPayload, navigate, t]);
+
+  const sendBroadcast = useCallback(async () => {
+    if (!broadcastForm.body.trim()) {
+      setBroadcastError(t("adminConsole.broadcastError"));
+      return;
+    }
+    if (
+      broadcastForm.audience === "all" &&
+      !window.confirm(t("adminConsole.broadcastAudienceAll") + " ?")
+    ) {
+      return;
+    }
+    setBroadcastLoading(true);
+    setBroadcastError(null);
+    setBroadcastSuccess(null);
+    try {
+      const res = await fetch(apiUrl("/api/admin/console/broadcast"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(buildBroadcastPayload()),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        sentCount?: number;
+        error?: string;
+      };
+      if (res.status === 401) {
+        clearAuthStorage();
+        navigate("/auth/admin", { replace: true });
+        return;
+      }
+      if (!res.ok) {
+        setBroadcastError(data.error ?? t("adminConsole.broadcastError"));
+        return;
+      }
+      const count = typeof data.sentCount === "number" ? data.sentCount : 0;
+      setBroadcastSuccess(t("adminConsole.broadcastSent", { count }));
+      setBroadcastPreviewCount(count);
+      setBroadcastForm((prev) => ({ ...prev, body: "" }));
+    } catch {
+      setBroadcastError(t("adminConsole.networkError"));
+    } finally {
+      setBroadcastLoading(false);
+    }
+  }, [broadcastForm.audience, broadcastForm.body, buildBroadcastPayload, navigate, t]);
 
   const fetchReportUnread = useCallback(async () => {
     try {
@@ -299,6 +439,9 @@ export function AdminConsole() {
       else if (tab === "reports") path = `/api/admin/console/player-reports?${listParams}`;
       else if (tab === "giftCodes") {
         void loadGiftCodes();
+        setLoading(false);
+        return;
+      } else if (tab === "broadcast") {
         setLoading(false);
         return;
       } else path = `/api/admin/console/ratings?${listParams}`;
@@ -498,6 +641,7 @@ export function AdminConsole() {
     { id: "ratings", label: t("adminConsole.tabRatings") },
     { id: "reports", label: t("adminConsole.tabReports") },
     { id: "giftCodes", label: "Codes Cadeaux" },
+    { id: "broadcast", label: t("adminConsole.tabBroadcast") },
   ];
 
   const reportReasonLabel = (reason: string) =>
@@ -1069,6 +1213,185 @@ export function AdminConsole() {
               </div>
             </div>
           )}
+
+        {tab === "broadcast" && (
+          <div className={`space-y-4 p-6 ${adminGlassPanelClass}`}>
+            <h3 className="mb-1 flex items-center gap-2 text-lg font-bold text-white">
+              <Megaphone className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
+              {t("adminConsole.broadcastTitle")}
+            </h3>
+            <p className="mb-4 text-sm text-slate-400">{t("adminConsole.broadcastSubtitle")}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-400">
+                  {t("adminConsole.broadcastMessageTitle")}
+                </label>
+                <input
+                  type="text"
+                  value={broadcastForm.title}
+                  onChange={(e) =>
+                    setBroadcastForm((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  placeholder={t("adminConsole.broadcastMessageTitlePlaceholder")}
+                  className={`${adminInputClass} px-3`}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-400">
+                  {t("adminConsole.broadcastMessageBody")}
+                </label>
+                <textarea
+                  value={broadcastForm.body}
+                  onChange={(e) =>
+                    setBroadcastForm((prev) => ({ ...prev, body: e.target.value }))
+                  }
+                  placeholder={t("adminConsole.broadcastMessageBodyPlaceholder")}
+                  rows={5}
+                  className={`${adminInputClass} resize-y px-3 py-2`}
+                />
+              </div>
+
+              <fieldset>
+                <legend className="mb-2 text-xs font-medium text-slate-400">
+                  {t("adminConsole.broadcastAudience")}
+                </legend>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {(
+                    [
+                      ["all", "broadcastAudienceAll"],
+                      ["users", "broadcastAudienceUsers"],
+                      ["segment", "broadcastAudienceSegment"],
+                    ] as const
+                  ).map(([value, labelKey]) => (
+                    <label
+                      key={value}
+                      className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-white"
+                    >
+                      <input
+                        type="radio"
+                        name="broadcast-audience"
+                        checked={broadcastForm.audience === value}
+                        onChange={() => {
+                          setBroadcastPreviewCount(null);
+                          setBroadcastForm((prev) => ({ ...prev, audience: value }));
+                        }}
+                      />
+                      {t(`adminConsole.${labelKey}`)}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {broadcastForm.audience === "users" && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-400">
+                    {t("adminConsole.broadcastUsernamesHint")}
+                  </label>
+                  <textarea
+                    value={broadcastForm.usernamesText}
+                    onChange={(e) =>
+                      setBroadcastForm((prev) => ({ ...prev, usernamesText: e.target.value }))
+                    }
+                    placeholder={t("adminConsole.broadcastUsernamesPlaceholder")}
+                    rows={4}
+                    className={`${adminInputClass} resize-y px-3 py-2 font-mono text-xs`}
+                  />
+                </div>
+              )}
+
+              {broadcastForm.audience === "segment" && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-400">
+                      {t("adminConsole.broadcastSegment")}
+                    </label>
+                    <select
+                      value={broadcastForm.segment}
+                      onChange={(e) => {
+                        setBroadcastPreviewCount(null);
+                        setBroadcastForm((prev) => ({
+                          ...prev,
+                          segment: e.target.value as BroadcastSegment,
+                        }));
+                      }}
+                      className={`${adminInputClass} px-3 py-2`}
+                    >
+                      <option value="new_7d">{t("adminConsole.broadcastSegmentNew7d")}</option>
+                      <option value="new_30d">{t("adminConsole.broadcastSegmentNew30d")}</option>
+                      <option value="active_7d">{t("adminConsole.broadcastSegmentActive7d")}</option>
+                      <option value="low_chips">{t("adminConsole.broadcastSegmentLowChips")}</option>
+                      <option value="high_chips">{t("adminConsole.broadcastSegmentHighChips")}</option>
+                      <option value="level_beginner">
+                        {t("adminConsole.broadcastSegmentLevelBeginner")}
+                      </option>
+                      <option value="level_advanced">
+                        {t("adminConsole.broadcastSegmentLevelAdvanced")}
+                      </option>
+                      <option value="custom">{t("adminConsole.broadcastSegmentCustom")}</option>
+                    </select>
+                  </div>
+
+                  {broadcastForm.segment === "custom" && (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {(
+                        [
+                          ["minLevel", "broadcastFilterMinLevel"],
+                          ["maxLevel", "broadcastFilterMaxLevel"],
+                          ["minChips", "broadcastFilterMinChips"],
+                          ["maxChips", "broadcastFilterMaxChips"],
+                          ["registeredWithinDays", "broadcastFilterRegisteredDays"],
+                        ] as const
+                      ).map(([field, labelKey]) => (
+                        <div key={field}>
+                          <label className="mb-1 block text-xs font-medium text-slate-400">
+                            {t(`adminConsole.${labelKey}`)}
+                          </label>
+                          <input
+                            type="number"
+                            value={broadcastForm[field]}
+                            onChange={(e) =>
+                              setBroadcastForm((prev) => ({ ...prev, [field]: e.target.value }))
+                            }
+                            className={`${adminInputClass} px-3 py-2`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {broadcastError && <p className="text-sm text-red-400">{broadcastError}</p>}
+              {broadcastSuccess && <p className="text-sm text-emerald-400">{broadcastSuccess}</p>}
+              {broadcastPreviewCount != null && (
+                <p className="text-sm text-cyan-300">
+                  {t("adminConsole.broadcastPreviewCount", { count: broadcastPreviewCount })}
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void previewBroadcast()}
+                  disabled={broadcastLoading || !broadcastForm.body.trim()}
+                  className={adminBtnSecondary}
+                >
+                  {t("adminConsole.broadcastPreview")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void sendBroadcast()}
+                  disabled={broadcastLoading || !broadcastForm.body.trim()}
+                  className="rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(245,158,11,0.22)] transition hover:from-amber-500 hover:to-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {broadcastLoading ? t("adminConsole.loading") : t("adminConsole.broadcastSend")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {tab === "giftCodes" && (
           <div className="space-y-4">
