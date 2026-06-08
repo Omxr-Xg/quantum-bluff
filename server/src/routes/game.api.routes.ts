@@ -133,14 +133,7 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
     await activeGames.set(gameId, table)
     registerPracticeBotGame(gameId, difficulty as BotDifficulty)
 
-    const io = req.app.get('io') as Server | undefined
-    if (io) {
-      setTimeout(() => {
-        void runPracticeBotTurnsChain(io, gameId).catch((err) => {
-          console.error('[practice-bot] start chain failed:', err)
-        })
-      }, 0)
-    }
+    // La chaîne bot démarre au JOIN_GAME (joueur connecté) — évite N×3s d’attente avant l’affichage.
 
     res.json({
       gameId,

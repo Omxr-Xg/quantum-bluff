@@ -1711,9 +1711,11 @@ export function Game() {
 
   // ========== Devam eden useEffect'ler ==========
   useEffect(() => {
+    // Partie serveur (practice-bot-*, cash, tournoi) : fetch + socket uniquement — ne pas vider playersState.
+    if (gameIdParam) return;
+
     const runInit = () => {
       let initial: (BasePlayer | BotPlayer)[] = [];
-      // Avec `gameId`, l’état vient du serveur (fetch + socket) — pas de stub localStorage au refresh.
       if (initial.length === 0) initial = getPlayers();
       initial.forEach((p) => {
         p.cards = [];
@@ -1735,7 +1737,7 @@ export function Game() {
         handContributionsRef.current = contribs;
       }
     };
-    if (mode === "bot" && !gameIdParam) {
+    if (mode === "bot") {
       const t = setTimeout(runInit, 0);
       return () => clearTimeout(t);
     }
@@ -1796,24 +1798,19 @@ export function Game() {
     if (!gameIdParam || isSpectating || !userId) return;
     const url = `${apiUrl(`/api/game/${encodeURIComponent(gameIdParam)}`)}?playerId=${encodeURIComponent(userId)}`;
     let cancelled = false;
-    fetch(url, {
-      headers: { Authorization: `Bearer ${getAuthItem("token") ?? ""}` },
-    })
-      .then((res) => {
-        if (cancelled) return null;
-        if (res.status === 404) {
-          const tid = searchParams.get("tournamentId");
-          if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) && tid) {
-            navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
-            return null;
-          }
-          exitToLobby({ state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
-          return null;
-        }
-        if (!res.ok) throw new Error(String(res.status));
-        return res.json();
-      })
-      .then((gameState: { players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; hasFoldedThisHand?: boolean; role?: string; cards?: { suit: string; value: string }[] }[]; pot?: number; phase?: string; communityCards?: (Card | null)[]; currentTurn?: string; turnTimeLimitSec?: number; handId?: string } | null) => {
+
+    const applyHttpGameState = (gameState: {
+      players?: { id: string; name: string; chips: number; currentBet?: number; position?: number; isActive?: boolean; isDealer?: boolean; isConnected?: boolean; hasFoldedThisHand?: boolean; role?: string; cards?: { suit: string; value: string }[] }[];
+      pot?: number;
+      phase?: string;
+      communityCards?: (Card | null)[];
+      currentTurn?: string;
+      turnTimeLimitSec?: number;
+      handId?: string;
+      burnedCardsCount?: number;
+      minRaise?: number;
+      bigBlind?: number;
+    }) => {
         if (cancelled || !gameState) return;
         if (gameStateFromSocketRef.current) return;
         if (typeof gameState.turnTimeLimitSec === "number" && gameState.turnTimeLimitSec > 0) {
@@ -1896,10 +1893,40 @@ export function Game() {
       }
         const isPlayingPhase = phase !== "init";
         setGameInitialized(isPlayingPhase);
-      })
-      .catch((err) => {
-        if (!cancelled) console.error("Erreur récupération état partie:", err);
-      });
+    };
+
+    const loadGameState = async (attempt = 0): Promise<void> => {
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${getAuthItem("token") ?? ""}` },
+        });
+        if (cancelled) return;
+        if (res.status === 404) {
+          const tid = searchParams.get("tournamentId");
+          if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) && tid) {
+            navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+            return;
+          }
+          exitToLobby({ state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
+          return;
+        }
+        if (!res.ok) throw new Error(String(res.status));
+        applyHttpGameState(await res.json());
+      } catch (err) {
+        if (cancelled) return;
+        const isPracticeBot = gameIdParam.startsWith(PRACTICE_BOT_GAME_ID_PREFIX);
+        if (isPracticeBot && attempt < 1) {
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          if (!cancelled) await loadGameState(attempt + 1);
+          return;
+        }
+        if (!gameStateFromSocketRef.current) {
+          console.warn("État partie HTTP indisponible (le socket peut encore synchroniser):", err);
+        }
+      }
+    };
+
+    void loadGameState();
     return () => { cancelled = true; };
   }, [gameIdParam, userId, navigate, isSpectating, searchParams, exitToLobby]);
 
@@ -2865,7 +2892,8 @@ export function Game() {
   }, [phase]);
 
   useEffect(() => {
-    if (!gameIdParam || !isBotMode) return;
+    // Partie serveur practice-bot : la main est déjà lancée — pas d’overlay shuffle 1,5s.
+    if (!gameIdParam || !isBotMode || gameIdParam.startsWith(PRACTICE_BOT_GAME_ID_PREFIX)) return;
     setShowOpeningShuffle(true);
     setShuffleCount(0);
     const shuffleInterval = setInterval(() => {

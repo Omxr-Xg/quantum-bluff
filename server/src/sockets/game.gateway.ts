@@ -686,11 +686,9 @@ export class GameGateway {
                 }
                 void this.ensureTurnTimerForActiveHand(gameId);
                 if (isPracticeBotGameId(gameId)) {
-                  try {
-                    await runPracticeBotTurnsChain(this.io, gameId);
-                  } catch (err) {
+                  void runPracticeBotTurnsChain(this.io, gameId).catch((err) => {
                     console.error("[practice-bot] JOIN_GAME chain", err);
-                  }
+                  });
                 }
               }
 

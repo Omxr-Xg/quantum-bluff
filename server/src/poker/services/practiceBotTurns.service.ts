@@ -10,6 +10,7 @@ import {
   decideBotAction,
   type BotActionRequest,
   type BotDifficulty,
+  type ExpertPlayerTendency,
 } from '../../logic/botAI.js'
 import { sanitizeBotDecision } from '../../logic/botDecisionSanitize.js'
 import {
@@ -37,7 +38,7 @@ import {
 const QB_BOT_PREFIX = 'qb-bot-'
 
 /** Délai avant chaque action bot (affordance « réflexion » côté joueur humain). */
-const PRACTICE_BOT_THINK_MS = 3000
+const PRACTICE_BOT_THINK_MS = 1200
 
 /** Garde-fou : mains très longues (beaucoup de relances). */
 const PRACTICE_BOT_MAX_STEPS = 160
@@ -51,6 +52,12 @@ function sleep(ms: number): Promise<void> {
 
 /** File par `gameId` : évite deux chaînes bot concurrentes (JOIN + relance auto). */
 const practiceBotChainTail = new Map<string, Promise<void>>()
+
+/** Profil adaptatif chargé une fois par main (évite 2 requêtes DB à chaque action bot). */
+const adaptiveTendencyCache = new Map<
+  string,
+  { handId: string; playerTendency?: ExpertPlayerTendency }
+>()
 
 function isBotSeatId(playerId: string): boolean {
   return playerId.startsWith(QB_BOT_PREFIX)
@@ -119,48 +126,65 @@ async function buildExpertAiContext(game: GameTable, gameId: string, botId: stri
   let rangeWinProb: number | undefined
 
   if (human && usesAdaptiveExpertAi(getPracticeBotDifficulty(gameId))) {
-    const profile = await getPlayerTendencyProfile(human.id)
-    const recent = await getRecentTendencySession(human.id, gameId, 5)
-    const heroPos = resolveHeroPosition(game, human.id)
-    const positionRates =
-      profile?.positionStats
-        ? positionRatesFromStats(profile.positionStats, heroPos)
-        : null
+    try {
+      const handId = game.state.handId ?? ''
+      const cacheKey = `${gameId}:${human.id}`
+      const cached = adaptiveTendencyCache.get(cacheKey)
+      if (cached && cached.handId === handId && cached.playerTendency) {
+        playerTendency = cached.playerTendency
+      } else {
+        const profile = await getPlayerTendencyProfile(human.id)
+        const recent = await getRecentTendencySession(human.id, gameId, 5)
+        const heroPos = resolveHeroPosition(game, human.id)
+        const positionRates =
+          profile?.positionStats
+            ? positionRatesFromStats(profile.positionStats, heroPos)
+            : null
 
-    if (profile) {
-      playerTendency = toExpertPlayerTendency(profile, {
-        positionRates,
-        recentTendency: {
-          consecutiveBluffHands: recent.consecutiveBluffHands,
-          consecutiveFoldStreak: recent.consecutiveFoldStreak,
-        },
-      })
-    }
+        if (profile) {
+          playerTendency = toExpertPlayerTendency(profile, {
+            positionRates,
+            recentTendency: {
+              consecutiveBluffHands: recent.consecutiveBluffHands,
+              consecutiveFoldStreak: recent.consecutiveFoldStreak,
+            },
+          })
+        }
+        adaptiveTendencyCache.set(cacheKey, { handId, playerTendency })
+      }
 
-    const bot = game.state.players.find((p) => p.id === botId)
-    if (bot?.cards && bot.cards.length >= 2) {
-      const known = [
-        ...bot.cards,
-        ...(game.state.communityCards ?? []),
-        ...(human.cards ?? []),
-      ]
-      let range = seedOpponentRange(known, playerTendency)
-      const last = game.state.lastHandAction as
-        | { playerId?: string; action?: string; equityBp?: number }
-        | undefined
-      if (last?.playerId === human.id && last.action) {
-        range = narrowOpponentRange(
+      const bot = game.state.players.find((p) => p.id === botId)
+      if (bot?.cards && bot.cards.length >= 2) {
+        const known = [
+          ...bot.cards,
+          ...(game.state.communityCards ?? []),
+          ...(human.cards ?? []),
+        ]
+        let range = seedOpponentRange(known, playerTendency)
+        const last = game.state.lastHandAction as
+          | { playerId?: string; action?: string; equityBp?: number }
+          | undefined
+        if (last?.playerId === human.id && last.action) {
+          range = narrowOpponentRange(
+            range,
+            last.action as 'FOLD' | 'CALL' | 'RAISE' | 'CHECK',
+            last.equityBp ?? 5000,
+            game.state.phase ?? 'PREFLOP',
+          )
+        }
+        rangeWinProb = heroEquityVsRange(
+          bot.cards,
+          game.state.communityCards ?? [],
           range,
-          last.action as 'FOLD' | 'CALL' | 'RAISE' | 'CHECK',
-          last.equityBp ?? 5000,
-          game.state.phase ?? 'PREFLOP',
         )
       }
-      rangeWinProb = heroEquityVsRange(
-        bot.cards,
-        game.state.communityCards ?? [],
-        range,
-      )
+    } catch (err) {
+      rootLogger.warn({
+        msg: 'practice_bot_tendency_context_failed',
+        gameId,
+        botId,
+        detail: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 
