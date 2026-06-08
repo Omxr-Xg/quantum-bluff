@@ -80,6 +80,28 @@ export function computeFinalAngle(
   return extraSpins * 360 + offset
 }
 
+/** Position mod 360° sous le pointeur fixe en haut, pour une rotation totale `rotationDeg`. */
+export function wheelSegmentIndexAtPointer(rotationDeg: number): number {
+  const normalized = ((rotationDeg % 360) + 360) % 360
+  const clockwiseFromTop = (360 - normalized) % 360
+  return Math.floor(clockwiseFromTop / WHEEL_SLICE_DEG) % WHEEL_SEGMENT_COUNT
+}
+
+/**
+ * Delta à ajouter à la rotation actuelle pour atteindre `finalAngle` (calculé depuis 0°).
+ */
+export function computeWheelSpinDeltaFromFinalAngle(
+  currentRotationDeg: number,
+  finalAngle: number,
+): number {
+  const targetMod = ((finalAngle % 360) + 360) % 360
+  const currentMod = ((currentRotationDeg % 360) + 360) % 360
+  let delta = targetMod - currentMod
+  if (delta <= 0) delta += 360
+  const fullRotations = finalAngle - targetMod
+  return fullRotations + delta
+}
+
 export function getWheelSegment(index: number): WheelSegment {
   const seg = WHEEL_SEGMENTS[index]
   if (!seg) throw new Error('INVALID_SEGMENT_INDEX')

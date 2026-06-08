@@ -21,7 +21,9 @@ import {
   WHEEL_SEGMENTS,
   buildWheelConicGradient,
   clampBet,
+  computeWheelSpinDeltaFromFinalAngle,
   historyBadgeClass,
+  wheelSegmentIndexAtPointer,
   wheelSegmentLabelPosition,
 } from "../features/wheel/wheelMath";
 import { isSoloActiveConflict } from "../features/soloGames/recoverActiveRound";
@@ -131,6 +133,7 @@ export function Wheel() {
         gain?: number;
         profit?: number;
         finalAngle?: number;
+        segmentIndex?: number;
         chips?: number;
       };
 
@@ -149,10 +152,20 @@ export function Wheel() {
       const gain = data.gain ?? 0;
       const profit = data.profit ?? gain - bet;
       const finalAngle = data.finalAngle ?? 2160;
-
-      const nextRotation = rotationRef.current + finalAngle;
+      const spinDelta = computeWheelSpinDeltaFromFinalAngle(rotationRef.current, finalAngle);
+      const nextRotation = rotationRef.current + spinDelta;
       rotationRef.current = nextRotation;
       setRotation(nextRotation);
+
+      if (
+        typeof data.segmentIndex === "number" &&
+        wheelSegmentIndexAtPointer(nextRotation) !== data.segmentIndex
+      ) {
+        console.warn("[wheel] segment mismatch after spin", {
+          expected: data.segmentIndex,
+          actual: wheelSegmentIndexAtPointer(nextRotation),
+        });
+      }
 
       if (typeof data.chips === "number") updateUserBalance(data.chips);
 

@@ -3,9 +3,11 @@ import {
   WHEEL_SEGMENTS,
   computeFinalAngle,
   computeWheelPayout,
+  computeWheelSpinDeltaFromFinalAngle,
   getWheelSegment,
   pickWheelSegmentIndex,
   validateWheelBet,
+  wheelSegmentIndexAtPointer,
 } from '../logic/wheel.js'
 
 describe('wheel — validateWheelBet', () => {
@@ -56,10 +58,19 @@ describe('wheel — finalAngle', () => {
   it('aligns each segment index under the top pointer', () => {
     for (let i = 0; i < 12; i++) {
       const angle = computeFinalAngle(i, () => 0)
-      const offset = angle % 360
-      const center = i * (360 / 12) + 360 / 12 / 2
-      expect((center + offset) % 360).toBeCloseTo(0, 5)
+      expect(wheelSegmentIndexAtPointer(angle)).toBe(i)
       expect(getWheelSegment(i).label).toBeTruthy()
+    }
+  })
+
+  it('cumulative spins still land on the winning segment', () => {
+    let totalRotation = 0
+    for (let spin = 0; spin < 24; spin++) {
+      const segmentIndex = pickWheelSegmentIndex(() => (spin * 0.37) % 1)
+      const finalAngle = computeFinalAngle(segmentIndex, () => 0.25)
+      const delta = computeWheelSpinDeltaFromFinalAngle(totalRotation, finalAngle)
+      totalRotation += delta
+      expect(wheelSegmentIndexAtPointer(totalRotation)).toBe(segmentIndex)
     }
   })
 })

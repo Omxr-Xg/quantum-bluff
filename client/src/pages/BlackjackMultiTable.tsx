@@ -479,7 +479,7 @@ export function BlackjackMultiTable() {
         )}
       </div>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-2 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-3 sm:pt-3 md:pt-4 lg:px-4">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 sm:px-5 sm:pt-2 md:px-6">
       <BlackjackMultiCasinoTable
         rootClassName="min-h-0 flex-1"
         state={state}
@@ -487,7 +487,7 @@ export function BlackjackMultiTable() {
         playerEffectiveMaxBet={bjMaxDisplay}
       >
         {!isSpectator ? (
-          <div className="flex flex-col items-center gap-5">
+          <div className="flex flex-col items-center gap-3 sm:gap-4">
             {canBet && (
               <div className="flex w-full max-w-md flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-center">
                 <label className="flex flex-1 flex-col gap-1.5 text-center text-xs font-semibold uppercase tracking-wide text-amber-200/80 sm:text-left">

@@ -26,7 +26,7 @@ export const WHEEL_SEGMENTS: readonly WheelSegmentDef[] = [
   { kind: 'x2', multiplier: 2, label: 'x2', color: '#7c3aed', textColor: '#f5f3ff' },
   { kind: 'x3', multiplier: 3, label: 'x3', color: '#a855f7', textColor: '#faf5ff' },
   { kind: 'x5', multiplier: 5, label: 'x5', color: '#db2777', textColor: '#fdf2f8' },
-  { kind: 'jackpot', multiplier: 20, label: 'x20', color: '#ca8a04', textColor: '#fef9c3' },
+  { kind: 'jackpot', multiplier: 20, label: 'JACKPOT', color: '#ca8a04', textColor: '#fef9c3' },
 ] as const
 
 /** Centre du segment `index` en degrés horaires depuis le pointeur (12 h). */
@@ -40,6 +40,22 @@ export function wheelSegmentIndexAtPointer(rotationDeg: number): number {
   const clockwiseFromTop = (360 - normalized) % 360
   const index = Math.floor(clockwiseFromTop / WHEEL_SLICE_DEG) % WHEEL_SEGMENT_COUNT
   return index
+}
+
+/**
+ * Incrément de rotation pour atterrir sur le segment visé, en tenant compte de la
+ * position actuelle (le serveur envoie `finalAngle` comme si la roue était à 0°).
+ */
+export function computeWheelSpinDeltaFromFinalAngle(
+  currentRotationDeg: number,
+  finalAngle: number,
+): number {
+  const targetMod = ((finalAngle % 360) + 360) % 360
+  const currentMod = ((currentRotationDeg % 360) + 360) % 360
+  let delta = targetMod - currentMod
+  if (delta <= 0) delta += 360
+  const fullRotations = finalAngle - targetMod
+  return fullRotations + delta
 }
 
 export function wheelSegmentLabelPosition(index: number): { left: string; top: string } {
