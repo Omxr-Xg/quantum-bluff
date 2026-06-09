@@ -818,7 +818,12 @@
     "forfeit": "Forfait",
     "reconnectCountdown": "Vuelve en {{sec}}s",
     "youArePresent": "Estás conectado a la sala.",
-    "connectingPresence": "Conectando a la sala…"
+    "connectingPresence": "Conectando a la sala…",
+    "inviteFriends": "Invitar amigos",
+    "invite": "Invitar",
+    "invited": "Invitado",
+    "noFriendsToInvite": "Ningún amigo para invitar (o ya en la mesa). Añade amigos en la pestaña Amigos.",
+    "inviteSent": "Invitación enviada"
   },
   "gamification": {
     "levelShort": "Nivel {{level}}",

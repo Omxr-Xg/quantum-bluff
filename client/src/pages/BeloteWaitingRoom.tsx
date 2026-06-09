@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Bot, Check, Loader2, LogOut, Play, Users, X } from "lucide-react";
+import { ArrowLeft, Bot, Check, Loader2, LogOut, Play, UserPlus, Users, X } from "lucide-react";
 import { addBeloteBot, fillBeloteBots, removeBeloteBot } from "../services/beloteApi";
+import { useGetFriendsQuery } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
@@ -42,6 +43,8 @@ export function BeloteWaitingRoom() {
 
   const [room, setRoom] = useState<(BeloteRoomListItem & { presentUserIds?: string[] }) | null>(null);
   const [busy, setBusy] = useState(false);
+  const [invitedFriendIds, setInvitedFriendIds] = useState<string[]>([]);
+  const { data: friends } = useGetFriendsQuery(userId!, { skip: !userId });
 
   const loadRoom = useCallback(async () => {
     if (!roomId) return;
@@ -117,6 +120,36 @@ export function BeloteWaitingRoom() {
       socket.off("BELOTE_ROOM_UPDATED", onUpdate);
     };
   }, [socket, roomId, navigate]);
+
+  useEffect(() => {
+    setInvitedFriendIds([]);
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!room) return;
+    const seatedIds = new Set(room.players.filter((p) => !p.isBot).map((p) => p.id));
+    setInvitedFriendIds((prev) => prev.filter((id) => !seatedIds.has(id)));
+  }, [room]);
+
+  const inviteFriend = async (friendId: string) => {
+    if (!roomId || invitedFriendIds.includes(friendId)) return;
+    try {
+      const res = await fetch(apiUrl("/api/belote-rooms/invitations"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ roomId, receiverId: friendId }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        addToast(err.error ?? t("common.error"), "error");
+        return;
+      }
+      setInvitedFriendIds((prev) => (prev.includes(friendId) ? prev : [...prev, friendId]));
+      addToast(t("belote.inviteSent"), "info");
+    } catch {
+      addToast(t("common.error"), "error");
+    }
+  };
 
   const toggleReady = async () => {
     setBusy(true);
@@ -236,6 +269,10 @@ export function BeloteWaitingRoom() {
   };
   const presentSet = new Set(room.presentUserIds ?? []);
   if (userId) presentSet.add(userId);
+  const seatedIds = new Set(humanPlayers.map((p) => p.id));
+  const friendsToInvite =
+    friends?.filter((f) => f.id !== userId && !seatedIds.has(f.id)) ?? [];
+  const roomHasSpace = room.players.length < 4;
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
@@ -373,6 +410,45 @@ export function BeloteWaitingRoom() {
             );
           })}
         </ul>
+
+        {isHost && roomHasSpace ? (
+          <div className="mb-6 rounded-2xl border border-emerald-500/25 bg-slate-950/50 p-4 shadow-inner">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-emerald-100">
+              <UserPlus className="h-4 w-4 shrink-0" />
+              {t("belote.inviteFriends")}
+            </h3>
+            <div className="max-h-48 space-y-2 overflow-y-auto">
+              {friendsToInvite.length === 0 ? (
+                <p className="text-center text-xs text-slate-500">{t("belote.noFriendsToInvite")}</p>
+              ) : (
+                friendsToInvite.map((friend) => (
+                  <div
+                    key={friend.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2"
+                  >
+                    <span className="min-w-0 truncate text-sm font-medium text-white">
+                      {friend.username}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={invitedFriendIds.includes(friend.id) || busy}
+                      onClick={() => void inviteFriend(friend.id)}
+                      className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                        invitedFriendIds.includes(friend.id)
+                          ? "cursor-not-allowed bg-emerald-800/50 text-emerald-200"
+                          : "bg-emerald-700 text-white hover:bg-emerald-600"
+                      }`}
+                    >
+                      {invitedFriendIds.includes(friend.id)
+                        ? t("belote.invited")
+                        : t("belote.invite")}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : null}
 
         {userId && presentSet.has(userId) ? (
           <p className="mb-3 text-center text-xs text-emerald-300/80">{t("belote.youArePresent")}</p>

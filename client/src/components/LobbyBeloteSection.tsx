@@ -2,7 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Eye, Globe, Loader2, Lock, Plus, Server, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Globe,
+  Loader2,
+  Lock,
+  Plus,
+  Server,
+  Settings2,
+  X,
+} from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
 import { apiFetch, apiUrl } from "../utils/apiBase";
@@ -119,6 +131,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const [customBuyIn, setCustomBuyIn] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [autoFillBots, setAutoFillBots] = useState(false);
+  const [showCreateAdvanced, setShowCreateAdvanced] = useState(false);
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
 
   const waitingRooms = useMemo(
@@ -190,6 +203,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
     setCustomBuyIn("");
     setNewPassword("");
     setAutoFillBots(false);
+    setShowCreateAdvanced(false);
   };
 
   const closeCreateModal = () => {
@@ -357,110 +371,157 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                 </p>
               </div>
 
-              <div className="mb-6">
-                <p className="mb-3 text-sm font-medium text-slate-300">{t("belote.gameVariant")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {BELOTE_VARIANT_OPTIONS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setNewVariant(v)}
-                      className={`rounded-xl border-2 px-3 py-2.5 text-left text-xs font-semibold leading-tight transition sm:text-sm ${
-                        newVariant === v
-                          ? "border-emerald-400/70 bg-emerald-950/70 text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.18)]"
-                          : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
-                      }`}
-                    >
-                      {t(variantLabelKey(v))}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-slate-500">{t(`belote.variantDesc.${newVariant}`)}</p>
-              </div>
-
-              <label className="mb-6 block text-sm font-medium text-slate-300">
-                {t("belote.targetScore")}
-                <input
-                  type="number"
-                  min={500}
-                  max={2000}
-                  step={100}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
-                  value={newTarget}
-                  onChange={(e) => setNewTarget(Number(e.target.value) || 1500)}
-                />
-              </label>
-
-              <div className="mb-6">
-                <p className="mb-3 text-sm font-medium text-slate-300">{t("belote.buyInLabel")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {BELOTE_BUY_IN_PRESETS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => {
-                        setNewBuyIn(v);
-                        setCustomBuyIn("");
-                      }}
-                      className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                        newBuyIn === v && !customBuyIn
-                          ? "border border-emerald-400/50 bg-emerald-950/70 text-emerald-100"
-                          : "bg-white/[0.045] text-slate-300 hover:bg-white/[0.08]"
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-                <label className="mt-3 block text-xs text-slate-500">
-                  {t("belote.buyInCustom")}
-                  <input
-                    type="number"
-                    min={10}
-                    step={10}
-                    placeholder={t("belote.buyInCustomPlaceholder")}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
-                    value={customBuyIn}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      setCustomBuyIn(raw);
-                      if (raw.trim()) {
-                        setNewBuyIn(normalizeBeloteBuyIn(Number(raw)));
-                      }
-                    }}
-                  />
-                </label>
-                <p className="mt-2 text-xs text-emerald-200/70">
-                  {t("belote.buyInPotHint", {
-                    pot: belotePotTotal(newBuyIn),
-                    share: beloteWinnerShare(belotePotTotal(newBuyIn)),
-                  })}
+              {!showCreateAdvanced ? (
+                <p className="mb-4 text-xs text-slate-500">
+                  {t(variantLabelKey(newVariant))} · {newTarget} {t("belote.points")} ·{" "}
+                  {t("belote.buyInShort", { amount: newBuyIn })}
+                  {autoFillBots ? ` · ${t("belote.autoFillBotsShort")}` : ""}
                 </p>
-              </div>
+              ) : null}
 
-              <label className="mb-6 flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={autoFillBots}
-                  onChange={(e) => setAutoFillBots(e.target.checked)}
-                  className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500"
-                />
-                <span className="text-sm text-slate-200">{t("belote.autoFillBots")}</span>
-              </label>
+              <button
+                type="button"
+                onClick={() => setShowCreateAdvanced((v) => !v)}
+                className="mb-2 flex w-full items-center justify-center gap-2 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-300"
+                aria-expanded={showCreateAdvanced}
+                aria-label={showCreateAdvanced ? t("lobby.hideOptions") : t("lobby.seeMore")}
+              >
+                <Settings2 className="h-4 w-4" />
+                <span>{showCreateAdvanced ? t("lobby.hideOptions") : t("lobby.seeMore")}</span>
+                {showCreateAdvanced ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
 
-              <div className="mb-6">
-                <label htmlFor="belote-create-password" className="mb-2 block text-sm font-medium text-slate-300">
-                  {t("belote.passwordOptional")}
-                </label>
-                <input
-                  id="belote-create-password"
-                  type="password"
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  autoComplete="new-password"
-                />
-              </div>
+              <AnimatePresence initial={false}>
+                {showCreateAdvanced ? (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    animate={{ height: "auto", opacity: 1, marginBottom: 24 }}
+                    exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <motion.div
+                      initial={{ y: -8 }}
+                      animate={{ y: 0 }}
+                      exit={{ y: -8 }}
+                      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                      className="space-y-5 rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md"
+                    >
+                      <div>
+                        <p className="mb-3 text-sm font-medium text-slate-300">{t("belote.gameVariant")}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {BELOTE_VARIANT_OPTIONS.map((v) => (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => setNewVariant(v)}
+                              className={`rounded-xl border-2 px-3 py-2.5 text-left text-xs font-semibold leading-tight transition sm:text-sm ${
+                                newVariant === v
+                                  ? "border-emerald-400/70 bg-emerald-950/70 text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.18)]"
+                                  : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
+                              }`}
+                            >
+                              {t(variantLabelKey(v))}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">{t(`belote.variantDesc.${newVariant}`)}</p>
+                      </div>
+
+                      <label className="block text-sm font-medium text-slate-300">
+                        {t("belote.targetScore")}
+                        <input
+                          type="number"
+                          min={500}
+                          max={2000}
+                          step={100}
+                          className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
+                          value={newTarget}
+                          onChange={(e) => setNewTarget(Number(e.target.value) || 1500)}
+                        />
+                      </label>
+
+                      <div>
+                        <p className="mb-3 text-sm font-medium text-slate-300">{t("belote.buyInLabel")}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {BELOTE_BUY_IN_PRESETS.map((v) => (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => {
+                                setNewBuyIn(v);
+                                setCustomBuyIn("");
+                              }}
+                              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                                newBuyIn === v && !customBuyIn
+                                  ? "border border-emerald-400/50 bg-emerald-950/70 text-emerald-100"
+                                  : "bg-white/[0.045] text-slate-300 hover:bg-white/[0.08]"
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                        <label className="mt-3 block text-xs text-slate-500">
+                          {t("belote.buyInCustom")}
+                          <input
+                            type="number"
+                            min={10}
+                            step={10}
+                            placeholder={t("belote.buyInCustomPlaceholder")}
+                            className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
+                            value={customBuyIn}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              setCustomBuyIn(raw);
+                              if (raw.trim()) {
+                                setNewBuyIn(normalizeBeloteBuyIn(Number(raw)));
+                              }
+                            }}
+                          />
+                        </label>
+                        <p className="mt-2 text-xs text-emerald-200/70">
+                          {t("belote.buyInPotHint", {
+                            pot: belotePotTotal(newBuyIn),
+                            share: beloteWinnerShare(belotePotTotal(newBuyIn)),
+                          })}
+                        </p>
+                      </div>
+
+                      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={autoFillBots}
+                          onChange={(e) => setAutoFillBots(e.target.checked)}
+                          className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500"
+                        />
+                        <span className="text-sm text-slate-200">{t("belote.autoFillBots")}</span>
+                      </label>
+
+                      <div>
+                        <label
+                          htmlFor="belote-create-password"
+                          className="mb-2 block text-sm font-medium text-slate-300"
+                        >
+                          {t("belote.passwordOptional")}
+                        </label>
+                        <input
+                          id="belote-create-password"
+                          type="password"
+                          className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          autoComplete="new-password"
+                        />
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
 
               <button
                 type="button"

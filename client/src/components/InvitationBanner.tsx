@@ -21,10 +21,13 @@ export function InvitationBanner() {
     try {
       const token = getAuthItem("token");
       const isBj = inv.game === "blackjack";
+      const isBelote = inv.game === "belote";
       const url = apiUrl(
         isBj
           ? `/api/blackjack-tables/invitations/${inv.invitationId}/reject`
-          : `/api/friends/${inv.invitationId}/reject`,
+          : isBelote
+            ? `/api/belote-rooms/invitations/${inv.invitationId}/reject`
+            : `/api/friends/${inv.invitationId}/reject`,
       );
       await fetch(url, {
         method: "POST",
@@ -73,7 +76,11 @@ export function InvitationBanner() {
                   {t("invitation.title", { username: inv.sender.username })}
                 </p>
                 <p className="truncate text-xs text-indigo-300">
-                  {inv.game === "blackjack" ? `${t("bjMulti.inviteBannerGame")} · ` : ""}
+                  {inv.game === "blackjack"
+                    ? `${t("bjMulti.inviteBannerGame")} · `
+                    : inv.game === "belote"
+                      ? `${t("belote.lobbyTitle")} · `
+                      : ""}
                   {inv.roomName}
                 </p>
                 <div className="mt-3 flex gap-2">

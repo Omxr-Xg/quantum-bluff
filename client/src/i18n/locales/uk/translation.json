@@ -822,7 +822,12 @@
     "forfeit": "Форфейт",
     "reconnectCountdown": "Повернення {{sec}} с",
     "youArePresent": "Ви підключені до кімнати.",
-    "connectingPresence": "Підключення до кімнати…"
+    "connectingPresence": "Підключення до кімнати…",
+    "inviteFriends": "Запросити друзів",
+    "invite": "Запросити",
+    "invited": "Запрошено",
+    "noFriendsToInvite": "Немає друзів для запрошення (або вони вже за столом). Додайте друзів у вкладці Друзі.",
+    "inviteSent": "Запрошення надіслано"
   },
   "gamification": {
     "levelShort": "Рівень {{level}}",

@@ -1,3 +1,5 @@
+import type { TableVisuals } from '../../types/poker.js'
+
 export type BeloteSuit = 'HEARTS' | 'DIAMONDS' | 'CLUBS' | 'SPADES'
 export type BeloteRank = '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A'
 export type BeloteTeam = 'A' | 'B'
@@ -143,4 +145,5 @@ export type SanitizedBeloteState = Omit<BeloteGameState, 'players'> & {
   players: Array<Omit<BelotePlayerState, 'hand'> & { handCount: number; hand?: BeloteCard[] }>
   myLegalPlays?: BeloteCard[]
   myLegalBids?: Array<{ value: number; trump: BeloteTrumpChoice }>
+  tableVisuals?: TableVisuals
 }

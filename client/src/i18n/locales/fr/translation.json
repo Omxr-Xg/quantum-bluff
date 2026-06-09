@@ -1114,6 +1114,7 @@
     "youWon": "Victoire !",
     "waitingHost": "En attente du lancement par l’hôte…",
     "autoFillBots": "Compléter automatiquement avec des IA après 30 s",
+    "autoFillBotsShort": "IA auto",
     "fillTable": "Compléter la table",
     "addAi": "Ajouter une IA",
     "removeAi": "Retirer",
@@ -1125,7 +1126,12 @@
     "forfeit": "Forfait",
     "reconnectCountdown": "Retour {{sec}}s",
     "youArePresent": "Vous êtes connecté à la salle (temps réel).",
-    "connectingPresence": "Connexion à la salle en cours…"
+    "connectingPresence": "Connexion à la salle en cours…",
+    "inviteFriends": "Inviter des amis",
+    "invite": "Inviter",
+    "invited": "Invité",
+    "noFriendsToInvite": "Aucun ami à inviter (ou déjà à la table). Ajoutez des amis dans l’onglet Amis.",
+    "inviteSent": "Invitation envoyée"
   },
   "gamification": {
     "levelShort": "Niveau {{level}}",

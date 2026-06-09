@@ -16,6 +16,7 @@ import { QuitGameConfirmDialog } from "../components/QuitGameConfirmDialog";
 import { useTableVoiceChat } from "../features/voice/useTableVoiceChat";
 import { TableVoicePanel } from "../features/voice/TableVoicePanel";
 import { trackEvent } from "../utils/analytics";
+import { useTableTheme } from "../contexts/TableThemeContext";
 
 export function BeloteGame() {
   const { t } = useTranslation();
@@ -36,6 +37,22 @@ export function BeloteGame() {
   const voice = useTableVoiceChat(gameId, userId, socket, voiceEnabled);
   const trackedBeloteRef = useRef<string | null>(null);
   const actionLog = useBeloteActionLog(gameId, state, userId ?? undefined);
+  const { setSessionTableVisuals } = useTableTheme();
+
+  useEffect(() => {
+    if (!state?.tableVisuals) return;
+    const tv = state.tableVisuals;
+    setSessionTableVisuals({
+      feltThemeId: tv.feltThemeId,
+      feltCustomColor: tv.feltCustomColor ?? null,
+      feltBackgroundId: tv.feltBackgroundId,
+      feltBackgroundUrl: tv.feltBackgroundUrl ?? null,
+    });
+  }, [state?.tableVisuals, setSessionTableVisuals]);
+
+  useEffect(() => {
+    return () => setSessionTableVisuals(null);
+  }, [gameId, setSessionTableVisuals]);
 
   useEffect(() => {
     if (!gameId || isSpectating || !state || trackedBeloteRef.current === gameId) return;

@@ -41,6 +41,14 @@ export async function loadBeloteTable(gameId: string): Promise<BeloteTableContro
   const ctrl = BeloteTableController.fromSnapshot(
     snap.snapshot as BeloteGameState,
   )
+  const room = await prisma.beloteRoom.findFirst({
+    where: { gameId },
+    select: { hostId: true },
+  })
+  if (room) {
+    const { resolveTableVisualsForUserId } = await import('../../shop/tableTheme.service.js')
+    ctrl.setTableVisuals(await resolveTableVisualsForUserId(room.hostId))
+  }
   activeBeloteGames.set(gameId, ctrl)
   return ctrl
 }

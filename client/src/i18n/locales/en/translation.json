@@ -1115,6 +1115,7 @@
     "youWon": "You won!",
     "waitingHost": "Waiting for the host to start…",
     "autoFillBots": "Auto-fill with AI after 30 seconds",
+    "autoFillBotsShort": "Auto AI",
     "fillTable": "Fill the table",
     "addAi": "Add AI",
     "removeAi": "Remove",
@@ -1126,7 +1127,12 @@
     "forfeit": "Forfeit",
     "reconnectCountdown": "Back in {{sec}}s",
     "youArePresent": "You are connected to the room (live).",
-    "connectingPresence": "Connecting to the room…"
+    "connectingPresence": "Connecting to the room…",
+    "inviteFriends": "Invite friends",
+    "invite": "Invite",
+    "invited": "Invited",
+    "noFriendsToInvite": "No friends to invite (or already at the table). Add friends in the Friends tab.",
+    "inviteSent": "Invitation sent"
   },
   "gamification": {
     "levelShort": "Level {{level}}",

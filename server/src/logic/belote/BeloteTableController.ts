@@ -16,6 +16,7 @@ import {
   beloteActionLogKey,
   clearBeloteDealActionLog,
 } from '../../belote/services/beloteActionLog.service.js'
+import type { TableVisuals } from '../../types/poker.js'
 import type {
   BeloteAction,
   BeloteCard,
@@ -44,12 +45,14 @@ export type BeloteTableInit = {
     avatarUrl?: string | null
     isBot?: boolean
   }>
+  tableVisuals?: TableVisuals
 }
 
 export class BeloteTableController {
   gameId: string
   roomId: string
   private state: BeloteGameState
+  private tableVisuals: TableVisuals | null
   private dealIndex = 0
   private actionVersion = 0
   private remainingDeck: BeloteCard[] = []
@@ -67,6 +70,7 @@ export class BeloteTableController {
     const now = new Date().toISOString()
     this.gameId = init.gameId
     this.roomId = init.roomId
+    this.tableVisuals = init.tableVisuals ?? null
     this.state = {
       gameId: init.gameId,
       roomId: init.roomId,
@@ -127,9 +131,14 @@ export class BeloteTableController {
     if (ctrl.state.potTotal == null || !Number.isFinite(ctrl.state.potTotal)) {
       ctrl.state.potTotal = belotePotTotal(ctrl.state.buyIn, ctrl.state.players.length)
     }
+    ctrl.tableVisuals = null
     ctrl.dealIndex = 0
     ctrl.actionVersion = snapshot.actionVersion ?? 0
     return ctrl
+  }
+
+  setTableVisuals(visuals: TableVisuals | null): void {
+    this.tableVisuals = visuals
   }
 
   getState(): BeloteGameState {
@@ -174,6 +183,7 @@ export class BeloteTableController {
       ...s,
       myLegalPlays,
       myLegalBids,
+      tableVisuals: this.tableVisuals ?? undefined,
       players: s.players.map((p) => {
         const base = {
           userId: p.userId,

@@ -3,6 +3,7 @@ import { useSocket } from "../../hooks/useSocket";
 import { useUser } from "../../hooks/useUser";
 import { apiUrl } from "../../utils/apiBase";
 import { getAuthItem } from "../../utils/authStorage";
+import type { TableVisualsPayload } from "../../utils/tableThemeShop";
 
 export type BeloteCard = { suit: string; rank: string };
 
@@ -57,6 +58,7 @@ export type BeloteSanitizedState = {
   }>;
   buyIn?: number;
   potTotal?: number;
+  tableVisuals?: TableVisualsPayload;
   deal: {
     trump?: string;
     trumpMode?: "SUIT" | "ALL_TRUMP" | "NO_TRUMP";

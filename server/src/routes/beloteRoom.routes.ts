@@ -523,6 +523,9 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
       throw e
     }
 
+    const { resolveTableVisualsForUserId } = await import('../shop/tableTheme.service.js')
+    const hostTableVisuals = await resolveTableVisualsForUserId(room.hostId)
+
     const table = new BeloteTableController({
       gameId,
       roomId: room.id,
@@ -530,6 +533,7 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
       targetScore: room.targetScore,
       buyIn: room.buyIn,
       players,
+      tableVisuals: hostTableVisuals,
     })
 
     activeBeloteGames.set(gameId, table)
@@ -672,13 +676,21 @@ router.post('/invitations', authMiddleware, async (req, res) => {
       update: { status: 'PENDING', senderId: userId },
     })
 
+    const sender = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true },
+    })
+
     const io = getIo(req)
-    io?.to(`user:${receiverId}`).emit('GAME_INVITATION', {
-      id: inv.id,
+    io?.to(`user:${receiverId}`).emit('GAME_INVITATION_RECEIVED', {
+      invitationId: inv.id,
       game: 'belote',
       roomId,
-      senderId: userId,
       roomName: room.name,
+      sender: {
+        id: userId,
+        username: sender?.username ?? 'Joueur',
+      },
     })
 
     return res.status(201).json({ invitationId: inv.id })

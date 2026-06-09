@@ -826,7 +826,12 @@
     "forfeit": "انسحاب",
     "reconnectCountdown": "عودة خلال {{sec}} ث",
     "youArePresent": "أنت متصل بالغرفة.",
-    "connectingPresence": "جاري الاتصال بالغرفة…"
+    "connectingPresence": "جاري الاتصال بالغرفة…",
+    "inviteFriends": "دعوة الأصدقاء",
+    "invite": "دعوة",
+    "invited": "تمت الدعوة",
+    "noFriendsToInvite": "لا يوجد أصدقاء للدعوة (أو موجودون بالفعل على الطاولة). أضف أصدقاء من تبويب الأصدقاء.",
+    "inviteSent": "تم إرسال الدعوة"
   },
   "gamification": {
     "levelShort": "المستوى {{level}}",
