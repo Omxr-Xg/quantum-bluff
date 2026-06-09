@@ -368,6 +368,13 @@
     "refundLine": "تم الاسترداد!",
     "winBanner": "QUANTUM WIN",
     "insufficientFunds": "رصيد غير كافٍ",
+    "symbols": {
+      "cherry": "كرز",
+      "lemon": "ليمون",
+      "diamond": "ألماس",
+      "seven": "سبعة",
+      "bell": "جرس"
+    },
     "paytableTitle": "جدول المكافآت",
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "3 رموز متطابقة",

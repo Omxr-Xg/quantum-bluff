@@ -743,22 +743,7 @@ export function SlotMachine() {
         <div className="relative z-10 space-y-3">
           {Object.entries(MULTIPLIERS).map(([symbol, multiplier]) => {
             const sym = symbol as SlotSymbol;
-            const symName = (() => {
-              switch (sym) {
-                case "cherry":
-                  return t("slot.symCherry", "Cerises");
-                case "lemon":
-                  return t("slot.symLemon", "Citron");
-                case "diamond":
-                  return t("slot.symDiamond", "Diamant");
-                case "seven":
-                  return t("slot.symSeven", "7");
-                case "bell":
-                  return t("slot.symBell", "Cloche");
-                default:
-                  return sym;
-              }
-            })();
+            const symName = t(`slot.symbols.${sym}`);
             const paytableLabel = t("slot.paytableTriple", { symbol: symName });
             return (
             <motion.div

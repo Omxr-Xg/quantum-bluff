@@ -360,6 +360,13 @@
     "refundLine": "¡Reembolsado!",
     "winBanner": "QUANTUM WIN",
     "insufficientFunds": "Saldo insuficiente",
+    "symbols": {
+      "cherry": "Cerezas",
+      "lemon": "Limón",
+      "diamond": "Diamante",
+      "seven": "Siete",
+      "bell": "Campana"
+    },
     "paytableTitle": "Tabla de premios",
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "3 símbolos iguales",

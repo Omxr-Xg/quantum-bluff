@@ -378,6 +378,13 @@
     "refundLine": "Refunded!",
     "winBanner": "QUANTUM WIN",
     "insufficientFunds": "Insufficient balance",
+    "symbols": {
+      "cherry": "Cherries",
+      "lemon": "Lemon",
+      "diamond": "Diamond",
+      "seven": "Seven",
+      "bell": "Bell"
+    },
     "paytableTitle": "Paytable",
     "paytableTriple": "3× {{symbol}}",
     "paytableThreeSame": "Three matching symbols",
