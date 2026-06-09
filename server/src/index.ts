@@ -114,10 +114,6 @@ process.on('uncaughtException', (err) => {
 
 const app = express()
 
-app.get('/debug-sentry', (_req, _res) => {
-  throw new Error('Sentry backend test Quantum Bluff')
-})
-
 app.disable('x-powered-by')
 app.set('trust proxy', env.trustProxy)
 
