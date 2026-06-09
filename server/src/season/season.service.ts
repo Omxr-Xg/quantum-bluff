@@ -1,8 +1,11 @@
 import { prisma } from '../config/database.js'
 import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
+import { grantManualBadge } from '../logic/gamification.js'
 import { createNotification } from '../notifications/notification.service.js'
 
 const SEASON_1_ID = 'season-1'
+const MS_PER_DAY = 86_400_000
+const SEASON_DURATION_MONTHS = 3
 
 type SeasonRewardTier = {
   tier: string
@@ -44,6 +47,43 @@ export async function ensureSeasonSeeded(): Promise<void> {
     })
   }
   await seasonSeedPromise
+}
+
+export function daysRemainingInSeason(endsAt: Date, now = new Date()): number {
+  const diff = endsAt.getTime() - now.getTime()
+  return Math.max(0, Math.ceil(diff / MS_PER_DAY))
+}
+
+function seasonBadgeId(seasonNumber: number, rank: number): string | null {
+  if (rank === 1) return `season_${seasonNumber}_champion`
+  if (rank <= 3) return `season_${seasonNumber}_podium`
+  if (rank <= 10) return `season_${seasonNumber}_elite`
+  return null
+}
+
+async function createNextSeasonAfterClose(closedSeason: {
+  number: number
+  endsAt: Date
+}): Promise<void> {
+  const nextNumber = closedSeason.number + 1
+  const existing = await prisma.season.findUnique({ where: { number: nextNumber } })
+  if (existing) return
+
+  const startsAt = new Date(closedSeason.endsAt.getTime() + 1000)
+  const endsAt = new Date(startsAt)
+  endsAt.setUTCMonth(endsAt.getUTCMonth() + SEASON_DURATION_MONTHS)
+  endsAt.setUTCHours(23, 59, 59, 0)
+
+  await prisma.season.create({
+    data: {
+      id: `season-${nextNumber}`,
+      number: nextNumber,
+      name: `Saison ${nextNumber}`,
+      startsAt,
+      endsAt,
+      status: 'UPCOMING',
+    },
+  })
 }
 
 export async function getActiveSeason() {
@@ -165,6 +205,11 @@ export async function closeSeason(seasonId: string): Promise<{ rewarded: number 
         gameType: 'season',
         roundId: `${seasonId}:${tierDef.tier}`,
       })
+
+      const badgeId = seasonBadgeId(season.number, entry.rank)
+      if (badgeId) {
+        await grantManualBadge(tx, entry.userId, badgeId)
+      }
     })
 
     await createNotification(entry.userId, 'SEASON_ENDED', {
@@ -176,6 +221,8 @@ export async function closeSeason(seasonId: string): Promise<{ rewarded: number 
     })
     rewarded++
   }
+
+  await createNextSeasonAfterClose(season)
 
   return { rewarded }
 }

@@ -77,6 +77,15 @@ export async function appendWalletLedgerEntry(
     return
   }
   const integrityHash = integrityHashFor(input)
+  if (input.balanceAfter >= 1_000_000) {
+    void import('../../achievements/achievement.service.js').then(({ checkAchievements }) => {
+      void checkAchievements(input.context.userId, {
+        type: 'CHIPS_BALANCE',
+        chips: input.balanceAfter,
+      })
+    })
+  }
+
   await delegate.create({
     data: {
       roundId: input.context.roundId,
@@ -116,6 +125,12 @@ export async function createWalletLedgerMovement(
   const before = Math.floor(Number(input.balanceBefore))
   const after = Math.floor(Number(input.balanceAfter))
   const amount = after - before
+  if (after >= 1_000_000) {
+    void import('../../achievements/achievement.service.js').then(({ checkAchievements }) => {
+      void checkAchievements(input.userId, { type: 'CHIPS_BALANCE', chips: after })
+    })
+  }
+
   await delegate.create({
     data: {
       userId: input.userId,

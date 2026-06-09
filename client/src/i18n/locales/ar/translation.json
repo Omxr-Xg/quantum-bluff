@@ -33,6 +33,9 @@
     "join": "انضم",
     "friends": "الأصدقاء",
     "friendRoom": "الأصدقاء",
+    "seasonBannerTitle": "{{name}} — ترتيب الموسم",
+    "seasonBannerSubtitle": "اكسب XP وتسلق الترتيب",
+    "seasonBannerDaysLeft": "متبقي {{count}} يوم",
     "manageFriends": "أصدقائي",
     "profile": "الملف الشخصي",
     "logout": "تسجيل الخروج",
@@ -941,7 +944,18 @@
       },
       "legend": {
         "name": "أسطورة"
-      }
+      },
+      "weekly_grinder": { "name": "مجتهد أسبوعي" },
+      "weekly_champion": { "name": "بطل الأسبوع" },
+      "season_1_champion": { "name": "بطل الموسم 1" },
+      "season_1_podium": { "name": "منصة الموسم 1" },
+      "season_1_elite": { "name": "نخبة الموسم 1" },
+      "season_2_champion": { "name": "بطل الموسم 2" },
+      "season_2_podium": { "name": "منصة الموسم 2" },
+      "season_2_elite": { "name": "نخبة الموسم 2" },
+      "season_3_champion": { "name": "بطل الموسم 3" },
+      "season_3_podium": { "name": "منصة الموسم 3" },
+      "season_3_elite": { "name": "نخبة الموسم 3" }
     }
   },
   "common": {
@@ -2169,7 +2183,14 @@
     "rewardWithChips": "المكافأة: {{amount}} توكن",
     "claimed": "تم استلام المكافأة",
     "weeklyComplete20": "أكمل 20 تحدياً يومياً هذا الأسبوع",
-    "weeklyTitle": "التحدي الأسبوعي",
+    "weeklySubtitle": "5 مهام هذا الأسبوع — مكافأة كبرى عند إكمال الكل",
+    "weeklyPoker20Hands": "لعب 20 يد بوكر متعدد اللاعبين",
+    "weeklyWin5Games": "الفوز بـ 5 ألعاب (بوكر، بلوت أو بلاك جاك)",
+    "weeklyInviteFriend": "دعوة صديق إلى طاولة",
+    "weeklyBelote3Matches": "إنهاء 3 مباريات بلوت",
+    "weeklyWin10kChips": "ربح 10 000 رقاقة",
+    "weeklyBonus": "إكمال جميع المهام الأسبوعية",
+    "weeklyTitle": "المهام الأسبوعية",
     "weeklyProgress": "التقدم",
     "weeklyReward": "المكافأة: {{chips}} رقائق + شارة {{badge}}",
     "claimWeekly": "استلم المكافأة الأسبوعية",

@@ -2190,12 +2190,14 @@ export class GameGateway {
           : XP_POKER_SHOWDOWN_LOSS;
         let handsAfter = 0;
         let winsAfter = 0;
+        let nextWinStreak = 0;
+        const handEndReason = game.state.handEndReason;
         await prisma.$transaction(async (tx) => {
           const prev = await tx.playerStats.findUnique({
             where: { playerId: player.id },
             select: { winStreak: true, lossStreak: true, totalHands: true, totalWins: true },
           });
-          const nextWinStreak = isWinner ? (prev?.winStreak ?? 0) + 1 : 0;
+          nextWinStreak = isWinner ? (prev?.winStreak ?? 0) + 1 : 0;
           const nextLossStreak = isWinner ? 0 : (prev?.lossStreak ?? 0) + 1;
           const updated = await tx.playerStats.upsert({
             where: { playerId: player.id },
@@ -2254,6 +2256,15 @@ export class GameGateway {
             void checkAchievements(player.id, { type: "POKER_HAND", handsPlayed: handsAfter });
             if (isWinner) {
               void checkAchievements(player.id, { type: "POKER_WIN", wins: winsAfter });
+              if (handEndReason === "WIN_BY_FOLD") {
+                void checkAchievements(player.id, { type: "POKER_BLUFF_WIN" });
+              }
+              if (nextWinStreak >= 10) {
+                void checkAchievements(player.id, {
+                  type: "POKER_WIN_STREAK",
+                  streakCount: nextWinStreak,
+                });
+              }
             }
           });
           if (isWinner) {

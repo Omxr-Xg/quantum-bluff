@@ -16,6 +16,8 @@ export type AchievementEventType =
   | 'BELOTE_WIN'
   | 'POKER_HAND'
   | 'POKER_WIN'
+  | 'POKER_BLUFF_WIN'
+  | 'POKER_WIN_STREAK'
   | 'CHIPS_BALANCE'
 
 export type AchievementEvent =
@@ -27,6 +29,8 @@ export type AchievementEvent =
   | { type: 'BELOTE_WIN'; wins: number }
   | { type: 'POKER_HAND'; handsPlayed: number }
   | { type: 'POKER_WIN'; wins: number }
+  | { type: 'POKER_BLUFF_WIN' }
+  | { type: 'POKER_WIN_STREAK'; streakCount: number }
   | { type: 'CHIPS_BALANCE'; chips: number }
 
 export type UnlockedAchievement = {
@@ -64,9 +68,12 @@ function candidatesForEvent(event: AchievementEvent): AchievementDefinition[] {
       ].filter(Boolean)
     case 'POKER_WIN':
       return [ACHIEVEMENT_BY_ID.get('poker_first_win')!].filter(Boolean)
+    case 'POKER_BLUFF_WIN':
+      return [ACHIEVEMENT_BY_ID.get('first_bluff')!].filter(Boolean)
+    case 'POKER_WIN_STREAK':
+      return [ACHIEVEMENT_BY_ID.get('poker_win_streak_10')!].filter(Boolean)
     case 'POKER_HAND':
       return [
-        ACHIEVEMENT_BY_ID.get('first_bluff')!,
         ACHIEVEMENT_BY_ID.get('poker_hands_100')!,
         ACHIEVEMENT_BY_ID.get('poker_hands_1000')!,
       ].filter(Boolean)
@@ -96,6 +103,10 @@ function meetsThreshold(def: AchievementDefinition, event: AchievementEvent): bo
       return event.wins >= threshold
     case 'POKER_WIN':
       return event.wins >= threshold
+    case 'POKER_BLUFF_WIN':
+      return true
+    case 'POKER_WIN_STREAK':
+      return event.streakCount >= threshold
     case 'POKER_HAND':
       return event.handsPlayed >= threshold
     case 'CHIPS_BALANCE':

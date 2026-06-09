@@ -14,15 +14,16 @@ const EXPECTED_IDS = [
   'poker_hands_100',
   'poker_hands_1000',
   'first_bluff',
+  'poker_win_streak_10',
   'millionaire',
   'blackjack_king',
   'belote_king',
 ]
 
 describe('achievement.catalog', () => {
-  it('contient exactement les 16 achievements V1', () => {
-    expect(ACHIEVEMENT_CATALOG).toHaveLength(16)
-    expect(ACHIEVEMENT_BY_ID.size).toBe(16)
+  it('contient exactement les 17 achievements V1', () => {
+    expect(ACHIEVEMENT_CATALOG).toHaveLength(17)
+    expect(ACHIEVEMENT_BY_ID.size).toBe(17)
   })
 
   it('a des ids uniques et attendus', () => {

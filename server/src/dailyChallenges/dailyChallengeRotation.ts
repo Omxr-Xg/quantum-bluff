@@ -22,10 +22,27 @@ export const DAY_7_GAMEPLAY_CODES: readonly DailyChallengeCode[] = [
   'CRASH_CASHOUT_3X',
 ]
 
-export const WEEKLY_CHALLENGE_CODE = 'WEEKLY_COMPLETE_20' as const
-export const WEEKLY_CHALLENGE_GOAL = 20
-export const WEEKLY_CHALLENGE_REWARD = 5_000
-export const WEEKLY_CHALLENGE_BADGE_ID = 'weekly_grinder'
+/** @deprecated Ancien défi unique — conservé pour les lignes historiques en base. */
+export const LEGACY_WEEKLY_CHALLENGE_CODE = 'WEEKLY_COMPLETE_20' as const
+
+export const WEEKLY_MISSION_CODES = [
+  'WEEKLY_POKER_20_HANDS',
+  'WEEKLY_WIN_5_GAMES',
+  'WEEKLY_INVITE_FRIEND',
+  'WEEKLY_BELOTE_3_MATCHES',
+  'WEEKLY_WIN_10K_CHIPS',
+] as const
+
+export const WEEKLY_BONUS_CODE = 'WEEKLY_BONUS' as const
+export const WEEKLY_BONUS_GOAL = WEEKLY_MISSION_CODES.length
+export const WEEKLY_BONUS_REWARD = 20_000
+export const WEEKLY_BONUS_BADGE_ID = 'weekly_champion'
+
+export const WEEKLY_CHALLENGE_CODES = [...WEEKLY_MISSION_CODES, WEEKLY_BONUS_CODE] as const
+
+export function isWeeklyChallengeCode(code: string): boolean {
+  return (WEEKLY_CHALLENGE_CODES as readonly string[]).includes(code)
+}
 
 export function getDayKey(now = new Date()): string {
   return now.toISOString().slice(0, 10)

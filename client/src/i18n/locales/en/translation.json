@@ -34,6 +34,9 @@
     "waitingRooms": "Waiting rooms",
     "gamesInProgress": "Games in progress",
     "friendRoom": "Friends",
+    "seasonBannerTitle": "{{name}} — season leaderboard",
+    "seasonBannerSubtitle": "Earn XP and climb the rankings",
+    "seasonBannerDaysLeft": "{{count}}d left",
     "spectate": "Spectate",
     "serversAvailable": "Available servers (max 5 players):",
     "noServersAvailable": "No servers available",
@@ -1203,7 +1206,19 @@
       },
       "weekly_grinder": {
         "name": "Weekly Grinder"
-      }
+      },
+      "weekly_champion": {
+        "name": "Weekly Champion"
+      },
+      "season_1_champion": { "name": "Season 1 Champion" },
+      "season_1_podium": { "name": "Season 1 Podium" },
+      "season_1_elite": { "name": "Season 1 Elite" },
+      "season_2_champion": { "name": "Season 2 Champion" },
+      "season_2_podium": { "name": "Season 2 Podium" },
+      "season_2_elite": { "name": "Season 2 Elite" },
+      "season_3_champion": { "name": "Season 3 Champion" },
+      "season_3_podium": { "name": "Season 3 Podium" },
+      "season_3_elite": { "name": "Season 3 Elite" }
     },
     "badgeEventLocked": "Weekly challenge"
   },
@@ -1520,6 +1535,7 @@
       "poker_hands_100": { "name": "Grinder", "desc": "Play 100 poker hands" },
       "poker_hands_1000": { "name": "Veteran", "desc": "Play 1,000 poker hands" },
       "first_bluff": { "name": "Bluffer", "desc": "Win with a successful bluff" },
+      "poker_win_streak_10": { "name": "On fire", "desc": "Win 10 poker hands in a row" },
       "millionaire": { "name": "Millionaire", "desc": "Hold 1,000,000 chips" },
       "blackjack_king": { "name": "Blackjack king", "desc": "Hit a big blackjack win" }
     }
@@ -2668,7 +2684,14 @@
     "crashCashout3x": "Cash out at x3.00 or higher",
     "completeAllDaily": "Complete all daily challenges",
     "weeklyComplete20": "Complete 20 daily challenges this week",
-    "weeklyTitle": "Weekly challenge",
+    "weeklySubtitle": "5 missions this week — complete all for the grand bonus",
+    "weeklyPoker20Hands": "Play 20 multiplayer poker hands",
+    "weeklyWin5Games": "Win 5 games (poker, belote or blackjack)",
+    "weeklyInviteFriend": "Invite a friend to a table",
+    "weeklyBelote3Matches": "Finish 3 belote matches",
+    "weeklyWin10kChips": "Win 10,000 chips",
+    "weeklyBonus": "Complete all weekly missions",
+    "weeklyTitle": "Weekly missions",
     "weeklyProgress": "Progress",
     "weeklyReward": "Reward: {{chips}} chips + {{badge}} badge",
     "claimWeekly": "Claim weekly bonus",

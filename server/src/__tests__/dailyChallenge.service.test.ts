@@ -164,8 +164,9 @@ describe('dailyChallenge.service', () => {
     expect(payload.challenges.length).toBeGreaterThanOrEqual(4)
     expect(payload.cycleDay).toBeGreaterThanOrEqual(1)
     expect(payload.cycleDay).toBeLessThanOrEqual(7)
-    expect(payload.weekly.goal).toBe(20)
-    expect(payload.weekly.badgeId).toBe('weekly_grinder')
+    expect(payload.weeklyChallenges.length).toBe(5)
+    expect(payload.weeklyBonus.goal).toBe(5)
+    expect(payload.weeklyBonus.badgeId).toBe('weekly_champion')
   })
 
   it('plafonne la progression roulette au goal', async () => {

@@ -14,9 +14,31 @@ export const BADGE_CATALOG: { id: string; minLevel: number }[] = [
   { id: "champion", minLevel: 22 },
   { id: "legend", minLevel: 25 },
   { id: "weekly_grinder", minLevel: 0 },
+  { id: "weekly_champion", minLevel: 0 },
+  { id: "season_1_champion", minLevel: 0 },
+  { id: "season_1_podium", minLevel: 0 },
+  { id: "season_1_elite", minLevel: 0 },
+  { id: "season_2_champion", minLevel: 0 },
+  { id: "season_2_podium", minLevel: 0 },
+  { id: "season_2_elite", minLevel: 0 },
+  { id: "season_3_champion", minLevel: 0 },
+  { id: "season_3_podium", minLevel: 0 },
+  { id: "season_3_elite", minLevel: 0 },
 ];
 
-export const MANUAL_ONLY_BADGE_IDS = new Set(["weekly_grinder"]);
+export const MANUAL_ONLY_BADGE_IDS = new Set([
+  "weekly_grinder",
+  "weekly_champion",
+  "season_1_champion",
+  "season_1_podium",
+  "season_1_elite",
+  "season_2_champion",
+  "season_2_podium",
+  "season_2_elite",
+  "season_3_champion",
+  "season_3_podium",
+  "season_3_elite",
+]);
 
 export type StoredGamification = {
   experience: number;

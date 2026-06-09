@@ -261,6 +261,7 @@ export type SeasonInfo = {
   startsAt: string
   endsAt: string
   status: string
+  daysRemaining?: number | null
 }
 
 export type SeasonLeaderboardEntry = {

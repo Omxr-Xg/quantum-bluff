@@ -57,6 +57,7 @@ import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSec
 import { LobbyBeloteSection } from "../components/LobbyBeloteSection";
 import { LobbyActivitySection, LobbyFriendRoomBadge } from "../components/LobbyActivityBlocks";
 import { DailyChallenges } from "../components/DailyChallenges";
+import { SeasonBanner } from "../components/SeasonBanner";
 import { getAuthItem } from "../utils/authStorage";
 import { FreeRechargeButton } from '../components/FreeRechargeButton';
 
@@ -1046,6 +1047,8 @@ export function Lobby() {
             {menuContent}
           </div>
         </div>
+
+        <SeasonBanner />
 
         {blockedRoomWarning && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">

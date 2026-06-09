@@ -8,14 +8,14 @@ import {
   getActiveChallengeCodesForDate,
   getCycleDayIndex,
   getDayKey,
-  getWeekCalendarBounds,
   getWeekKey,
   getWeekStorageDayKey,
+  isWeeklyChallengeCode,
   META_DAILY_CHALLENGE_CODE,
-  WEEKLY_CHALLENGE_BADGE_ID,
-  WEEKLY_CHALLENGE_CODE,
-  WEEKLY_CHALLENGE_GOAL,
-  WEEKLY_CHALLENGE_REWARD,
+  WEEKLY_BONUS_BADGE_ID,
+  WEEKLY_BONUS_CODE,
+  WEEKLY_BONUS_GOAL,
+  WEEKLY_MISSION_CODES,
 } from './dailyChallengeRotation.js'
 import { grantManualBadge } from '../logic/gamification.js'
 import { isRouletteBlack, isRouletteRed } from '../logic/roulette.js'
@@ -121,73 +121,133 @@ async function incrementChallengeProgress(
   await syncCompleteAllDailyMeta(userId, db, dayKey)
 }
 
-async function countWeeklyDailyClaims(
+async function syncWeeklyBonusMeta(
   userId: string,
   db: DailyChallengeDb,
-  weekKey: string
-): Promise<number> {
-  const { start, end } = getWeekCalendarBounds(weekKey)
-  return db.dailyChallengeProgress.count({
+  weekKey = getWeekKey()
+): Promise<void> {
+  const dayKey = getWeekStorageDayKey(weekKey)
+  const missionRows = await db.dailyChallengeProgress.findMany({
     where: {
       userId,
-      claimed: true,
-      dayKey: { gte: start, lte: end },
-      challengeCode: { not: WEEKLY_CHALLENGE_CODE },
+      dayKey,
+      challengeCode: { in: [...WEEKLY_MISSION_CODES] },
+    },
+  })
+  const completedMissions = missionRows.filter((r) => r.completed).length
+  const bonusDef = definitionFor(WEEKLY_BONUS_CODE)
+  const nextProgress = clampProgress(completedMissions, bonusDef.goal)
+  const bonusRow = await db.dailyChallengeProgress.findUnique({
+    where: {
+      userId_dayKey_challengeCode: {
+        userId,
+        dayKey,
+        challengeCode: WEEKLY_BONUS_CODE,
+      },
+    },
+  })
+  if (!bonusRow) return
+  if (bonusRow.progress === nextProgress && bonusRow.completed === nextProgress >= bonusDef.goal) {
+    return
+  }
+
+  await db.dailyChallengeProgress.update({
+    where: {
+      userId_dayKey_challengeCode: {
+        userId,
+        dayKey,
+        challengeCode: WEEKLY_BONUS_CODE,
+      },
+    },
+    data: {
+      progress: nextProgress,
+      completed: nextProgress >= bonusDef.goal,
     },
   })
 }
 
-async function ensureWeeklyChallengeForUser(
+async function incrementWeeklyChallengeProgress(
+  userId: string,
+  challengeCode: (typeof WEEKLY_MISSION_CODES)[number],
+  delta: number,
+  db: DailyChallengeDb = prisma,
+  weekKey = getWeekKey()
+): Promise<void> {
+  if (delta <= 0) return
+
+  const rows = await ensureWeeklyChallengesForUser(userId, db, weekKey)
+  const row = rows.find((r) => r.challengeCode === challengeCode)
+  if (!row || row.completed) return
+
+  const nextProgress = clampProgress(row.progress + delta, row.goal)
+  await db.dailyChallengeProgress.update({
+    where: {
+      userId_dayKey_challengeCode: {
+        userId,
+        dayKey: getWeekStorageDayKey(weekKey),
+        challengeCode,
+      },
+    },
+    data: {
+      progress: nextProgress,
+      completed: nextProgress >= row.goal,
+    },
+  })
+
+  await syncWeeklyBonusMeta(userId, db, weekKey)
+}
+
+async function ensureWeeklyChallengesForUser(
   userId: string,
   db: DailyChallengeDb = prisma,
   weekKey = getWeekKey()
-): Promise<DailyChallengeProgress> {
+): Promise<DailyChallengeProgress[]> {
   const dayKey = getWeekStorageDayKey(weekKey)
-  const def = definitionFor(WEEKLY_CHALLENGE_CODE)
+  const codes = [...WEEKLY_MISSION_CODES, WEEKLY_BONUS_CODE]
   await db.dailyChallengeProgress.createMany({
-    data: [
-      {
+    data: codes.map((code) => {
+      const def = definitionFor(code)
+      return {
         userId,
         dayKey,
-        challengeCode: WEEKLY_CHALLENGE_CODE,
+        challengeCode: code,
         progress: 0,
         goal: def.goal,
         completed: false,
         claimed: false,
         rewardTokens: def.rewardTokens,
-      },
-    ],
+      }
+    }),
     skipDuplicates: true,
   })
 
-  const progress = await countWeeklyDailyClaims(userId, db, weekKey)
-  const row = await db.dailyChallengeProgress.findUniqueOrThrow({
-    where: {
-      userId_dayKey_challengeCode: {
-        userId,
-        dayKey,
-        challengeCode: WEEKLY_CHALLENGE_CODE,
-      },
-    },
+  const rows = await db.dailyChallengeProgress.findMany({
+    where: { userId, dayKey },
   })
-
-  if (row.progress !== progress || row.completed !== progress >= row.goal) {
-    return db.dailyChallengeProgress.update({
-      where: {
-        userId_dayKey_challengeCode: {
-          userId,
-          dayKey,
-          challengeCode: WEEKLY_CHALLENGE_CODE,
-        },
-      },
-      data: {
-        progress,
-        completed: progress >= row.goal,
-      },
+  await syncWeeklyBonusMeta(userId, db, weekKey)
+  return rows
+    .filter((r) => isWeeklyChallengeCode(r.challengeCode))
+    .sort((a, b) => {
+      const order = [...WEEKLY_MISSION_CODES, WEEKLY_BONUS_CODE]
+      return order.indexOf(a.challengeCode as typeof order[number]) -
+        order.indexOf(b.challengeCode as typeof order[number])
     })
-  }
+}
 
-  return row
+async function markWeeklyGameWon(
+  userId: string,
+  db: DailyChallengeDb = prisma
+): Promise<void> {
+  await incrementWeeklyChallengeProgress(userId, 'WEEKLY_WIN_5_GAMES', 1, db)
+}
+
+export async function markWeeklyNetChipsWon(
+  userId: string,
+  amount: number,
+  db: DailyChallengeDb = prisma
+): Promise<void> {
+  if (amount <= 0) return
+  await incrementWeeklyChallengeProgress(userId, 'WEEKLY_WIN_10K_CHIPS', amount, db)
 }
 
 export async function ensureDailyChallengesForUser(
@@ -220,7 +280,7 @@ async function refreshWeeklyProgressAfterClaim(
   userId: string,
   db: DailyChallengeDb
 ): Promise<void> {
-  await ensureWeeklyChallengeForUser(userId, db)
+  await syncWeeklyBonusMeta(userId, db)
 }
 
 export async function addRouletteNetWinProgress(
@@ -230,6 +290,7 @@ export async function addRouletteNetWinProgress(
 ): Promise<void> {
   if (netWin <= 0) return
   await incrementChallengeProgress(userId, 'WIN_200_ROULETTE', netWin, db)
+  await markWeeklyNetChipsWon(userId, netWin, db)
 }
 
 export async function addSlotNetWinProgress(
@@ -239,6 +300,7 @@ export async function addSlotNetWinProgress(
 ): Promise<void> {
   if (netWin <= 0) return
   await incrementChallengeProgress(userId, 'WIN_200_SLOT', netWin, db)
+  await markWeeklyNetChipsWon(userId, netWin, db)
 }
 
 export async function incrementMultiplayerPlayCount(
@@ -291,6 +353,8 @@ export async function markBlackjackRoundResult(
     if (netWin > 0) {
       await incrementChallengeProgress(userId, 'BLACKJACK_WIN_500', netWin, db)
     }
+    await markWeeklyGameWon(userId, db)
+    await markWeeklyNetChipsWon(userId, netWin, db)
   }
 }
 
@@ -326,6 +390,14 @@ export async function markBeloteMatchWon(
   db: DailyChallengeDb = prisma
 ): Promise<void> {
   await incrementChallengeProgress(userId, 'WIN_BELOTE_MATCH', 1, db)
+  await markWeeklyGameWon(userId, db)
+}
+
+export async function markBeloteMatchCompleted(
+  userId: string,
+  db: DailyChallengeDb = prisma
+): Promise<void> {
+  await incrementWeeklyChallengeProgress(userId, 'WEEKLY_BELOTE_3_MATCHES', 1, db)
 }
 
 export async function markBeloteTeamScore(
@@ -372,6 +444,7 @@ export async function markPokerHandPlayed(
 ): Promise<void> {
   if (isBotGame || !participated) return
   await incrementChallengeProgress(userId, 'POKER_10_HANDS', 1, db)
+  await incrementWeeklyChallengeProgress(userId, 'WEEKLY_POKER_20_HANDS', 1, db)
 }
 
 export async function markPokerHandResult(
@@ -413,6 +486,10 @@ export async function markPokerHandResult(
     await markWinShowdown(userId, true, false, handEndReason, db)
     await markWinWithPair(userId, finalHandName, true, false, db)
     await incrementChallengeProgress(userId, 'WIN_3_MULTIPLAYER', 1, db)
+    await markWeeklyGameWon(userId, db)
+    if (chipsWon > 0) {
+      await markWeeklyNetChipsWon(userId, chipsWon, db)
+    }
   } else {
     pokerWinStreakByUser.set(userId, 0)
   }
@@ -452,6 +529,7 @@ export async function markFriendInvitedToTable(
   db: DailyChallengeDb = prisma
 ): Promise<void> {
   await incrementChallengeProgress(userId, 'INVITE_FRIEND', 1, db)
+  await incrementWeeklyChallengeProgress(userId, 'WEEKLY_INVITE_FRIEND', 1, db)
 }
 
 export async function recordOnlinePresenceMinute(
@@ -469,40 +547,50 @@ export async function getMyDailyChallenges(userId: string): Promise<{
   dayKey: string
   cycleDay: number
   challenges: ReturnType<typeof mapProgressRowToDto>[]
-  weekly: {
+  weeklyChallenges: ReturnType<typeof mapProgressRowToDto>[]
+  weeklyBonus: {
+    code: 'WEEKLY_BONUS'
     weekKey: string
+    i18nKey: string
     progress: number
     goal: number
     completed: boolean
     claimed: boolean
     rewardTokens: number
     badgeId: string
-    cycleDay: number
   }
 }> {
   const dayKey = getDayKey()
   const cycleDay = getCycleDayIndex()
   const weekKey = getWeekKey()
 
-  const [rows, weeklyRow] = await prisma.$transaction(async (tx) => {
+  const [rows, weeklyRows] = await prisma.$transaction(async (tx) => {
     const daily = await ensureDailyChallengesForUser(userId, tx, dayKey)
-    const weekly = await ensureWeeklyChallengeForUser(userId, tx, weekKey)
+    const weekly = await ensureWeeklyChallengesForUser(userId, tx, weekKey)
     return [daily, weekly] as const
   })
+
+  const missionRows = weeklyRows.filter((r) =>
+    (WEEKLY_MISSION_CODES as readonly string[]).includes(r.challengeCode)
+  )
+  const bonusRow = weeklyRows.find((r) => r.challengeCode === WEEKLY_BONUS_CODE)
+  const bonusDef = definitionFor(WEEKLY_BONUS_CODE)
 
   return {
     dayKey,
     cycleDay,
     challenges: rows.map(mapProgressRowToDto),
-    weekly: {
+    weeklyChallenges: missionRows.map(mapProgressRowToDto),
+    weeklyBonus: {
+      code: WEEKLY_BONUS_CODE,
       weekKey,
-      progress: weeklyRow.progress,
-      goal: weeklyRow.goal,
-      completed: weeklyRow.completed,
-      claimed: weeklyRow.claimed,
-      rewardTokens: weeklyRow.rewardTokens,
-      badgeId: WEEKLY_CHALLENGE_BADGE_ID,
-      cycleDay,
+      i18nKey: bonusDef.i18nKey,
+      progress: bonusRow?.progress ?? 0,
+      goal: bonusRow?.goal ?? WEEKLY_BONUS_GOAL,
+      completed: bonusRow?.completed ?? false,
+      claimed: bonusRow?.claimed ?? false,
+      rewardTokens: bonusRow?.rewardTokens ?? bonusDef.rewardTokens,
+      badgeId: WEEKLY_BONUS_BADGE_ID,
     },
   }
 }
@@ -518,22 +606,32 @@ export async function claimDailyChallenge(userId: string, challengeCodeRaw: stri
     throw new DailyChallengeError(400, 'INVALID_CHALLENGE_CODE', 'Code challenge invalide')
   }
   const challengeCode = challengeCodeRaw as DailyChallengeCode
-  const dayKey =
-    challengeCode === WEEKLY_CHALLENGE_CODE
-      ? getWeekStorageDayKey()
-      : getDayKey()
+  const isWeekly = isWeeklyChallengeCode(challengeCode)
+  const dayKey = isWeekly ? getWeekStorageDayKey() : getDayKey()
 
   return prisma.$transaction(async (tx) => {
-    if (challengeCode === WEEKLY_CHALLENGE_CODE) {
-      const weekly = await ensureWeeklyChallengeForUser(userId, tx)
-      if (!weekly.completed) {
+    if (isWeekly) {
+      await ensureWeeklyChallengesForUser(userId, tx)
+      const challenge = await tx.dailyChallengeProgress.findUnique({
+        where: {
+          userId_dayKey_challengeCode: {
+            userId,
+            dayKey,
+            challengeCode,
+          },
+        },
+      })
+      if (!challenge) {
+        throw new DailyChallengeError(404, 'CHALLENGE_NOT_FOUND', 'Challenge introuvable')
+      }
+      if (!challenge.completed) {
         throw new DailyChallengeError(400, 'CHALLENGE_NOT_COMPLETED', 'Challenge non complété')
       }
-      if (weekly.claimed) {
+      if (challenge.claimed) {
         throw new DailyChallengeError(409, 'CHALLENGE_ALREADY_CLAIMED', 'Challenge déjà réclamé')
       }
 
-      const rewardTokens = weekly.rewardTokens
+      const rewardTokens = challenge.rewardTokens
       const updatedUser = await tx.user.update({
         where: { id: userId },
         data: { chips: { increment: rewardTokens } },
@@ -547,7 +645,7 @@ export async function claimDailyChallenge(userId: string, challengeCodeRaw: stri
           reason: 'WEEKLY_CHALLENGE_REWARD',
           gameType: 'daily_challenge',
           roundId: getWeekKey(),
-          actionId: `weekly:${getWeekKey()}:${WEEKLY_CHALLENGE_CODE}`,
+          actionId: `weekly:${getWeekKey()}:${challengeCode}`,
         },
       })
 
@@ -555,21 +653,25 @@ export async function claimDailyChallenge(userId: string, challengeCodeRaw: stri
         where: {
           userId_dayKey_challengeCode: {
             userId,
-            dayKey: weekly.dayKey,
-            challengeCode: WEEKLY_CHALLENGE_CODE,
+            dayKey: challenge.dayKey,
+            challengeCode,
           },
         },
         data: { claimed: true, claimedAt: new Date() },
       })
 
-      const badgeGranted = await grantManualBadge(tx, userId, WEEKLY_CHALLENGE_BADGE_ID)
+      const newBadges: string[] = []
+      if (challengeCode === WEEKLY_BONUS_CODE) {
+        const badgeGranted = await grantManualBadge(tx, userId, WEEKLY_BONUS_BADGE_ID)
+        if (badgeGranted) newBadges.push(WEEKLY_BONUS_BADGE_ID)
+      }
 
       return {
-        dayKey: weekly.dayKey,
+        dayKey: challenge.dayKey,
         challengeCode,
         rewardTokens,
         chips: updatedUser.chips,
-        newBadges: badgeGranted ? [WEEKLY_CHALLENGE_BADGE_ID] : [],
+        newBadges,
       }
     }
 

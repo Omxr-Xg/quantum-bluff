@@ -1,6 +1,6 @@
 import express from 'express'
 import { authMiddleware } from '../middleware/auth.middleware.js'
-import { getActiveSeason, getSeasonLeaderboard } from './season.service.js'
+import { daysRemainingInSeason, getActiveSeason, getSeasonLeaderboard } from './season.service.js'
 
 const router = express.Router()
 
@@ -8,6 +8,10 @@ router.get('/active', authMiddleware, async (req, res) => {
   try {
     const season = await getActiveSeason()
     if (!season) return res.json({ season: null })
+    const now = new Date()
+    const daysRemaining =
+      season.status === 'ACTIVE' ? daysRemainingInSeason(season.endsAt, now) : null
+
     return res.json({
       season: {
         id: season.id,
@@ -16,6 +20,7 @@ router.get('/active', authMiddleware, async (req, res) => {
         startsAt: season.startsAt.toISOString(),
         endsAt: season.endsAt.toISOString(),
         status: season.status,
+        daysRemaining,
       },
     })
   } catch (err) {

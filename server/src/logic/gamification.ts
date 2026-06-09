@@ -76,6 +76,16 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
   { id: 'champion', minLevel: 22 },
   { id: 'legend', minLevel: 25 },
   { id: 'weekly_grinder', minLevel: 0, manualOnly: true },
+  { id: 'weekly_champion', minLevel: 0, manualOnly: true },
+  { id: 'season_1_champion', minLevel: 0, manualOnly: true },
+  { id: 'season_1_podium', minLevel: 0, manualOnly: true },
+  { id: 'season_1_elite', minLevel: 0, manualOnly: true },
+  { id: 'season_2_champion', minLevel: 0, manualOnly: true },
+  { id: 'season_2_podium', minLevel: 0, manualOnly: true },
+  { id: 'season_2_elite', minLevel: 0, manualOnly: true },
+  { id: 'season_3_champion', minLevel: 0, manualOnly: true },
+  { id: 'season_3_podium', minLevel: 0, manualOnly: true },
+  { id: 'season_3_elite', minLevel: 0, manualOnly: true },
 ]
 
 export const XP_POKER_HAND_BOT = 12

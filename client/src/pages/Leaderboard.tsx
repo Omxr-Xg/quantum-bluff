@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -59,10 +59,13 @@ const TAB_BASE =
 export function Leaderboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { username: meName } = useUser();
 
   const [mainTab, setMainTab] = useState<MainTab>("general");
-  const [scope, setScope] = useState<LeaderboardScope>("alltime");
+  const [scope, setScope] = useState<LeaderboardScope>(() =>
+    searchParams.get("scope") === "season" ? "season" : "alltime"
+  );
   const [pokerMetric, setPokerMetric] = useState<"poker_wins" | "belote_wins" | "chips">("poker_wins");
   const [casinoMetric, setCasinoMetric] = useState<
     "chips" | "slot_biggest" | "roulette_biggest" | "blackjack_biggest"

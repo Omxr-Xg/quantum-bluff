@@ -39,6 +39,7 @@ export const ACHIEVEMENT_CATALOG: AchievementDefinition[] = [
   { id: 'poker_hands_100', category: 'POKER', threshold: 100, rewardChips: 400 },
   { id: 'poker_hands_1000', category: 'POKER', threshold: 1_000, rewardChips: 2_500 },
   { id: 'first_bluff', category: 'POKER', threshold: 1, rewardChips: 100 },
+  { id: 'poker_win_streak_10', category: 'POKER', threshold: 10, rewardChips: 750 },
 
   // Records
   { id: 'millionaire', category: 'RECORDS', threshold: 1_000_000, rewardCosmeticId: 'title_millionaire' },

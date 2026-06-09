@@ -44,6 +44,48 @@ export const ALL_DAILY_CHALLENGE_DEFINITIONS: ReadonlyArray<DailyChallengeDefini
     goal: 20,
     rewardTokens: 5000,
   },
+  {
+    code: 'WEEKLY_POKER_20_HANDS',
+    i18nKey: 'dailyChallenges.weeklyPoker20Hands',
+    category: 'POKER',
+    goal: 20,
+    rewardTokens: 2000,
+  },
+  {
+    code: 'WEEKLY_WIN_5_GAMES',
+    i18nKey: 'dailyChallenges.weeklyWin5Games',
+    category: 'MULTIPLAYER',
+    goal: 5,
+    rewardTokens: 2500,
+  },
+  {
+    code: 'WEEKLY_INVITE_FRIEND',
+    i18nKey: 'dailyChallenges.weeklyInviteFriend',
+    category: 'SOCIAL',
+    goal: 1,
+    rewardTokens: 2000,
+  },
+  {
+    code: 'WEEKLY_BELOTE_3_MATCHES',
+    i18nKey: 'dailyChallenges.weeklyBelote3Matches',
+    category: 'BELOTE',
+    goal: 3,
+    rewardTokens: 2500,
+  },
+  {
+    code: 'WEEKLY_WIN_10K_CHIPS',
+    i18nKey: 'dailyChallenges.weeklyWin10kChips',
+    category: 'GLOBAL',
+    goal: 10_000,
+    rewardTokens: 3000,
+  },
+  {
+    code: 'WEEKLY_BONUS',
+    i18nKey: 'dailyChallenges.weeklyBonus',
+    category: 'GLOBAL',
+    goal: 5,
+    rewardTokens: 20_000,
+  },
 ]
 
 export const DAILY_CHALLENGE_DEFINITION_BY_CODE = new Map(

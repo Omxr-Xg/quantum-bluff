@@ -2,8 +2,10 @@ import { randomUUID } from 'crypto'
 import type { Server } from 'socket.io'
 import { prisma } from '../../config/database.js'
 import {
+  markBeloteMatchCompleted,
   markBeloteMatchWon,
   markBeloteTeamScore,
+  markWeeklyNetChipsWon,
 } from '../../dailyChallenges/dailyChallenge.service.js'
 import {
   awardXpInTransaction,
@@ -130,8 +132,12 @@ export async function settleBeloteGame(
 
       const teamScore = p.team === 'A' ? state.teamScoreA : state.teamScoreB
       await markBeloteTeamScore(p.userId, teamScore, tx)
+      await markBeloteMatchCompleted(p.userId, tx)
       if (won) {
         await markBeloteMatchWon(p.userId, tx)
+        if (chipsAwarded > 0) {
+          await markWeeklyNetChipsWon(p.userId, chipsAwarded, tx)
+        }
       }
 
       await tx.belotePlayerStats.upsert({

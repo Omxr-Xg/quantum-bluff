@@ -17,8 +17,10 @@ interface Challenge {
   rewardTokens: number;
 }
 
-interface WeeklyChallenge {
+interface WeeklyBonus {
+  code: string;
   weekKey: string;
+  i18nKey: string;
   progress: number;
   goal: number;
   completed: boolean;
@@ -29,7 +31,8 @@ interface WeeklyChallenge {
 
 export function DailyChallenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [weekly, setWeekly] = useState<WeeklyChallenge | null>(null);
+  const [weeklyChallenges, setWeeklyChallenges] = useState<Challenge[]>([]);
+  const [weeklyBonus, setWeeklyBonus] = useState<WeeklyBonus | null>(null);
   const [cycleDay, setCycleDay] = useState<number>(1);
   const [loading, setLoading] = useState(true);
   const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -39,7 +42,8 @@ export function DailyChallenges() {
   const fetchChallenges = useCallback(async () => {
     if (!userId) {
       setChallenges([]);
-      setWeekly(null);
+      setWeeklyChallenges([]);
+      setWeeklyBonus(null);
       setErrorKey(null);
       setLoading(false);
       return;
@@ -66,7 +70,8 @@ export function DailyChallenges() {
       }
 
       setChallenges(data.challenges || []);
-      setWeekly(data.weekly ?? null);
+      setWeeklyChallenges(data.weeklyChallenges || []);
+      setWeeklyBonus(data.weeklyBonus ?? null);
       setCycleDay(typeof data.cycleDay === "number" ? data.cycleDay : 1);
       setErrorKey(null);
     } catch (err) {
@@ -146,20 +151,29 @@ export function DailyChallenges() {
     }
   };
 
-  const renderChallengeCard = (c: Challenge) => {
+  const renderChallengeCard = (c: Challenge, variant: "daily" | "weekly" = "daily") => {
     const percent = c.goal > 0 ? Math.min(100, (c.progress / c.goal) * 100) : 0;
     const categoryKey = `dailyChallenges.categories.${c.category}`;
+    const isWeekly = variant === "weekly";
 
     return (
       <div
         key={c.code}
         className={`rounded-lg border p-2 transition ${
           c.completed
-            ? "border-emerald-400/25 bg-emerald-950/25"
-            : "border-white/10 bg-white/[0.045] backdrop-blur-md"
+            ? isWeekly
+              ? "border-violet-400/25 bg-violet-950/25"
+              : "border-emerald-400/25 bg-emerald-950/25"
+            : isWeekly
+              ? "border-violet-200/12 bg-violet-950/15 backdrop-blur-md"
+              : "border-white/10 bg-white/[0.045] backdrop-blur-md"
         }`}
       >
-        <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200/70">
+        <div
+          className={`mb-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+            isWeekly ? "text-violet-200/70" : "text-amber-200/70"
+          }`}
+        >
           {t(categoryKey, c.category)}
         </div>
         <div className="mb-1 flex items-center justify-between gap-2 text-xs xl:text-sm">
@@ -175,32 +189,58 @@ export function DailyChallenges() {
         </div>
 
         <div className="relative w-full py-0.5">
-          <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-amber-300/14 blur-md" />
-          <div className="relative h-1 overflow-hidden rounded-full border border-amber-200/24 bg-slate-950/60 backdrop-blur-sm">
+          <div
+            className={`absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full blur-md ${
+              isWeekly ? "bg-violet-300/14" : "bg-amber-300/14"
+            }`}
+          />
+          <div
+            className={`relative h-1 overflow-hidden rounded-full border backdrop-blur-sm ${
+              isWeekly
+                ? "border-violet-200/24 bg-slate-950/60"
+                : "border-amber-200/24 bg-slate-950/60"
+            }`}
+          >
             <div
-              className={`relative h-full transition-all duration-500 ease-out animate-[challenge-gradient-flow_3s_ease_infinite] ${
+              className={`relative h-full transition-all duration-500 ease-out ${
                 c.completed
-                  ? "bg-gradient-to-r from-yellow-500 via-amber-100 to-amber-400"
-                  : "bg-gradient-to-r from-amber-700 via-yellow-100 to-amber-500"
+                  ? isWeekly
+                    ? "bg-gradient-to-r from-violet-600 via-fuchsia-200 to-violet-400"
+                    : "bg-gradient-to-r from-yellow-500 via-amber-100 to-amber-400 animate-[challenge-gradient-flow_3s_ease_infinite]"
+                  : isWeekly
+                    ? "bg-gradient-to-r from-violet-700 via-fuchsia-100 to-violet-500"
+                    : "bg-gradient-to-r from-amber-700 via-yellow-100 to-amber-500 animate-[challenge-gradient-flow_3s_ease_infinite]"
               }`}
               style={{
                 width: `${percent}%`,
-                backgroundSize: "200% auto",
+                backgroundSize: isWeekly ? undefined : "200% auto",
                 boxShadow: c.completed
-                  ? "0 0 15px 1px rgba(251, 191, 36, 0.58)"
-                  : "0 0 15px 1px rgba(245, 158, 11, 0.56)",
+                  ? isWeekly
+                    ? "0 0 15px 1px rgba(167, 139, 250, 0.58)"
+                    : "0 0 15px 1px rgba(251, 191, 36, 0.58)"
+                  : isWeekly
+                    ? "0 0 15px 1px rgba(139, 92, 246, 0.56)"
+                    : "0 0 15px 1px rgba(245, 158, 11, 0.56)",
               }}
             />
           </div>
         </div>
-        <div className="mt-1.5 text-[11px] text-amber-100/85 xl:text-xs">
+        <div
+          className={`mt-1.5 text-[11px] xl:text-xs ${
+            isWeekly ? "text-violet-100/85" : "text-amber-100/85"
+          }`}
+        >
           {t("dailyChallenges.rewardWithChips", { amount: c.rewardTokens })}
         </div>
 
         {c.completed && !c.claimed && (
           <button
             type="button"
-            className="mt-2 w-full rounded bg-green-500 py-1.5 text-sm transition hover:bg-green-600"
+            className={`mt-2 w-full rounded py-1.5 text-sm transition ${
+              isWeekly
+                ? "bg-violet-500 font-semibold hover:bg-violet-400"
+                : "bg-green-500 hover:bg-green-600"
+            }`}
             onClick={() => void handleClaim(c.code)}
           >
             {t("dailyChallenges.claimReward")}
@@ -257,48 +297,59 @@ export function DailyChallenges() {
         )}
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
-          {challenges.map(renderChallengeCard)}
+          {challenges.map((c) => renderChallengeCard(c, "daily"))}
 
-          {weekly && (
+          {weeklyChallenges.length > 0 && (
             <div className="mt-3 rounded-xl border border-violet-300/20 bg-violet-950/20 p-2.5">
-              <div className="mb-1 flex items-center gap-1.5 text-sm font-bold text-violet-100">
+              <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-violet-100">
                 <Trophy className="h-4 w-4 text-violet-200" aria-hidden />
                 {t("dailyChallenges.weeklyTitle")}
               </div>
-              <p className="mb-2 text-xs text-violet-100/80">{t("dailyChallenges.weeklyComplete20")}</p>
-              <div className="mb-1 flex justify-between text-xs text-violet-100/70">
-                <span>{t("dailyChallenges.weeklyProgress")}</span>
-                <span>
-                  {weekly.progress}/{weekly.goal}
-                </span>
+              <p className="mb-2 text-xs text-violet-100/75">{t("dailyChallenges.weeklySubtitle")}</p>
+              <div className="space-y-2">
+                {weeklyChallenges.map((c) => renderChallengeCard(c, "weekly"))}
               </div>
-              <div className="relative mb-2 h-1 overflow-hidden rounded-full border border-violet-200/20 bg-slate-950/60">
-                <div
-                  className="h-full bg-gradient-to-r from-violet-600 via-fuchsia-200 to-violet-400 transition-all"
-                  style={{
-                    width: `${weekly.goal > 0 ? Math.min(100, (weekly.progress / weekly.goal) * 100) : 0}%`,
-                  }}
-                />
-              </div>
-              <p className="text-[11px] text-violet-100/85">
-                {t("dailyChallenges.weeklyReward", {
-                  chips: weekly.rewardTokens,
-                  badge: t(`gamification.badge.${weekly.badgeId}.name`, weekly.badgeId),
-                })}
-              </p>
-              {weekly.completed && !weekly.claimed && (
-                <button
-                  type="button"
-                  className="mt-2 w-full rounded bg-violet-500 py-1.5 text-sm font-semibold transition hover:bg-violet-400"
-                  onClick={() => void handleClaim("WEEKLY_COMPLETE_20")}
-                >
-                  {t("dailyChallenges.claimWeekly")}
-                </button>
-              )}
-              {weekly.claimed && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-violet-200">
-                  <CheckCircle className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                  {t("dailyChallenges.claimed")}
+
+              {weeklyBonus && (
+                <div className="mt-3 rounded-lg border border-fuchsia-300/25 bg-fuchsia-950/20 p-2">
+                  <p className="mb-1 text-xs font-semibold text-fuchsia-100">
+                    {t(weeklyBonus.i18nKey)}
+                  </p>
+                  <div className="mb-1 flex justify-between text-xs text-fuchsia-100/70">
+                    <span>{t("dailyChallenges.weeklyProgress")}</span>
+                    <span>
+                      {weeklyBonus.progress}/{weeklyBonus.goal}
+                    </span>
+                  </div>
+                  <div className="relative mb-2 h-1 overflow-hidden rounded-full border border-fuchsia-200/20 bg-slate-950/60">
+                    <div
+                      className="h-full bg-gradient-to-r from-fuchsia-600 via-pink-200 to-fuchsia-400 transition-all"
+                      style={{
+                        width: `${weeklyBonus.goal > 0 ? Math.min(100, (weeklyBonus.progress / weeklyBonus.goal) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-fuchsia-100/85">
+                    {t("dailyChallenges.weeklyReward", {
+                      chips: weeklyBonus.rewardTokens,
+                      badge: t(`gamification.badge.${weeklyBonus.badgeId}.name`, weeklyBonus.badgeId),
+                    })}
+                  </p>
+                  {weeklyBonus.completed && !weeklyBonus.claimed && (
+                    <button
+                      type="button"
+                      className="mt-2 w-full rounded bg-fuchsia-500 py-1.5 text-sm font-semibold transition hover:bg-fuchsia-400"
+                      onClick={() => void handleClaim(weeklyBonus.code)}
+                    >
+                      {t("dailyChallenges.claimWeekly")}
+                    </button>
+                  )}
+                  {weeklyBonus.claimed && (
+                    <div className="mt-1.5 flex items-center gap-1.5 text-xs text-fuchsia-200">
+                      <CheckCircle className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                      {t("dailyChallenges.claimed")}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

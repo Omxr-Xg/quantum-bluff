@@ -28,6 +28,12 @@ export const DAILY_CHALLENGE_CODES = [
   'CRASH_CASHOUT_3X',
   'COMPLETE_ALL_DAILY',
   'WEEKLY_COMPLETE_20',
+  'WEEKLY_POKER_20_HANDS',
+  'WEEKLY_WIN_5_GAMES',
+  'WEEKLY_INVITE_FRIEND',
+  'WEEKLY_BELOTE_3_MATCHES',
+  'WEEKLY_WIN_10K_CHIPS',
+  'WEEKLY_BONUS',
 ] as const
 
 export type DailyChallengeCode = (typeof DAILY_CHALLENGE_CODES)[number]
@@ -57,13 +63,14 @@ export type DailyChallengeProgressDto = {
   rewardTokens: number
 }
 
-export type WeeklyChallengeDto = {
+export type WeeklyBonusDto = {
+  code: 'WEEKLY_BONUS'
   weekKey: string
+  i18nKey: string
   progress: number
   goal: number
   completed: boolean
   claimed: boolean
   rewardTokens: number
   badgeId: string
-  cycleDay: number
 }

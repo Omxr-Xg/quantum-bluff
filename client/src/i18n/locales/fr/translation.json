@@ -33,6 +33,9 @@
     "waitingRooms": "Salles d'attente",
     "gamesInProgress": "Parties en cours",
     "friendRoom": "Amis",
+    "seasonBannerTitle": "{{name}} — classement saison",
+    "seasonBannerSubtitle": "Gagnez de l'XP et grimpez au classement",
+    "seasonBannerDaysLeft": "{{count}} j restants",
     "spectate": "Spectateur",
     "serversAvailable": "Serveurs disponibles (max 5 joueurs) :",
     "noServersAvailable": "Aucun serveur disponible",
@@ -1201,8 +1204,20 @@
         "name": "Légende"
       },
       "weekly_grinder": {
-        "name": "Weekly Grinder"
-      }
+        "name": "Grindeur hebdo"
+      },
+      "weekly_champion": {
+        "name": "Champion de la semaine"
+      },
+      "season_1_champion": { "name": "Champion Saison 1" },
+      "season_1_podium": { "name": "Podium Saison 1" },
+      "season_1_elite": { "name": "Élite Saison 1" },
+      "season_2_champion": { "name": "Champion Saison 2" },
+      "season_2_podium": { "name": "Podium Saison 2" },
+      "season_2_elite": { "name": "Élite Saison 2" },
+      "season_3_champion": { "name": "Champion Saison 3" },
+      "season_3_podium": { "name": "Podium Saison 3" },
+      "season_3_elite": { "name": "Élite Saison 3" }
     },
     "badgeEventLocked": "Défi hebdomadaire"
   },
@@ -1512,6 +1527,7 @@
       "poker_hands_100": { "name": "Grindeur", "desc": "Jouer 100 mains de poker" },
       "poker_hands_1000": { "name": "Vétéran", "desc": "Jouer 1 000 mains de poker" },
       "first_bluff": { "name": "Bluffeur", "desc": "Gagner avec un bluff réussi" },
+      "poker_win_streak_10": { "name": "En feu", "desc": "Gagner 10 mains d'affilée au poker" },
       "millionaire": { "name": "Millionnaire", "desc": "Posséder 1 000 000 jetons" },
       "blackjack_king": { "name": "Roi du blackjack", "desc": "Réaliser un gros gain au blackjack" }
     }
@@ -2666,7 +2682,14 @@
     "crashCashout3x": "Encaisser au crash à x3,00 ou plus",
     "completeAllDaily": "Compléter tous les défis du jour",
     "weeklyComplete20": "Compléter 20 défis quotidiens cette semaine",
-    "weeklyTitle": "Défi hebdomadaire",
+    "weeklySubtitle": "5 missions cette semaine — bonus final si tout est complété",
+    "weeklyPoker20Hands": "Jouer 20 mains de poker multijoueur",
+    "weeklyWin5Games": "Gagner 5 parties (poker, belote ou blackjack)",
+    "weeklyInviteFriend": "Inviter un ami à une table",
+    "weeklyBelote3Matches": "Terminer 3 parties de belote",
+    "weeklyWin10kChips": "Gagner 10 000 jetons",
+    "weeklyBonus": "Compléter toutes les missions hebdomadaires",
+    "weeklyTitle": "Missions hebdomadaires",
     "weeklyProgress": "Progression",
     "weeklyReward": "Récompense : {{chips}} jetons + badge {{badge}}",
     "claimWeekly": "Récupérer le bonus hebdo",
