@@ -318,6 +318,11 @@ app.get('/', (_req, res) => {
   res.send(' Quantum Bluff API - Le serveur répond !')
 })
 
+/** TEMP — retirer après validation Sentry prod. */
+app.get('/debug-sentry', (_req, _res, next) => {
+  next(new Error('Sentry backend test Quantum Bluff'))
+})
+
 app.get('/api/health/live', (_req, res) => {
   res.status(200).json({ live: true })
 })
