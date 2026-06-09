@@ -909,7 +909,7 @@ export function Lobby() {
   };
 
   return (
-    <div className="relative w-full min-h-[100dvh] overflow-x-clip overflow-y-visible bg-transparent px-2 py-4 transition-[background-color] duration-700 ease-in-out sm:px-4 md:p-6">
+    <div className="relative w-full min-h-[100dvh] overflow-x-clip overflow-y-visible bg-transparent px-2 py-2 transition-[background-color] duration-700 ease-in-out sm:px-4 sm:py-3 md:px-6 md:py-3">
       <LobbyShellBackground />
 
       {/* Fond Texas Hold'em */}
@@ -1003,21 +1003,21 @@ export function Lobby() {
       <div className="relative z-10 w-full min-w-0">
 
         {/* HEADER — min-height fixe pour éviter saut de layout au changement d’onglet */}
-        <div className="mb-10 flex min-h-[5.25rem] w-full flex-col items-center justify-between gap-4 overflow-visible sm:min-h-[5.75rem] sm:flex-row sm:gap-6">
+        <div className="mb-4 flex min-h-[3.75rem] w-full flex-col items-center justify-between gap-2 overflow-visible sm:mb-5 sm:min-h-[4rem] sm:flex-row sm:gap-4 lg:mb-3">
 
           {/* Côté Gauche (Logo + Titre) */}
           <div
             ref={tourRefHeader}
-            className="flex min-h-[4.75rem] w-full shrink-0 items-center gap-3 sm:min-h-[5rem] sm:gap-4 sm:w-auto sm:justify-start md:min-h-[5.25rem]"
+            className="flex min-h-[3.5rem] w-full shrink-0 items-center gap-2.5 sm:min-h-[3.75rem] sm:gap-3 sm:w-auto sm:justify-start md:min-h-[4rem]"
           >
             <img
               src={lobbyHeaderIcon}
               alt="Quantum Bluff"
-              className="h-10 w-10 shrink-0 rounded-xl object-contain sm:h-12 sm:w-12 md:h-16 md:w-16"
+              className="h-9 w-9 shrink-0 rounded-xl object-contain sm:h-10 sm:w-10 md:h-12 md:w-12"
             />
             <div className="flex-1 min-w-0">
               <h1
-                className={`min-h-[2.25rem] truncate text-2xl font-bold leading-tight transition-[background-image,color] duration-300 md:min-h-[2.75rem] md:text-4xl ${
+                className={`min-h-[1.75rem] truncate text-xl font-bold leading-tight transition-[background-image,color] duration-300 sm:min-h-[2rem] sm:text-2xl md:min-h-[2.25rem] md:text-3xl ${
                   lobbyMainTab === "poker"
                     ? "bg-gradient-to-r from-slate-100 via-blue-200 to-cyan-200 bg-clip-text text-transparent"
                     : lobbyMainTab === "belote"
@@ -1041,7 +1041,7 @@ export function Lobby() {
           {/* Côté Droit : pleine largeur sur mobile (bleed sur px page), ni débordement ni bande inutile */}
           <div
             ref={tourRefTopBar}
-            className="flex min-h-11 w-full min-w-0 max-w-full flex-nowrap items-center overflow-visible py-1 max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:px-2 sm:min-h-12 sm:min-w-0 sm:flex-1 sm:justify-end md:min-h-14"
+            className="flex min-h-10 w-full min-w-0 max-w-full flex-nowrap items-center overflow-visible py-0.5 max-sm:box-border max-sm:-mx-2 max-sm:w-[calc(100%+1rem)] max-sm:max-w-none max-sm:self-stretch max-sm:px-2 sm:min-h-11 sm:min-w-0 sm:flex-1 sm:justify-end md:min-h-12"
           >
             {menuContent}
           </div>
@@ -1653,7 +1653,7 @@ export function Lobby() {
         )}
 
         {/* 🆕 FREE RECHARGE BUTTON */}
-        <div className="mb-3 max-w-sm mx-auto empty:hidden lg:mb-2">
+        <div className="mb-2 max-w-sm mx-auto empty:hidden lg:mb-1.5">
           <FreeRechargeButton
             key={rechargeKey}
             onClaimed={handleRechargeSuccess}
@@ -1662,12 +1662,12 @@ export function Lobby() {
         </div>
 
         {/* MAIN GRID - IMPROVED GAP */}
-        <div className="grid grid-cols-1 items-start gap-5 sm:gap-6 md:grid-cols-2 md:gap-6 lg:h-[calc(100dvh-9.75rem)] lg:grid-cols-[minmax(0,2.35fr)_minmax(19rem,0.82fr)] lg:items-stretch lg:gap-4 lg:overflow-hidden">
+        <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 md:grid-cols-2 md:gap-5 lg:h-[calc(100dvh-7.75rem)] lg:grid-cols-[minmax(0,2.35fr)_minmax(19rem,0.82fr)] lg:items-stretch lg:gap-3 lg:overflow-hidden">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
-          <div className="md:col-span-2 lg:col-span-1 space-y-6 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-4">
+          <div className="md:col-span-2 lg:col-span-1 space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-3">
             <nav
               ref={lobbyTabsRef}
-              className={`flex h-14 w-full shrink-0 items-stretch gap-1.5 overflow-x-auto rounded-2xl border p-1.5 scrollbar-hide shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-300 md:h-[4.25rem] md:gap-2 md:p-2 ${
+              className={`flex h-12 w-full shrink-0 items-stretch gap-1 overflow-x-auto rounded-2xl border p-1 scrollbar-hide shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-300 md:h-14 md:gap-1.5 md:p-1.5 ${
                 lobbyMainTab === "poker"
                   ? "border-white/10 bg-slate-950/55"
                   : lobbyMainTab === "belote"
@@ -1765,17 +1765,17 @@ export function Lobby() {
             </nav>
 
           {lobbyMainTab === "poker" && (
-            <div className="space-y-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
+            <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-3">
               {/* Section Jouer contre Bot */}
-              <div ref={lobbyMainTab === "poker" ? tourRefBot : undefined} className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:shrink-0">
-                <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
-                  <Bot className={`w-7 h-7 xl:h-8 xl:w-8 ${cardGameAccent.botIcon}`} />
+              <div ref={lobbyMainTab === "poker" ? tourRefBot : undefined} className="rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-3.5 lg:shrink-0">
+                <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-white sm:text-lg">
+                  <Bot className={`h-5 w-5 shrink-0 sm:h-6 sm:w-6 ${cardGameAccent.botIcon}`} />
                   {t('lobby.playBot')}
                 </h2>
 
                 <button
                   onClick={handlePlayBot}
-                  className={`w-full rounded-xl border py-3 font-bold text-white shadow-lg shadow-black/20 transition md:py-4 ${cardGameAccent.primaryBtn}`}
+                  className={`w-full rounded-xl border py-2 text-sm font-bold text-white shadow-lg shadow-black/20 transition sm:py-2.5 sm:text-base md:py-3 ${cardGameAccent.primaryBtn}`}
                   aria-label={t('lobby.configureAndPlay')}
                 >
                   {t('lobby.configureAndPlay')}
@@ -2081,7 +2081,7 @@ export function Lobby() {
           )}
 
           {lobbyMainTab === "belote" && (
-            <div className="space-y-6 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
+            <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-3">
               <LobbyBeloteSection active />
             </div>
           )}
@@ -2164,7 +2164,7 @@ export function Lobby() {
 
           {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
           <div
-            className="md:col-span-2 lg:col-span-1 space-y-5 self-start max-lg:pt-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-4 lg:overflow-hidden lg:pt-0 lg:z-10"
+            className="md:col-span-2 lg:col-span-1 space-y-4 self-start max-lg:pt-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-3 lg:overflow-hidden lg:pt-0 lg:z-10"
           >
             <div ref={tourRefDaily} className="lg:max-h-[50%] lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
               <DailyChallenges />
