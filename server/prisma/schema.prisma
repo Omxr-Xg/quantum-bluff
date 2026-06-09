@@ -1679,3 +1679,18 @@ model UserNotification {
   @@index([userId, createdAt])
   @@map("user_notifications")
 }
+
+model AdminAuditLog {
+  id        String   @id @default(uuid())
+  adminId   String
+  action    String
+  targetId  String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("admin_audit_logs")
+}

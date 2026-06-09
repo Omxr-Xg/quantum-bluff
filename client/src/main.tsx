@@ -1,9 +1,11 @@
 import './i18n/preflight'
 import './i18n/config'
+import { initSentry } from './observability/sentry'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { installGlobalErrorHandlers } from './utils/errorReporting'
 
+initSentry()
 installGlobalErrorHandlers()
 import { Provider } from 'react-redux'
 import { store } from './store'

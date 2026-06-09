@@ -1,4 +1,4 @@
-import { Eye, Bell, X, Palette, Volume2, ChevronDown, Sparkles, Music2, Waves, Star, Trash2 } from "lucide-react";
+import { Eye, Bell, X, Palette, Volume2, ChevronDown, Sparkles, Music2, Waves, Star, Trash2, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
@@ -60,6 +60,8 @@ export function SettingsMenu({
   const [deleteConfirmUsername, setDeleteConfirmUsername] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -82,6 +84,40 @@ export function SettingsMenu({
   const close = () => {
     playSfx("modalClose");
     onClose();
+  };
+
+  const handleExportData = async () => {
+    const token = getAuthItem("token");
+    if (!token) {
+      setExportError(t("settings.exportDataNotLoggedIn"));
+      return;
+    }
+
+    setExportLoading(true);
+    setExportError(null);
+    try {
+      const res = await fetch(apiUrl("/api/auth/export"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setExportError(data.error ?? t("settings.exportDataError"));
+        return;
+      }
+      const blob = await res.blob();
+      const stamp = new Date().toISOString().slice(0, 10);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `quantum-bluff-export-${stamp}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      playSfx("uiSelect");
+    } catch {
+      setExportError(t("settings.exportDataError"));
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -285,6 +321,34 @@ export function SettingsMenu({
 
           {tab === "account" && (
             <div className="space-y-4">
+              <div className={`rounded-xl border border-cyan-500/25 bg-cyan-950/20 p-5 ${settingsPanelClass}`}>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-500/15">
+                    <Download className="h-5 w-5 text-cyan-200" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-cyan-100">{t("settings.exportDataTitle")}</h3>
+                      <p className="text-sm text-cyan-200/80">{t("settings.exportDataHint")}</p>
+                    </div>
+                    <p className="text-sm leading-relaxed text-slate-300">{t("settings.exportDataBody")}</p>
+                    {exportError ? (
+                      <p className="text-sm text-rose-300" role="alert">
+                        {exportError}
+                      </p>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={exportLoading}
+                      onClick={() => void handleExportData()}
+                      className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/45 bg-cyan-900/60 px-4 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Download className="h-4 w-4" aria-hidden />
+                      {exportLoading ? t("settings.exportDataLoading") : t("settings.exportDataCta")}
+                    </button>
+                  </div>
+                </div>
+              </div>
               <div className={`rounded-xl border border-red-500/30 bg-red-950/25 p-5 ${settingsPanelClass}`}>
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-400/30 bg-red-500/15">

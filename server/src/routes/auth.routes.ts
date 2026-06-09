@@ -32,6 +32,7 @@ import { isFreeTopupPromoCode } from '../config/balanceResetPromo.js'
 import { adminConsoleAuthMiddleware } from '../middleware/adminConsole.middleware.js'
 import * as giftCodesService from '../giftCodes/giftCodes.service.js'
 import { deleteUserAccount, UserDeletionError } from '../services/userDeletion.service.js'
+import { buildUserDataExport } from '../services/userDataExport.service.js'
 
 function normalizeRateLimitIdentity(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -1288,6 +1289,35 @@ router.post('/admin/gift-codes', adminConsoleAuthMiddleware, async (req, res) =>
 const deleteAccountSchema = z.object({
   password: z.string().optional(),
   confirmUsername: z.string().trim().optional(),
+})
+
+/** Export RGPD — données personnelles du compte connecté (JSON). */
+const exportDataLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.userId ?? ipKeyGenerator(req.ip ?? ''),
+  handler: (_req, res) =>
+    res.status(429).json({ error: 'Trop de demandes d’export. Réessaie dans une heure.' }),
+})
+
+router.get('/export', authMiddleware, exportDataLimiter, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const payload = await buildUserDataExport(userId)
+    if (!payload) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const stamp = new Date().toISOString().slice(0, 10)
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="quantum-bluff-export-${stamp}.json"`)
+    return res.json(payload)
+  } catch (e) {
+    console.error('[AUTH] export data', e)
+    return res.status(500).json({ error: 'Export impossible' })
+  }
 })
 
 /** Suppression définitive du compte connecté (paramètres joueur). */

@@ -23,6 +23,7 @@ import {
   type BroadcastSegment,
 } from '../notifications/adminBroadcast.service.js'
 import beloteAnalyticsRoutes from './admin.beloteAnalytics.routes.js'
+import { listAdminAuditLogs, logAdminAction } from '../admin/adminAudit.service.js'
 
 const router = Router()
 
@@ -233,6 +234,7 @@ router.delete('/users/:id', async (req, res) => {
   }
   try {
     await deleteUserAccount(id)
+    void logAdminAction(req, { action: 'user.delete', targetId: id })
     return res.json({ ok: true })
   } catch (e) {
     if (e instanceof UserDeletionError) {
@@ -745,6 +747,7 @@ async function deleteWaitingRoomAdmin(req: Request, res: Response): Promise<void
       }
     }
     await prisma.waitingRoom.delete({ where: { id } })
+    void logAdminAction(req, { action: 'waiting_room.delete', targetId: id })
     res.json({ ok: true })
   } catch (e) {
     console.error('[adminConsole] waiting-room delete', e)
@@ -795,6 +798,11 @@ router.post('/gift-codes', async (req, res) => {
       description: description ?? null,
       expiresAt: expiresAt ?? null,
       maxUses: maxUses ?? -1,
+    })
+    void logAdminAction(req, {
+      action: 'gift_code.create',
+      targetId: giftCode.id,
+      metadata: { code: giftCode.code, amount, usageType, type },
     })
     return res.status(201).json(giftCode)
   } catch (e) {
@@ -888,6 +896,14 @@ async function handleBroadcastSend(req: Request, res: Response) {
       body: parsed.data.body,
       audience,
     })
+    void logAdminAction(req, {
+      action: 'broadcast.send',
+      metadata: {
+        audience: parsed.data.audience,
+        segment: parsed.data.segment ?? null,
+        sentCount: result.sentCount,
+      },
+    })
     return res.json(result)
   } catch (e) {
     if (e instanceof AdminBroadcastError) {
@@ -900,6 +916,19 @@ async function handleBroadcastSend(req: Request, res: Response) {
 
 router.post('/broadcast/preview', handleBroadcastPreview)
 router.post('/broadcast', handleBroadcastSend)
+
+router.get('/audit-logs', async (req, res) => {
+  const take = Math.min(200, Math.max(1, parseInt(String(req.query.take ?? '50'), 10) || 50))
+  const skip = Math.max(0, parseInt(String(req.query.skip ?? '0'), 10) || 0)
+  const action = typeof req.query.action === 'string' ? req.query.action.trim() : undefined
+  try {
+    const logs = await listAdminAuditLogs({ take, skip, action: action || undefined })
+    return res.json({ logs, take, skip })
+  } catch (e) {
+    console.error('[adminConsole] audit-logs', e)
+    return res.status(500).json({ error: 'Lecture du journal impossible' })
+  }
+})
 
 router.get('/bot-analytics', async (_req: Request, res: Response) => {
   try {

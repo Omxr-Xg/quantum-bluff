@@ -15,7 +15,7 @@ dotenv.config({
   override: process.env.NODE_ENV !== 'production',
 })
 
-type NodeEnv = 'development' | 'test' | 'production'
+type NodeEnv = 'development' | 'test' | 'production' | 'staging'
 
 function parseBooleanEnv(name: string, fallback = false): boolean {
   const raw = process.env[name]?.trim().toLowerCase()
@@ -140,12 +140,16 @@ function parseCorsOrigins(raw?: string): string[] {
 const nodeEnvRaw = (process.env.NODE_ENV?.trim().toLowerCase() ?? 'development') as NodeEnv
 
 const nodeEnv: NodeEnv =
-  nodeEnvRaw === 'production' || nodeEnvRaw === 'test' || nodeEnvRaw === 'development'
+  nodeEnvRaw === 'production' ||
+  nodeEnvRaw === 'test' ||
+  nodeEnvRaw === 'development' ||
+  nodeEnvRaw === 'staging'
     ? nodeEnvRaw
     : 'development'
 
 const isDevelopment = nodeEnv === 'development'
-const isProduction = nodeEnv === 'production'
+const isStaging = nodeEnv === 'staging'
+const isProduction = nodeEnv === 'production' || isStaging
 const isTest = nodeEnv === 'test'
 const isCi = process.env.CI === 'true'
 const isJest = Boolean(process.env.JEST_WORKER_ID)
@@ -272,9 +276,20 @@ const socketIoRedisAdapter = (() => {
 /** Locks distribués, rate-limit Redis, pub/sub poker : utiles seulement si plusieurs instances. */
 const distributedRedis = instanceCount > 1
 
+function parseSampleRate(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim()
+  if (!raw) return fallback
+  const n = Number.parseFloat(raw)
+  if (!Number.isFinite(n) || n < 0 || n > 1) {
+    throw new Error(`${name} must be a number between 0 and 1`)
+  }
+  return n
+}
+
 export const env = {
   nodeEnv,
   isDevelopment,
+  isStaging,
   isProduction,
   isTest,
   isCi,
@@ -346,4 +361,11 @@ export const env = {
   googleOAuthEnabled: Boolean(
     getOptionalEnv('GOOGLE_CLIENT_ID') && getOptionalEnv('GOOGLE_CLIENT_SECRET'),
   ),
+  sentryDsn: getOptionalEnv('SENTRY_DSN'),
+  sentryEnvironment: getOptionalEnv('SENTRY_ENVIRONMENT', nodeEnv) ?? nodeEnv,
+  sentryRelease:
+    getOptionalEnv('SENTRY_RELEASE') ??
+    getOptionalEnv('RENDER_GIT_COMMIT') ??
+    getOptionalEnv('GIT_COMMIT'),
+  sentryTracesSampleRate: parseSampleRate('SENTRY_TRACES_SAMPLE_RATE', isProduction ? 0.1 : 0),
 } as const

@@ -82,6 +82,35 @@ frontend:verify:
     - develop
     - main
 
+# E2E Playwright : auth, lobby, création salle, récompense quotidienne.
+frontend:e2e:
+  extends:
+    - .node_docker_ci
+  stage: verify
+  needs:
+    - backend:verify
+    - frontend:verify
+  services:
+    - name: $POSTGRES_IMAGE
+      alias: postgres
+  variables:
+    NODE_ENV: test
+    JWT_SECRET: "ci-secret-32chars-minimum-123456"
+    POSTGRES_DB: quantum_e2e
+    POSTGRES_USER: test_user
+    POSTGRES_PASSWORD: test_password
+    DATABASE_URL: postgresql://test_user:test_password@postgres:5432/quantum_e2e
+    E2E_EMAIL: e2e@quantum-bluff.test
+    E2E_PASSWORD: E2eTestPassword123!
+    PLAYWRIGHT_BASE_URL: http://127.0.0.1:5175
+    PLAYWRIGHT_API_URL: http://127.0.0.1:3000
+  script:
+    - chmod +x scripts/ci-e2e.sh
+    - bash scripts/ci-e2e.sh
+  only:
+    - develop
+    - main
+
 # Stress test Socket.IO : serveur réel + N connexions authentifiées (charge réduite en CI).
 backend:load-test:
   extends:

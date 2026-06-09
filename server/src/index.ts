@@ -1,4 +1,5 @@
 import './observability/otelEarly.js'
+import './observability/sentryEarly.js'
 
 import express, { type Request } from 'express'
 import { createServer } from 'http'
@@ -19,6 +20,8 @@ import {
   logDegradedStateAtBoot,
   metrics,
 } from './observability/index.js'
+import { captureServerException, setupSentryExpressErrorHandler } from './observability/sentry.js'
+import { attachSocketRateLimitGuard } from './sockets/socketRateLimit.js'
 import gameRoutes from './routes/game.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import oauthRoutes from './routes/oauth.routes.js'
@@ -93,6 +96,7 @@ function logUnknownReason(reason: unknown): string {
 
 /** Aide au diagnostic des 502 : nginx sans upstream = souvent process Node arrêté (crash hors route). */
 process.on('unhandledRejection', (reason, promise) => {
+  captureServerException(reason, { type: 'unhandled_rejection', promise: String(promise) })
   rootLogger.error({
     msg: 'unhandled_rejection',
     detail: logUnknownReason(reason),
@@ -100,6 +104,7 @@ process.on('unhandledRejection', (reason, promise) => {
   })
 })
 process.on('uncaughtException', (err) => {
+  captureServerException(err, { type: 'uncaught_exception' })
   rootLogger.fatal({
     msg: 'uncaught_exception',
     detail: err.stack ?? err.message,
@@ -365,9 +370,13 @@ app.get('/metrics', async (req, res) => {
 })
 
 
+setupSentryExpressErrorHandler(app)
+
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const msg = err instanceof Error ? err.message : String(err)
   const stack = err instanceof Error ? err.stack : undefined
+
+  captureServerException(err, { requestId: req.requestId, path: req.path })
 
   rootLogger.error({
     msg: 'http_unhandled_error',
@@ -375,6 +384,8 @@ app.use((err: unknown, req: express.Request, res: express.Response, _next: expre
     detail: msg,
     stack: env.isDevelopment ? stack : undefined,
   })
+
+  if (res.headersSent) return
 
   res.status(500).json({
     error: 'Erreur serveur',
@@ -432,6 +443,10 @@ if (!env.isJest) {
 }
 
 io.use(socketAuth)
+io.use((socket, next) => {
+  attachSocketRateLimitGuard(socket)
+  next()
+})
 app.set('io', io)
 
 initCleanupJobs()
