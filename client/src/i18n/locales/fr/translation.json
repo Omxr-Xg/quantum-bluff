@@ -1221,6 +1221,10 @@
     },
     "badgeEventLocked": "Défi hebdomadaire"
   },
+  "ads": {
+    "sponsored": "Sponsorisé",
+    "placeholder": "Espace publicitaire"
+  },
   "common": {
     "loading": "Chargement...",
     "error": "Une erreur est survenue",

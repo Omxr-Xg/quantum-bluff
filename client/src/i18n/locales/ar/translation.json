@@ -958,6 +958,10 @@
       "season_3_elite": { "name": "نخبة الموسم 3" }
     }
   },
+  "ads": {
+    "sponsored": "إعلان",
+    "placeholder": "مساحة إعلانية"
+  },
   "common": {
     "loading": "جاري التحميل...",
     "error": "حدث خطأ",

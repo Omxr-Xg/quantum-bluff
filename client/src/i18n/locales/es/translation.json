@@ -950,6 +950,10 @@
       "season_3_elite": { "name": "Élite Temporada 3" }
     }
   },
+  "ads": {
+    "sponsored": "Patrocinado",
+    "placeholder": "Espacio publicitario"
+  },
   "common": {
     "loading": "Cargando...",
     "error": "Ha ocurrido un error",

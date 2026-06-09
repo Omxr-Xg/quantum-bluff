@@ -1222,6 +1222,10 @@
     },
     "badgeEventLocked": "Weekly challenge"
   },
+  "ads": {
+    "sponsored": "Sponsored",
+    "placeholder": "Ad space"
+  },
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",

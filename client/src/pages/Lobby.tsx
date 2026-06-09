@@ -58,6 +58,7 @@ import { LobbyBeloteSection } from "../components/LobbyBeloteSection";
 import { LobbyActivitySection, LobbyFriendRoomBadge } from "../components/LobbyActivityBlocks";
 import { DailyChallenges } from "../components/DailyChallenges";
 import { SeasonBanner } from "../components/SeasonBanner";
+import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
 import { getAuthItem } from "../utils/authStorage";
 import { FreeRechargeButton } from '../components/FreeRechargeButton';
 
@@ -2175,6 +2176,7 @@ export function Lobby() {
             <div ref={tourRefFriends} className="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
               <FriendsList />
             </div>
+            <DiscreteAdSlot placement="lobby-sidebar" className="shrink-0 max-lg:mt-1" />
           </div>
 
         </div>

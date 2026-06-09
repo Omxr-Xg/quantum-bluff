@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { ArrowLeft, Clover, Disc, SquareStack } from "lucide-react";
+import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
 
 type RetroGameCard = {
   id: "roulette" | "slots" | "lucky-number";
@@ -94,6 +95,8 @@ export function RetroCasinoGames() {
           {t("minigames.retroCasinoTitle")}
         </h1>
       </header>
+
+      <DiscreteAdSlot placement="games-hub" className="relative z-20 mx-4 mb-2 shrink-0 sm:mx-6" />
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {RETRO_GAMES.map((game, index) => {

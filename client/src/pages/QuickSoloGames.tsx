@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { ArrowLeft, Bomb, CircleDot, TrendingUp } from "lucide-react";
+import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
 
 type QuickGameCard = {
   id: "crash" | "wheel" | "mines";
@@ -72,6 +73,11 @@ export function QuickSoloGames() {
         <ArrowLeft className="h-4 w-4" />
         {t("minigames.quickSoloBack")}
       </button>
+
+      <DiscreteAdSlot
+        placement="games-hub"
+        className="relative z-20 mx-4 mb-2 mt-[calc(env(safe-area-inset-top,0px)+3.25rem)] shrink-0 sm:mx-6"
+      />
 
       <div className="flex min-h-0 flex-1 flex-col">
         {QUICK_GAMES.map((game, index) => {

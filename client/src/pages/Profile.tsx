@@ -5,6 +5,7 @@ import { useLocation, useNavigate, Link } from "react-router";
 import { getUserProfile, PROFILE_CHANGED_EVENT } from "../utils/userProfile";
 import { HelpButton } from "../components/HelpButton";
 import { ReferralSection } from "../components/ReferralSection";
+import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
 import { useUser } from "../hooks/useUser";
 import { useGetPlayerStatsQuery, useGetShopCosmeticsQuery, useGetShopLoadoutQuery } from "../services/api";
 import {
@@ -291,6 +292,8 @@ export function Profile() {
         </section>
 
         <ReferralSection />
+
+        <DiscreteAdSlot placement="profile-inline" className="mb-5" />
 
         <section className={`mb-5 p-5 sm:p-6 ${profileGlassCard}`}>
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">

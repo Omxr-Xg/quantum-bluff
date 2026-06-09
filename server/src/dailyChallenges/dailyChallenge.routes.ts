@@ -8,7 +8,7 @@ import {
   isDailyChallengeError,
   recordOnlinePresenceMinute,
 } from './dailyChallenge.service.js'
-import { WEEKLY_CHALLENGE_CODE } from './dailyChallengeRotation.js'
+import { isWeeklyChallengeCode } from './dailyChallengeRotation.js'
 
 const router = express.Router()
 
@@ -48,7 +48,7 @@ router.post('/:challengeCode/claim', async (req, res) => {
     if (io) {
       emitUserRewardsUpdated(io, userId, {
         chips: payload.chips,
-        source: challengeCode === WEEKLY_CHALLENGE_CODE ? 'weekly_challenge' : 'daily_challenge',
+        source: isWeeklyChallengeCode(challengeCode) ? 'weekly_challenge' : 'daily_challenge',
         challengeCode: payload.challengeCode,
         newBadges: payload.newBadges,
       })
