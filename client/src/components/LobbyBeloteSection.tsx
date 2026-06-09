@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Eye, Globe, Loader2, Lock, Plus, Server, X } from "lucide-react";
@@ -196,6 +197,24 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
     setShowCreate(false);
   };
 
+  useEffect(() => {
+    if (!showCreate) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !creating) setShowCreate(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showCreate, creating]);
+
+  useEffect(() => {
+    if (!showCreate) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showCreate]);
+
   const createRoom = async () => {
     const name = newName.trim() || t("belote.defaultRoomName");
     setCreating(true);
@@ -261,6 +280,206 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   };
 
   if (!active) return null;
+
+  const createModal =
+    showCreate && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md animate-in fade-in duration-200 md:items-center"
+            onClick={closeCreateModal}
+            role="presentation"
+          >
+            <div
+              className="my-auto mx-2 w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white">{t("lobby.createServerTitle")}</h3>
+                <button
+                  type="button"
+                  onClick={closeCreateModal}
+                  className="p-1 text-slate-400 hover:text-white"
+                  aria-label={t("common.close")}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <label htmlFor="belote-create-room-name" className="mb-2 block text-sm font-medium text-slate-300">
+                  {t("lobby.createRoomNameLabel")}
+                </label>
+                <input
+                  id="belote-create-room-name"
+                  type="text"
+                  maxLength={80}
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder={t("lobby.createRoomNamePlaceholder")}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
+                  autoComplete="off"
+                />
+                <p className="mt-2 text-xs text-slate-500">{t("lobby.createRoomNameHint")}</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="mb-3 block text-sm font-medium text-slate-300">{t("lobby.visibility")}</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewVis("PUBLIC")}
+                    className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 font-semibold transition-all ${
+                      newVis === "PUBLIC"
+                        ? "border-emerald-500 bg-emerald-600/20 text-emerald-400"
+                        : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
+                    }`}
+                  >
+                    <Globe className="h-5 w-5" />
+                    {t("lobby.public")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewVis("PRIVATE")}
+                    className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 font-semibold transition-all ${
+                      newVis === "PRIVATE"
+                        ? "border-red-400/80 bg-red-600/20 text-red-200 shadow-[0_0_24px_rgba(248,113,113,0.18)]"
+                        : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
+                    }`}
+                  >
+                    <Lock className="h-5 w-5" />
+                    {t("lobby.private")}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  {newVis === "PUBLIC" ? t("lobby.publicDesc") : t("lobby.privateDesc")}
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <p className="mb-3 text-sm font-medium text-slate-300">{t("belote.gameVariant")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {BELOTE_VARIANT_OPTIONS.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setNewVariant(v)}
+                      className={`rounded-xl border-2 px-3 py-2.5 text-left text-xs font-semibold leading-tight transition sm:text-sm ${
+                        newVariant === v
+                          ? "border-emerald-400/70 bg-emerald-950/70 text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.18)]"
+                          : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
+                      }`}
+                    >
+                      {t(variantLabelKey(v))}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-slate-500">{t(`belote.variantDesc.${newVariant}`)}</p>
+              </div>
+
+              <label className="mb-6 block text-sm font-medium text-slate-300">
+                {t("belote.targetScore")}
+                <input
+                  type="number"
+                  min={500}
+                  max={2000}
+                  step={100}
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
+                  value={newTarget}
+                  onChange={(e) => setNewTarget(Number(e.target.value) || 1500)}
+                />
+              </label>
+
+              <div className="mb-6">
+                <p className="mb-3 text-sm font-medium text-slate-300">{t("belote.buyInLabel")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {BELOTE_BUY_IN_PRESETS.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        setNewBuyIn(v);
+                        setCustomBuyIn("");
+                      }}
+                      className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                        newBuyIn === v && !customBuyIn
+                          ? "border border-emerald-400/50 bg-emerald-950/70 text-emerald-100"
+                          : "bg-white/[0.045] text-slate-300 hover:bg-white/[0.08]"
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+                <label className="mt-3 block text-xs text-slate-500">
+                  {t("belote.buyInCustom")}
+                  <input
+                    type="number"
+                    min={10}
+                    step={10}
+                    placeholder={t("belote.buyInCustomPlaceholder")}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
+                    value={customBuyIn}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setCustomBuyIn(raw);
+                      if (raw.trim()) {
+                        setNewBuyIn(normalizeBeloteBuyIn(Number(raw)));
+                      }
+                    }}
+                  />
+                </label>
+                <p className="mt-2 text-xs text-emerald-200/70">
+                  {t("belote.buyInPotHint", {
+                    pot: belotePotTotal(newBuyIn),
+                    share: beloteWinnerShare(belotePotTotal(newBuyIn)),
+                  })}
+                </p>
+              </div>
+
+              <label className="mb-6 flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={autoFillBots}
+                  onChange={(e) => setAutoFillBots(e.target.checked)}
+                  className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500"
+                />
+                <span className="text-sm text-slate-200">{t("belote.autoFillBots")}</span>
+              </label>
+
+              <div className="mb-6">
+                <label htmlFor="belote-create-password" className="mb-2 block text-sm font-medium text-slate-300">
+                  {t("belote.passwordOptional")}
+                </label>
+                <input
+                  id="belote-create-password"
+                  type="password"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <button
+                type="button"
+                disabled={creating || !userId}
+                onClick={() => void createRoom()}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-lg font-bold transition md:py-4 ${
+                  creating || !userId
+                    ? "cursor-not-allowed border border-white/10 bg-white/[0.035] text-slate-500"
+                    : "border border-emerald-300/45 bg-emerald-950/80 text-white shadow-[0_0_34px_rgba(16,185,129,0.22)] hover:border-emerald-200/55 hover:bg-emerald-900/85"
+                }`}
+              >
+                {creating ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                {t("lobby.validateCreate")}
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
@@ -433,198 +652,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         </div>
       </div>
 
-      {showCreate ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md animate-in fade-in duration-200 md:items-center"
-          onClick={closeCreateModal}
-        >
-          <div
-            className="my-auto mx-2 w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">{t("lobby.createServerTitle")}</h3>
-              <button
-                type="button"
-                onClick={closeCreateModal}
-                className="p-1 text-slate-400 hover:text-white"
-                aria-label={t("common.close")}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <label htmlFor="belote-create-room-name" className="mb-2 block text-sm font-medium text-slate-300">
-                {t("lobby.createRoomNameLabel")}
-              </label>
-              <input
-                id="belote-create-room-name"
-                type="text"
-                maxLength={80}
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder={t("lobby.createRoomNamePlaceholder")}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
-                autoComplete="off"
-              />
-              <p className="mt-2 text-xs text-slate-500">{t("lobby.createRoomNameHint")}</p>
-            </div>
-
-            <div className="mb-6">
-              <label className="mb-3 block text-sm font-medium text-slate-300">{t("lobby.visibility")}</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setNewVis("PUBLIC")}
-                  className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 font-semibold transition-all ${
-                    newVis === "PUBLIC"
-                      ? "border-emerald-500 bg-emerald-600/20 text-emerald-400"
-                      : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
-                  }`}
-                >
-                  <Globe className="h-5 w-5" />
-                  {t("lobby.public")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewVis("PRIVATE")}
-                  className={`flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 font-semibold transition-all ${
-                    newVis === "PRIVATE"
-                      ? "border-red-400/80 bg-red-600/20 text-red-200 shadow-[0_0_24px_rgba(248,113,113,0.18)]"
-                      : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
-                  }`}
-                >
-                  <Lock className="h-5 w-5" />
-                  {t("lobby.private")}
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">
-                {newVis === "PUBLIC" ? t("lobby.publicDesc") : t("lobby.privateDesc")}
-              </p>
-            </div>
-
-            <div className="mb-6">
-              <p className="mb-3 text-sm font-medium text-slate-300">{t("belote.gameVariant")}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {BELOTE_VARIANT_OPTIONS.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setNewVariant(v)}
-                    className={`rounded-xl border-2 px-3 py-2.5 text-left text-xs font-semibold leading-tight transition sm:text-sm ${
-                      newVariant === v
-                        ? "border-emerald-400/70 bg-emerald-950/70 text-emerald-100 shadow-[0_0_22px_rgba(16,185,129,0.18)]"
-                        : "border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/20"
-                    }`}
-                  >
-                    {t(variantLabelKey(v))}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-slate-500">{t(`belote.variantDesc.${newVariant}`)}</p>
-            </div>
-
-            <label className="mb-6 block text-sm font-medium text-slate-300">
-              {t("belote.targetScore")}
-              <input
-                type="number"
-                min={500}
-                max={2000}
-                step={100}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
-                value={newTarget}
-                onChange={(e) => setNewTarget(Number(e.target.value) || 1500)}
-              />
-            </label>
-
-            <div className="mb-6">
-              <p className="mb-3 text-sm font-medium text-slate-300">{t("belote.buyInLabel")}</p>
-              <div className="flex flex-wrap gap-2">
-                {BELOTE_BUY_IN_PRESETS.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => {
-                      setNewBuyIn(v);
-                      setCustomBuyIn("");
-                    }}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                      newBuyIn === v && !customBuyIn
-                        ? "border border-emerald-400/50 bg-emerald-950/70 text-emerald-100"
-                        : "bg-white/[0.045] text-slate-300 hover:bg-white/[0.08]"
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-              <label className="mt-3 block text-xs text-slate-500">
-                {t("belote.buyInCustom")}
-                <input
-                  type="number"
-                  min={10}
-                  step={10}
-                  placeholder={t("belote.buyInCustomPlaceholder")}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
-                  value={customBuyIn}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    setCustomBuyIn(raw);
-                    if (raw.trim()) {
-                      setNewBuyIn(normalizeBeloteBuyIn(Number(raw)));
-                    }
-                  }}
-                />
-              </label>
-              <p className="mt-2 text-xs text-emerald-200/70">
-                {t("belote.buyInPotHint", {
-                  pot: belotePotTotal(newBuyIn),
-                  share: beloteWinnerShare(belotePotTotal(newBuyIn)),
-                })}
-              </p>
-            </div>
-
-            <label className="mb-6 flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
-              <input
-                type="checkbox"
-                checked={autoFillBots}
-                onChange={(e) => setAutoFillBots(e.target.checked)}
-                className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500"
-              />
-              <span className="text-sm text-slate-200">{t("belote.autoFillBots")}</span>
-            </label>
-
-            <div className="mb-6">
-              <label htmlFor="belote-create-password" className="mb-2 block text-sm font-medium text-slate-300">
-                {t("belote.passwordOptional")}
-              </label>
-              <input
-                id="belote-create-password"
-                type="password"
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none transition focus:border-emerald-400/50 focus:ring-1 focus:ring-emerald-400/30"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-            </div>
-
-            <button
-              type="button"
-              disabled={creating || !userId}
-              onClick={() => void createRoom()}
-              className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-lg font-bold transition md:py-4 ${
-                creating || !userId
-                  ? "cursor-not-allowed border border-white/10 bg-white/[0.035] text-slate-500"
-                  : "border border-emerald-300/45 bg-emerald-950/80 text-white shadow-[0_0_34px_rgba(16,185,129,0.22)] hover:border-emerald-200/55 hover:bg-emerald-900/85"
-              }`}
-            >
-              {creating ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-              {t("lobby.validateCreate")}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {createModal}
     </div>
   );
 }

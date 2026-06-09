@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useLocation } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Bell, Gamepad2, UserPlus, Check, X, MessageCircle, Info, Spade, Loader2, Sparkles } from "lucide-react";
 import { cn } from "./ui/utils";
@@ -294,18 +294,20 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
 
   // Close when clicking outside both the button and the portaled dropdown
   useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
+    const handlePointerDown = (e: PointerEvent) => {
       const target = e.target as Node;
-      if (
-        buttonRef.current && !buttonRef.current.contains(target) &&
-        dropdownRef.current && !dropdownRef.current.contains(target)
-      ) {
-        setOpen(false);
-      }
+      if (buttonRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     };
-    if (open) document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
+    if (open) document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [open]);
+
+  const handleOpenNotificationsPage = () => {
+    setOpen(false);
+    navigate("/notifications");
+  };
 
   // Calculate fixed position from button rect; clamp so panel stays fully on-screen
   const handleToggle = () => {
@@ -390,8 +392,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         /* ignore */
       }
     }
-    setOpen(false);
-    navigate("/notifications");
+    void handleOpenNotificationsPage();
   };
 
   if (!userId) return null;
@@ -399,6 +400,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const dropdown = open && panelPos && createPortal(
     <div
       ref={dropdownRef}
+      onPointerDown={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
         top: panelPos.top,
@@ -406,7 +408,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         zIndex: 9999,
         width: "min(20rem, calc(100vw - 1rem))",
       }}
-      className="max-h-[400px] overflow-y-auto bg-slate-800 border border-slate-600 rounded-xl shadow-2xl"
+      className="flex max-h-[min(400px,70vh)] flex-col overflow-hidden rounded-xl border border-slate-600 bg-slate-800 shadow-2xl"
     >
       <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-slate-600 bg-slate-800 px-4 py-3">
         <h3 className="flex items-center gap-2 text-sm font-bold text-white">
@@ -425,7 +427,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         ) : null}
       </div>
 
-      <div className="p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {!hasSocialContent ? (
           <p className="text-slate-400 text-sm py-3 text-center">
             {t("notifications.emptySocial")}
@@ -615,16 +617,16 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(false);
-            navigate("/notifications");
-          }}
-          className="mx-2 mb-2 mt-1 w-[calc(100%-1rem)] rounded-lg border border-white/10 bg-white/5 py-2.5 text-sm font-semibold text-cyan-200 transition hover:bg-white/10"
+      </div>
+
+      <div className="shrink-0 border-t border-slate-600 bg-slate-800 p-2">
+        <Link
+          to="/notifications"
+          onClick={() => setOpen(false)}
+          className="block w-full rounded-lg border border-white/10 bg-white/5 py-2.5 text-center text-sm font-semibold text-cyan-200 transition hover:bg-white/10"
         >
           {t("growthNotifications.viewAll")}
-        </button>
+        </Link>
       </div>
     </div>,
     document.body

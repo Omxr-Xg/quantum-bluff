@@ -212,7 +212,10 @@ router.patch('/users/:id', async (req, res) => {
   try {
     await prisma.user.update({
       where: { id },
-      data: { bannedUntil },
+      data: {
+        bannedUntil,
+        ...(action === 'reactivate' ? { antiCheatAlerts: 0 } : {}),
+      },
       select: { id: true },
     })
   } catch {

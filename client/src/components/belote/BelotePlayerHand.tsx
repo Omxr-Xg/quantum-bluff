@@ -45,8 +45,8 @@ export function BelotePlayerHand({
     size === "lg"
       ? "-ml-4 sm:-ml-5"
       : size === "sm"
-        ? "-ml-2 sm:-ml-2.5"
-        : "-ml-3 sm:-ml-3.5";
+        ? "-ml-2 max-md:-ml-1.5 sm:-ml-2.5"
+        : "-ml-3 max-md:-ml-2 sm:-ml-3.5";
 
   if (hand.length === 0) return null;
 

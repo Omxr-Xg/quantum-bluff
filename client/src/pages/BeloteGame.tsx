@@ -126,20 +126,26 @@ export function BeloteGame() {
               speakingUserIds={voice.speakingUserIds}
               botThinkingId={botThinkingId}
             />
-            {!isSpectating ? (
-              <div className="pointer-events-auto absolute bottom-[max(5.5rem,18%)] right-2 z-30 w-[min(100%,14rem)] sm:right-4">
-                <TableVoicePanel
-                  voice={voice}
-                  myUserId={userId}
-                  channelLabel={voice.channelLabel}
-                  tablePlayers={state.players.map((p) => ({
+          </div>
+
+          {!isSpectating && voiceEnabled && userId && gameId ? (
+            <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] right-3 z-[90] md:right-5">
+              <TableVoicePanel
+                layout="room"
+                roomAlign="end"
+                panelHideMs={1000}
+                voice={voice}
+                myUserId={userId}
+                channelLabel={voice.channelLabel}
+                tablePlayers={state.players
+                  .filter((p) => !p.isBot)
+                  .map((p) => ({
                     userId: p.userId,
                     username: p.username,
                   }))}
-                />
-              </div>
-            ) : null}
-          </div>
+              />
+            </div>
+          ) : null}
 
           {isSpectating ? (
             <div className="shrink-0 border-t border-white/10 bg-slate-950/95 px-3 py-2.5 text-center backdrop-blur-md">

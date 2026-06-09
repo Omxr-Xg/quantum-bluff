@@ -83,9 +83,12 @@ export function BeloteSeatAvatar({
   const timerArcOffset = timerArcLength - timerProgress;
   const showTurnTimer = isTurn && timerLeft != null && !forfeited && !disconnectedAt;
 
-  const offline = !isPresent && !disconnectedAt && !forfeited;
+  /** Les bots n’ont pas de socket — toujours affichés en ligne. */
+  const effectivelyPresent = isBot || isPresent;
+  const offline = !effectivelyPresent && !disconnectedAt && !forfeited;
   /** Sur l’écran de jeu, le joueur local n’est pas affiché « déco » par un simple LEAVE socket. */
-  const disconnected = Boolean(disconnectedAt) && !forfeited && !(isYou && isPresent);
+  const disconnected =
+    Boolean(disconnectedAt) && !forfeited && !isBot && !(isYou && effectivelyPresent);
 
   const teamTitle =
     team === "A" ? t("belote.teamA") : team === "B" ? t("belote.teamB") : undefined;
@@ -190,7 +193,7 @@ export function BeloteSeatAvatar({
 
         <div
           className={`absolute -bottom-0.5 -right-0.5 z-50 h-3.5 w-3.5 rounded-full border-2 border-slate-900 ${
-            isPresent && !disconnectedAt
+            effectivelyPresent && !disconnectedAt
               ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
               : disconnected
                 ? "bg-amber-500 animate-pulse"
@@ -201,7 +204,7 @@ export function BeloteSeatAvatar({
               ? t("belote.forfeit")
               : disconnected
                 ? t("belote.disconnected")
-                : isPresent
+                : effectivelyPresent
                   ? t("belote.present")
                   : t("belote.absent")
           }

@@ -56,12 +56,10 @@ export const antiCheatMiddleware = async (req: Request, res: Response, next: Nex
     let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
     if (Array.isArray(ip)) ip = ip[0];
 
-    // 4. Analyse en arrière-plan
-    if (ip !== 'unknown') {
-      AntiCheatService.logIpAndCheckMultiAccount(userId, ip).catch(err => {
-        rootLogger.error({ msg: 'anticheat_service_error', detail: err });
-      });
-    }
+    // 4. Journal IP en arrière-plan (pas de sanction multi-compte sur même IP)
+    AntiCheatService.logLastIp(userId, ip).catch((err) => {
+      rootLogger.error({ msg: 'anticheat_service_error', detail: err });
+    });
 
     next();
   } catch (error) {

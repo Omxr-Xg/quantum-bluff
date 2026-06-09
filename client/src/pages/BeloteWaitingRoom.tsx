@@ -291,7 +291,7 @@ export function BeloteWaitingRoom() {
         <ul className="mb-6 space-y-3">
           {Array.from({ length: 4 }).map((_, pos) => {
             const p = room.players.find((x) => x.position === pos);
-            const isPresent = p ? presentSet.has(p.id) : false;
+            const isPresent = p ? p.isBot || presentSet.has(p.id) : false;
             return (
               <li
                 key={pos}
@@ -307,6 +307,7 @@ export function BeloteWaitingRoom() {
                       team={pos % 2 === 0 ? "A" : "B"}
                       isYou={p.id === userId}
                       isPresent={isPresent}
+                      isBot={Boolean(p.isBot)}
                       size="sm"
                     />
                   ) : (
@@ -332,7 +333,11 @@ export function BeloteWaitingRoom() {
                     ) : (
                       <span className="text-xs text-gray-500">{t("belote.notReady")}</span>
                     )}
-                    {!p.isBot ? (
+                    {p.isBot ? (
+                      <span className="text-[10px] font-semibold text-emerald-400">
+                        {t("belote.present")}
+                      </span>
+                    ) : (
                       <span
                         className={`text-[10px] font-semibold ${
                           isPresent ? "text-emerald-400" : "text-slate-500"
@@ -340,7 +345,8 @@ export function BeloteWaitingRoom() {
                       >
                         {isPresent ? t("belote.present") : t("belote.absent")}
                       </span>
-                    ) : isHost ? (
+                    )}
+                    {p.isBot && isHost ? (
                       <button
                         type="button"
                         disabled={busy}

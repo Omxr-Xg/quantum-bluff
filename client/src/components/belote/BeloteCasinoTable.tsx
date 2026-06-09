@@ -170,7 +170,7 @@ export function BeloteCasinoTable({
               const isPartner =
                 !isYou && heroTeam != null && p.team != null && p.team === heroTeam;
               const isTurn = turnPos === p.position;
-              const isPresent = presentSet.has(p.userId) || p.userId === userId;
+              const isPresent = p.isBot || presentSet.has(p.userId) || p.userId === userId;
               const seatTurnLeft = isTurn ? turnTimeLeft : null;
               const isSpeaking = speakingSet.has(p.userId);
 
