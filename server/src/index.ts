@@ -9,6 +9,7 @@ import helmet from 'helmet'
 import { env } from './config/env.js'
 import { initCleanupJobs } from './utils/cleanup.job.js'
 import { pruneInactiveBlackjackWaitingRooms } from './blackjack/recovery/blackjackRecovery.service.js'
+import { pruneInactiveBeloteWaitingRooms } from './belote/recovery/beloteRecovery.service.js'
 import {
   requestIdMiddleware,
   httpAccessLogMiddleware,
@@ -443,6 +444,18 @@ void pruneInactiveBlackjackWaitingRooms()
   .catch((err) => {
     rootLogger.warn({
       msg: 'bj_waiting_prune_at_boot_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
+  })
+void pruneInactiveBeloteWaitingRooms()
+  .then((deleted) => {
+    if (deleted > 0) {
+      rootLogger.info({ msg: 'belote_waiting_prune_at_boot', deleted })
+    }
+  })
+  .catch((err) => {
+    rootLogger.warn({
+      msg: 'belote_waiting_prune_at_boot_failed',
       detail: err instanceof Error ? err.message : String(err),
     })
   })

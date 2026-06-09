@@ -284,27 +284,48 @@ export function BeloteActionBar({
     }
 
     if (isBiddingTurn && state.phase === "CONTREE_ROUND") {
-      if (state.contreePhase === "DEFENSE" && isDefense) {
+      const contreeLevel = state.contreeLevel ?? 0;
+      const canContree =
+        state.contreePhase === "DEFENSE" && isDefense && contreeLevel === 0;
+      const canSurcontree =
+        state.contreePhase === "ATTACK" && isAttack && contreeLevel === 1;
+
+      if (canContree || canSurcontree) {
         return (
           <div className="flex flex-wrap justify-center gap-2 py-1">
             <NeonButton variant="red" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "PASS" })}>
               {t("belote.pass")}
             </NeonButton>
-            <NeonButton variant="amber" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "CONTREE" })}>
-              {t("belote.contree")}
-            </NeonButton>
+            {canContree ? (
+              <NeonButton variant="amber" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "CONTREE" })}>
+                {t("belote.contree")}
+              </NeonButton>
+            ) : null}
+            {canSurcontree ? (
+              <NeonButton variant="amber" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "SURCONTREE" })}>
+                {t("belote.surcontree")}
+              </NeonButton>
+            ) : null}
           </div>
         );
       }
-      if (state.contreePhase === "ATTACK" && isAttack) {
+
+      if (
+        (state.contreePhase === "DEFENSE" && isDefense) ||
+        (state.contreePhase === "ATTACK" && isAttack)
+      ) {
         return (
-          <div className="flex flex-wrap justify-center gap-2 py-1">
-            <NeonButton variant="red" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "PASS" })}>
-              {t("belote.pass")}
-            </NeonButton>
-            <NeonButton variant="amber" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "SURCONTREE" })}>
-              {t("belote.surcontree")}
-            </NeonButton>
+          <div className="flex flex-col items-center gap-1.5 py-1">
+            <div className="flex flex-wrap justify-center gap-2">
+              <NeonButton variant="red" disabled={disabled} className={btnBase} onClick={() => onAction({ type: "PASS" })}>
+                {t("belote.pass")}
+              </NeonButton>
+            </div>
+            {state.contreePhase === "ATTACK" && isAttack && contreeLevel === 0 ? (
+              <p className="max-w-[18rem] text-center text-[10px] text-amber-200/70">
+                {t("belote.surcontreeRequiresContree")}
+              </p>
+            ) : null}
           </div>
         );
       }

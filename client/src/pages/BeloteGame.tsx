@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
+import { History, Loader2 } from "lucide-react";
+import { HandActionLogPanel } from "../components/HandActionLogPanel";
+import { useBeloteActionLog } from "../features/belote/useBeloteActionLog";
 import { useUser } from "../hooks/useUser";
 import { useSocket } from "../hooks/useSocket";
 import { useBeloteSocket } from "../features/belote/useBeloteSocket";
@@ -23,15 +25,17 @@ export function BeloteGame() {
   const isSpectating = searchParams.get("spectate") === "1";
   const { userId } = useUser();
   const { socket } = useSocket();
-  const { state, ended, presentUserIds, turnTimeLeft, botThinkingId, sendAction } = useBeloteSocket(gameId, {
-    spectate: isSpectating,
-  });
+  const { state, ended, loadError, presentUserIds, turnTimeLeft, botThinkingId, sendAction } =
+    useBeloteSocket(gameId, {
+      spectate: isSpectating,
+    });
   const mySettlement = ended?.settlements?.find((s) => s.userId === userId);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [acting, setActing] = useState(false);
   const voiceEnabled = Boolean(gameId && userId && state && !isSpectating && !ended);
   const voice = useTableVoiceChat(gameId, userId, socket, voiceEnabled);
   const trackedBeloteRef = useRef<string | null>(null);
+  const actionLog = useBeloteActionLog(gameId, state, userId ?? undefined);
 
   useEffect(() => {
     if (!gameId || isSpectating || !state || trackedBeloteRef.current === gameId) return;
@@ -48,18 +52,38 @@ export function BeloteGame() {
     [sendAction],
   );
 
-  const confirmQuit = useCallback(() => {
-    setShowQuitConfirm(false);
+  const leaveToLobby = useCallback(() => {
     if (gameId && socket) {
       socket.emit("LEAVE_BELOTE_GAME", { gameId });
     }
     navigate("/lobby?tab=belote");
   }, [gameId, socket, navigate]);
 
+  const confirmQuit = useCallback(() => {
+    setShowQuitConfirm(false);
+    leaveToLobby();
+  }, [leaveToLobby]);
+
   if (!gameId) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-8 text-center text-gray-400">
         {t("belote.missingGame")}
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="relative flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
+        <BlackjackLobbyBackdrop />
+        <p className="relative z-10 text-red-300/90">{loadError}</p>
+        <button
+          type="button"
+          onClick={leaveToLobby}
+          className="relative z-10 rounded-xl border border-emerald-500/40 bg-emerald-950/80 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-900/90"
+        >
+          {t("belote.backLobby")}
+        </button>
       </div>
     );
   }
@@ -113,14 +137,16 @@ export function BeloteGame() {
             myTeam={myTeam}
             turnTimeLeft={turnTimeLeft}
             isMyTurn={isMyTurn}
-            onBack={() => setShowQuitConfirm(true)}
-            onQuit={() => setShowQuitConfirm(true)}
+            isSpectating={isSpectating}
+            onBack={() => (isSpectating ? leaveToLobby() : setShowQuitConfirm(true))}
+            onQuit={() => (isSpectating ? leaveToLobby() : setShowQuitConfirm(true))}
           />
 
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <BeloteCasinoTable
               state={state}
               userId={userId}
+              viewAnchorPosition={isSpectating ? 0 : undefined}
               presentUserIds={presentUserIds}
               turnTimeLeft={turnTimeLeft}
               speakingUserIds={voice.speakingUserIds}
@@ -128,11 +154,41 @@ export function BeloteGame() {
             />
           </div>
 
+          <HandActionLogPanel
+            entries={actionLog.entries}
+            open={actionLog.open}
+            onOpenChange={actionLog.setOpen}
+            titleKey="belote.actionLogTitle"
+            emptyKey="belote.actionLogEmpty"
+          />
+
+          {state && !ended ? (
+            <button
+              type="button"
+              onClick={() => actionLog.setOpen((open) => !open)}
+              title={
+                actionLog.open
+                  ? t("hiddenBets.hideHistory", "Masquer l'historique")
+                  : t("hiddenBets.showHistory", "Afficher l'historique")
+              }
+              aria-label={
+                actionLog.open
+                  ? t("hiddenBets.hideHistory", "Masquer l'historique")
+                  : t("hiddenBets.showHistory", "Afficher l'historique")
+              }
+              aria-expanded={actionLog.open}
+              className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] left-4 z-[90] flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-400 bg-slate-950/90 text-amber-100 shadow-[0_0_14px_rgba(245,158,11,0.55),0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:bg-amber-500 hover:text-slate-950 sm:left-6 ${
+                actionLog.open ? "ring-2 ring-amber-200/70" : ""
+              }`}
+            >
+              <History className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null}
+
           {!isSpectating && voiceEnabled && userId && gameId ? (
-            <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] right-3 z-[90] md:right-5">
+            <div className="pointer-events-none fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 z-[90] sm:left-6">
               <TableVoicePanel
                 layout="room"
-                roomAlign="end"
                 panelHideMs={1000}
                 voice={voice}
                 myUserId={userId}
@@ -148,11 +204,18 @@ export function BeloteGame() {
           ) : null}
 
           {isSpectating ? (
-            <div className="shrink-0 border-t border-white/10 bg-slate-950/95 px-3 py-2.5 text-center backdrop-blur-md">
+            <div className="shrink-0 border-t border-white/10 bg-slate-950/95 px-3 py-3 text-center backdrop-blur-md">
               <p className="text-xs font-semibold uppercase tracking-wider text-amber-200/90">
                 {t("game.spectatorBadge")}
               </p>
               <p className="mt-1 text-[11px] text-emerald-200/65">{t("belote.spectatorHint")}</p>
+              <button
+                type="button"
+                onClick={leaveToLobby}
+                className="mt-2 rounded-lg border border-white/15 bg-slate-800/90 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"
+              >
+                {t("belote.backLobby")}
+              </button>
             </div>
           ) : (
             <div className="relative max-h-[min(46dvh,18rem)] shrink-0 overflow-y-auto overflow-x-visible border-t border-white/10 bg-slate-950/95 px-2 py-1.5 shadow-[0_-8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-3 sm:py-2 pb-[max(0.35rem,env(safe-area-inset-bottom))]">

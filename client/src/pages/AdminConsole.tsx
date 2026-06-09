@@ -46,6 +46,7 @@ type Tab =
   | "history"
   | "poker"
   | "bj"
+  | "belote"
   | "ratings"
   | "reports"
   | "giftCodes"
@@ -123,6 +124,17 @@ type BjRoom = {
   seats?: Array<{ user: { username: string; id: string } }>;
   runtimeAlive?: boolean;
   adminStatusKey?: string;
+};
+
+type BeloteRoom = {
+  id: string;
+  name: string;
+  status: string;
+  variant?: string;
+  gameId: string | null;
+  host?: { username: string } | null;
+  seats?: Array<{ user?: { username: string; id: string } | null }>;
+  runtimeAlive?: boolean;
 };
 
 type RatingRow = {
@@ -436,6 +448,7 @@ export function AdminConsole() {
         if (debouncedSearch) p.set("q", debouncedSearch);
         path = `/api/admin/console/games/active-poker?${p.toString()}`;
       } else if (tab === "bj") path = `/api/admin/console/games/blackjack-rooms?${listParams}`;
+      else if (tab === "belote") path = `/api/admin/console/games/belote-rooms?${listParams}`;
       else if (tab === "reports") path = `/api/admin/console/player-reports?${listParams}`;
       else if (tab === "giftCodes") {
         void loadGiftCodes();
@@ -569,6 +582,44 @@ export function AdminConsole() {
     }
   };
 
+  const forceCloseBeloteGame = async (gameId: string) => {
+    if (!window.confirm(t("adminConsole.beloteCloseConfirm"))) return;
+    setError(null);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/admin/console/belote/force-close/${encodeURIComponent(gameId)}`),
+        { method: "POST", headers: authHeaders() },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
+        return;
+      }
+      await load();
+    } catch {
+      setError(t("adminConsole.networkError"));
+    }
+  };
+
+  const deleteBeloteRoom = async (roomId: string) => {
+    if (!window.confirm(t("adminConsole.beloteDeleteConfirm"))) return;
+    setError(null);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/admin/console/games/belote-rooms/${encodeURIComponent(roomId)}`),
+        { method: "DELETE", headers: authHeaders() },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? t("adminConsole.actionError"));
+        return;
+      }
+      await load();
+    } catch {
+      setError(t("adminConsole.networkError"));
+    }
+  };
+
   const logout = () => {
     clearAuthStorage();
     navigate("/auth/admin", { replace: true });
@@ -636,6 +687,7 @@ export function AdminConsole() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "poker", label: t("adminConsole.tabPokerActive") },
     { id: "bj", label: t("adminConsole.tabBlackjack") },
+    { id: "belote", label: t("adminConsole.tabBelote") },
     { id: "users", label: t("adminConsole.tabPlayers") },
     { id: "history", label: t("adminConsole.tabHistory") },
     { id: "ratings", label: t("adminConsole.tabRatings") },
@@ -967,6 +1019,91 @@ export function AdminConsole() {
             </table>
             {listPayload.items.length === 0 && (
               <p className="py-12 text-center text-slate-500">{t("adminConsole.blackjackEmpty")}</p>
+            )}
+          </div>
+        )}
+
+        {tab === "belote" && json && listPayload?.items && (
+          <div className={`overflow-x-auto p-2 ${adminGlassPanelClass}`}>
+            <table className="w-full min-w-[960px] text-left text-sm">
+              <thead className="bg-slate-950/70 text-xs uppercase tracking-wide text-amber-200/70">
+                <tr>
+                  <th className="px-3 py-3">{t("adminConsole.beloteColName")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.beloteColHost")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.beloteColVariant")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.beloteColStatus")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.beloteColSeats")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.beloteColGameId")}</th>
+                  <th className="px-3 py-3">{t("adminConsole.colActions")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {(listPayload.items as BeloteRoom[]).map((room) => {
+                  const seatCount = room.seats?.length ?? 0;
+                  const gid = room.gameId?.trim() ?? "";
+                  const inGame = room.status === "IN_GAME" && gid.length > 0;
+                  const statusShown =
+                    inGame && !room.runtimeAlive
+                      ? t("adminConsole.beloteStatusEndedNoRuntime")
+                      : room.status;
+                  return (
+                    <tr key={room.id} className="text-slate-200">
+                      <td className="px-3 py-2 font-medium">{room.name}</td>
+                      <td className="px-3 py-2">{room.host?.username ?? "—"}</td>
+                      <td className="px-3 py-2 text-xs text-slate-400">{room.variant ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs">{statusShown}</span>
+                      </td>
+                      <td className="px-3 py-2">{seatCount}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-slate-400">
+                        {room.gameId ?? "—"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          {inGame && room.runtimeAlive ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                window.open(
+                                  playerAppHref(
+                                    `/belote/game?gameId=${encodeURIComponent(gid)}&spectate=1`,
+                                  ),
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                )
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-500 bg-slate-700/80 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-600"
+                            >
+                              <Eye className="h-3 w-3" />
+                              {t("adminConsole.spectate")}
+                            </button>
+                          ) : null}
+                          {inGame && room.runtimeAlive ? (
+                            <button
+                              type="button"
+                              onClick={() => void forceCloseBeloteGame(gid)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-500/50 bg-amber-900/70 px-2 py-1 text-xs font-semibold text-amber-100 hover:bg-amber-800/80"
+                            >
+                              {t("adminConsole.beloteForceClose")}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => void deleteBeloteRoom(room.id)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-red-600/85 px-2 py-1 text-xs font-semibold text-white hover:bg-red-500"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            {t("adminConsole.beloteDeleteRoom")}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {listPayload.items.length === 0 && (
+              <p className="py-12 text-center text-slate-500">{t("adminConsole.beloteEmpty")}</p>
             )}
           </div>
         )}

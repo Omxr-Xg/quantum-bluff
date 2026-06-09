@@ -548,6 +548,46 @@ router.post('/belote/force-close/:gameId', async (req, res) => {
   }
 })
 
+/** Supprime une salle belote (runtime + ligne BDD). */
+router.delete('/games/belote-rooms/:roomId', async (req, res) => {
+  const roomId = req.params.roomId
+  if (!roomId || roomId.length > 256) {
+    return res.status(400).json({ error: 'Identifiant de salle invalide' })
+  }
+  const room = await prisma.beloteRoom.findUnique({ where: { id: roomId } })
+  if (!room) {
+    return res.status(404).json({ error: 'Salle introuvable' })
+  }
+  try {
+    const gameId = room.gameId?.trim() ?? ''
+    if (gameId.length > 0) {
+      activeBeloteGames.delete(gameId)
+      const { stopBeloteTimersForGame } = await import(
+        '../belote/services/beloteTurnTimer.service.js'
+      )
+      stopBeloteTimersForGame(gameId)
+      void import('../belote/services/beloteBotTurns.service.js').then(({ clearBeloteBotSession }) =>
+        clearBeloteBotSession(gameId),
+      )
+    }
+    await prisma.beloteGameSnapshot.deleteMany({ where: { roomId } }).catch(() => {})
+    await prisma.beloteRoom.delete({ where: { id: room.id } })
+    const io = getGameIo()
+    io?.to(`belote-room:${roomId}`).emit('BELOTE_ROOM_UPDATED', null)
+    if (gameId.length > 0) {
+      io?.to(`belote-game:${gameId}`).emit('ERROR', {
+        code: 'GAME_CLOSED',
+        message: 'Partie fermée par un administrateur',
+      })
+    }
+    return res.json({ ok: true })
+  } catch (e) {
+    return res.status(500).json({
+      error: e instanceof Error ? e.message : 'Suppression impossible',
+    })
+  }
+})
+
 router.get('/player-reports/unread-count', async (_req, res) => {
   try {
     const count = await prisma.playerReport.count({

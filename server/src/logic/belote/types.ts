@@ -53,6 +53,8 @@ export type BeloteDealState = {
   takerPosition?: number
   contractTeam?: BeloteTeam
   currentTrick: BeloteTrickCard[]
+  /** Dernier pli complet (visible jusqu’au prochain coup). */
+  lastCompletedTrick?: BeloteTrickCard[]
   trickLeaderPosition: number
   currentPlayerPosition: number
   tricksWonA: number
@@ -106,10 +108,25 @@ export type BeloteGameState = {
   deal: BeloteDealState
   startedAt: string
   lastActionAt: string
+  /** Identifiant du pli courant pour le journal d’actions. */
+  dealLogId?: string
+  actionVersion?: number
+  lastBeloteAction?: BeloteLastAction
   turnDeadlineAt?: string
   turnTimeLimitSec: number
   buyIn: number
   potTotal: number
+}
+
+export type BeloteLastAction = {
+  actionVersion: number
+  phase: BelotePhase
+  playerId: string
+  playerName: string
+  action: string
+  value?: number
+  trump?: string
+  card?: BeloteCard
 }
 
 export type BeloteAction =

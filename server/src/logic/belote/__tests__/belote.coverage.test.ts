@@ -300,6 +300,39 @@ describe('BeloteTableController flows', () => {
     expect(table.getState().players.every((p) => p.hand.length >= 8)).toBe(true)
   })
 
+  it('CONTEE: all pass from start redeals and rotates dealer', () => {
+    const table = makeTable('CONTEE', 5000, 'belote-contee-all-pass-redeal')
+    const dealerBefore = table.getState().deal.dealerPosition
+    const handsBefore = table.getState().players.map((p) => p.hand.map((c) => `${c.rank}${c.suit}`).join(','))
+    for (let i = 0; i < 4; i++) {
+      const u = turnPlayer(table)
+      const r = table.applyAction(u.userId, { type: 'PASS' })
+      expect(r.ok).toBe(true)
+    }
+    const after = table.getState()
+    expect(after.phase).toBe('BIDDING')
+    expect(after.deal.dealerPosition).toBe((dealerBefore + 1) % 4)
+    expect(after.bids).toHaveLength(0)
+    const handsAfter = after.players.map((p) => p.hand.map((c) => `${c.rank}${c.suit}`).join(','))
+    expect(handsAfter.join('|')).not.toBe(handsBefore.join('|'))
+  })
+
+  it('CLASSIQUE: all pass twice redeals and rotates dealer', () => {
+    const table = makeTable('CLASSIQUE', 5000, 'belote-classique-all-pass-redeal')
+    const dealerBefore = table.getState().deal.dealerPosition
+    for (let round = 0; round < 2; round++) {
+      for (let i = 0; i < 4; i++) {
+        const u = turnPlayer(table)
+        const r = table.applyAction(u.userId, { type: 'PASS' })
+        expect(r.ok).toBe(true)
+      }
+    }
+    const after = table.getState()
+    expect(after.phase).toBe('CLASSIQUE_TAKE')
+    expect(after.deal.dealerPosition).toBe((dealerBefore + 1) % 4)
+    expect(after.deal.turnedCard).toBeDefined()
+  })
+
   it('CLASSIQUE: all pass then choose trump', () => {
     const table = makeTable('CLASSIQUE')
     for (let i = 0; i < 4; i++) {
@@ -315,6 +348,50 @@ describe('BeloteTableController flows', () => {
       table.applyAction(u.userId, { type: 'CHOOSE_TRUMP', trump }).ok,
     ).toBe(true)
     expect(table.getState().phase).toBe('PLAYING')
+  })
+
+  it('CONTEE: defense contree then taker surcontree starts play', () => {
+    const table = makeTable('CONTEE', 5000, 'belote-contee-surcontree-flow')
+    const opener = turnPlayer(table)
+    expect(table.applyAction(opener.userId, { type: 'BID', value: 80, trump: 'HEARTS' }).ok).toBe(true)
+    for (let i = 0; i < 3; i++) {
+      const u = turnPlayer(table)
+      expect(table.applyAction(u.userId, { type: 'PASS' }).ok).toBe(true)
+    }
+    expect(table.getState().phase).toBe('CONTREE_ROUND')
+    expect(table.getState().contreePhase).toBe('DEFENSE')
+
+    const defender = turnPlayer(table)
+    expect(table.applyAction(defender.userId, { type: 'CONTREE' }).ok).toBe(true)
+    expect(table.getState().contreeLevel).toBe(1)
+    expect(table.getState().contreePhase).toBe('ATTACK')
+
+    const taker = turnPlayer(table)
+    expect(taker.position).toBe(table.getState().deal.takerPosition)
+    const r = table.applyAction(taker.userId, { type: 'SURCONTREE' })
+    expect(r.ok).toBe(true)
+    expect(table.getState().phase).toBe('PLAYING')
+    expect(table.getState().contreeLevel).toBe(2)
+  })
+
+  it('CONTEE: surcontree rejected without prior contree', () => {
+    const table = makeTable('CONTEE', 5000, 'belote-contee-no-surcontree')
+    const opener = turnPlayer(table)
+    table.applyAction(opener.userId, { type: 'BID', value: 80, trump: 'HEARTS' })
+    for (let i = 0; i < 3; i++) {
+      const u = turnPlayer(table)
+      table.applyAction(u.userId, { type: 'PASS' })
+    }
+    for (let i = 0; i < 2; i++) {
+      const u = turnPlayer(table)
+      table.applyAction(u.userId, { type: 'PASS' })
+    }
+    expect(table.getState().contreePhase).toBe('ATTACK')
+    expect(table.getState().contreeLevel).toBe(0)
+    const taker = turnPlayer(table)
+    const r = table.applyAction(taker.userId, { type: 'SURCONTREE' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toBe('NO_CONTREE')
   })
 
   it('CONTEE: auction reaches playing with contract', () => {

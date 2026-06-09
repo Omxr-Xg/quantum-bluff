@@ -25,6 +25,7 @@ const SEAT_POS: Record<number, string> = {
 export function BeloteCasinoTable({
   state,
   userId,
+  viewAnchorPosition,
   presentUserIds = [],
   turnTimeLeft = null,
   speakingUserIds = [],
@@ -32,6 +33,8 @@ export function BeloteCasinoTable({
 }: {
   state: BeloteSanitizedState;
   userId: string;
+  /** Vue fixe (spectateur) : siège 0 en bas au lieu de tourner autour du joueur local. */
+  viewAnchorPosition?: number;
   presentUserIds?: string[];
   turnTimeLeft?: number | null;
   speakingUserIds?: string[];
@@ -43,7 +46,7 @@ export function BeloteCasinoTable({
 
   const speakingSet = useMemo(() => new Set(speakingUserIds), [speakingUserIds]);
   const me = state.players.find((p) => p.userId === userId);
-  const myPos = me?.position ?? 0;
+  const myPos = viewAnchorPosition ?? me?.position ?? 0;
   const heroTeam = me?.team;
   const sortedPlayers = useMemo(
     () => [...state.players].sort((a, b) => a.position - b.position),
@@ -66,6 +69,14 @@ export function BeloteCasinoTable({
 
   const turnDuration = state.turnTimeLimitSec ?? 30;
   const presentSet = new Set(presentUserIds);
+
+  const trickOnTable =
+    state.deal.currentTrick.length > 0
+      ? state.deal.currentTrick
+      : (state.deal.lastCompletedTrick ?? []);
+  const showTrickTaken =
+    state.deal.currentTrick.length === 0 &&
+    (state.deal.lastCompletedTrick?.length ?? 0) > 0;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-1 items-center justify-center px-1 py-0.5 sm:px-2">
@@ -142,24 +153,35 @@ export function BeloteCasinoTable({
                   <BelotePlayingCard card={state.deal.turnedCard} size="md" />
                 </div>
               ) : null}
-              {state.deal.currentTrick.length === 0 ? (
+              {trickOnTable.length === 0 ? (
                 <div className="rounded-full border border-dashed border-white/15 px-3 py-1.5 text-[10px] text-white/25">
                   {t("belote.trickEmpty")}
                 </div>
               ) : (
-                <div className="flex items-center justify-center pl-1">
-                  {state.deal.currentTrick.map((tr, i) => (
-                    <motion.div
-                      key={`trick-${i}-${tr.card.rank}-${tr.card.suit}`}
-                      className="-ml-2 first:ml-0 sm:-ml-2.5"
-                      style={{ zIndex: i }}
-                      initial={{ opacity: 0, scale: 0.9, y: -6 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      transition={{ delay: i * DEAL_STAGGER_SEC, duration: 0.22 }}
-                    >
-                      <BelotePlayingCard card={tr.card} size="sm" />
-                    </motion.div>
-                  ))}
+                <div className="flex flex-col items-center gap-1">
+                  {showTrickTaken ? (
+                    <span className="text-[9px] font-semibold uppercase tracking-wide text-emerald-200/75">
+                      {t("belote.trickTaken")}
+                    </span>
+                  ) : null}
+                  <div className="flex items-center justify-center pl-1">
+                    {trickOnTable.map((tr, i) => (
+                      <motion.div
+                        key={`trick-${i}-${tr.card.rank}-${tr.card.suit}`}
+                        className="-ml-2 first:ml-0 sm:-ml-2.5"
+                        style={{ zIndex: i }}
+                        initial={
+                          showTrickTaken
+                            ? false
+                            : { opacity: 0, scale: 0.9, y: -6 }
+                        }
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ delay: i * DEAL_STAGGER_SEC, duration: 0.22 }}
+                      >
+                        <BelotePlayingCard card={tr.card} size="sm" />
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

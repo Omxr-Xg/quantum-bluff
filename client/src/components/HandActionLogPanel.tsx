@@ -13,6 +13,8 @@ interface HandActionLogPanelProps {
   collapseWhen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  titleKey?: string;
+  emptyKey?: string;
 }
 
 const PANEL_W = 288;
@@ -28,7 +30,14 @@ function defaultPosition(): { left: number; top: number } {
   };
 }
 
-export function HandActionLogPanel({ entries, collapseWhen, open: controlledOpen, onOpenChange }: HandActionLogPanelProps) {
+export function HandActionLogPanel({
+  entries,
+  collapseWhen,
+  open: controlledOpen,
+  onOpenChange,
+  titleKey = "game.actionLogTitle",
+  emptyKey = "game.actionLogEmpty",
+}: HandActionLogPanelProps) {
   const { t } = useTranslation();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -118,7 +127,7 @@ export function HandActionLogPanel({ entries, collapseWhen, open: controlledOpen
         <span className="inline-flex min-w-0 items-center gap-2 pointer-events-none">
           <GripVertical className="h-4 w-4 shrink-0 text-amber-300/70" aria-hidden />
           <ScrollText className="h-4 w-4 shrink-0 text-amber-300/90" aria-hidden />
-          <span className="truncate">{t("game.actionLogTitle")}</span>
+          <span className="truncate">{t(titleKey)}</span>
         </span>
         <button
           type="button"
@@ -138,7 +147,7 @@ export function HandActionLogPanel({ entries, collapseWhen, open: controlledOpen
       >
         {entries.length === 0 ? (
           <p className="py-2 text-center text-[11px] text-slate-500">
-            {t("game.actionLogEmpty")}
+            {t(emptyKey)}
           </p>
         ) : (
           <ul className="space-y-1.5">

@@ -4,6 +4,7 @@ import { applyContreeBidAction, contractMultiplier, getHighestBid } from '../con
 import { computeDealScore } from '../conteeScoring.js'
 import { canPlayCard, playableCards, trickWinnerPosition } from '../trickPlay.js'
 import { trickCardStrength } from '../scoring.js'
+import { resolveTrumpContext } from '../trumpContext.js'
 import type { TrumpContext } from '../trumpContext.js'
 import { cardPoints, sumTrickPoints } from '../scoring.js'
 import type { BeloteCard, BeloteGameState } from '../types.js'
@@ -228,6 +229,48 @@ describe('BeloteTableController contree integration', () => {
       expect(r.ok).toBe(true)
     }
     expect(table.getState().phase).toBe('PLAYING')
+  })
+
+  it('exposes lastCompletedTrick after the 4th card until the next play', () => {
+    const table = makeTable()
+    const s0 = table.getState()
+    const opener = s0.players.find((p) => p.position === s0.biddingTurnPosition)!
+    table.applyAction(opener.userId, { type: 'BID', value: 80, trump: 'HEARTS' })
+    for (let i = 0; i < 3; i++) {
+      const u = table.getState().players.find(
+        (p) => p.position === table.getState().biddingTurnPosition,
+      )!
+      table.applyAction(u.userId, { type: 'PASS' })
+    }
+    for (let i = 0; i < 8 && table.getState().phase === 'CONTREE_ROUND'; i++) {
+      const u = table.getState().players.find(
+        (p) => p.position === table.getState().biddingTurnPosition,
+      )!
+      table.applyAction(u.userId, { type: 'PASS' })
+    }
+
+    for (let i = 0; i < 4; i++) {
+      const s = table.getState()
+      const pos = s.deal.currentPlayerPosition
+      const player = s.players.find((p) => p.position === pos)!
+      const ctx = resolveTrumpContext(s)!
+      const legal = playableCards(player.hand, ctx, s.deal.currentTrick, pos)
+      table.applyAction(player.userId, { type: 'PLAY_CARD', card: legal[0] })
+    }
+
+    const afterTrick = table.getState()
+    expect(afterTrick.deal.currentTrick).toHaveLength(0)
+    expect(afterTrick.deal.lastCompletedTrick).toHaveLength(4)
+
+    const next = table.getState()
+    const nextPos = next.deal.currentPlayerPosition
+    const nextPlayer = next.players.find((p) => p.position === nextPos)!
+    const ctx = resolveTrumpContext(next)!
+    const legal = playableCards(nextPlayer.hand, ctx, next.deal.currentTrick, nextPos)
+    table.applyAction(nextPlayer.userId, { type: 'PLAY_CARD', card: legal[0] })
+
+    expect(table.getState().deal.lastCompletedTrick).toBeUndefined()
+    expect(table.getState().deal.currentTrick).toHaveLength(1)
   })
 })
 

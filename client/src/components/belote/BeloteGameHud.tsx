@@ -31,6 +31,7 @@ export function BeloteGameHud({
   myTeam,
   turnTimeLeft,
   isMyTurn,
+  isSpectating = false,
   onBack,
   onQuit,
 }: {
@@ -38,6 +39,7 @@ export function BeloteGameHud({
   myTeam?: string;
   turnTimeLeft?: number | null;
   isMyTurn?: boolean;
+  isSpectating?: boolean;
   onBack: () => void;
   onQuit: () => void;
 }) {
@@ -133,7 +135,12 @@ export function BeloteGameHud({
         </div>
 
         <div className="flex shrink-0 flex-col items-end justify-center gap-1">
-          {isMyTurn && turnTimeLeft != null ? (
+          {isSpectating ? (
+            <span className="rounded-md border border-amber-400/35 bg-amber-950/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-100">
+              {t("game.spectatorBadge")}
+            </span>
+          ) : null}
+          {!isSpectating && isMyTurn && turnTimeLeft != null ? (
             <div
               className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums sm:text-xs ${
                 turnTimeLeft <= 5
@@ -145,14 +152,16 @@ export function BeloteGameHud({
               {turnTimeLeft}s
             </div>
           ) : null}
-          <button
-            type="button"
-            onClick={onQuit}
-            className="flex items-center justify-center rounded-lg border border-slate-600/80 bg-slate-900/80 p-2 text-slate-200"
-            aria-label={t("nav.quitGame")}
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+          {!isSpectating ? (
+            <button
+              type="button"
+              onClick={onQuit}
+              className="flex items-center justify-center rounded-lg border border-slate-600/80 bg-slate-900/80 p-2 text-slate-200"
+              aria-label={t("nav.quitGame")}
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
       </div>
     </header>

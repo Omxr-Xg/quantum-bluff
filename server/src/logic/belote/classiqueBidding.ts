@@ -32,8 +32,8 @@ export function applyClassiqueBidAction(
 
     if (action.type === 'PASS') {
       state.bids.push({ position, action: 'PASS' })
-      const passCount = state.bids.filter((b) => b.action === 'PASS').length
-      if (passCount >= 4) {
+      const takePasses = state.bids.filter((b) => b.action === 'PASS').length
+      if (takePasses >= 4) {
         state.bids = []
         state.phase = 'CLASSIQUE_CHOOSE'
         state.biddingTurnPosition = nextPosition(state.deal.dealerPosition)
@@ -65,8 +65,8 @@ export function applyClassiqueBidAction(
 
     if (action.type === 'PASS') {
       state.bids.push({ position, action: 'PASS' })
-      const passCount = state.bids.filter((b) => b.action === 'PASS').length
-      if (passCount >= 4) {
+      const choosePasses = state.bids.filter((b) => b.action === 'PASS').length
+      if (choosePasses >= 4) {
         return { ok: true, redeal: true }
       }
       state.biddingTurnPosition = nextPosition(position)

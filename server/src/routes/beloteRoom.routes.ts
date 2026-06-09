@@ -21,7 +21,9 @@ import {
   BELOTE_STUCK_MAX_MS,
   loadBeloteTable,
   pruneBeloteGameIfStale,
+  pruneInactiveBeloteWaitingRooms,
   pruneStaleBeloteInGameRooms,
+  touchBeloteRoomActivity,
 } from '../belote/recovery/beloteRecovery.service.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { getGameIo } from '../sockets/gameIo.registry.js'
@@ -134,6 +136,9 @@ router.get('/', authMiddleware, async (req, res) => {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
+    const io = getIo(req)
+    await pruneInactiveBeloteWaitingRooms(io)
+
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
     const rooms = await prisma.beloteRoom.findMany({
       where: {
@@ -194,6 +199,7 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
     const io = getIo(req)
+    await pruneInactiveBeloteWaitingRooms(io)
     await pruneStaleBeloteInGameRooms(io)
 
     const myFriends = await getBeloteFriendIds(userId)
@@ -238,12 +244,13 @@ router.get('/games-in-progress', authMiddleware, async (req, res) => {
       const userInGame = seatUserIds.includes(userId)
       const hasFriendInGame = seatUserIds.some((id) => myFriends.has(id))
 
-      if (!userInGame && !hasFriendInGame) continue
-
-      if (room.visibility === 'PRIVATE' && !userInGame) {
-        if (room.hostId !== userId && !myFriends.has(room.hostId) && !hasFriendInGame) {
-          continue
-        }
+      if (room.visibility === 'PRIVATE') {
+        const canSeePrivate =
+          userInGame ||
+          room.hostId === userId ||
+          myFriends.has(room.hostId) ||
+          hasFriendInGame
+        if (!canSeePrivate) continue
       }
 
       const table = await loadBeloteTable(room.gameId)
@@ -357,6 +364,7 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
       })
     }
 
+    await touchBeloteRoomActivity(room.id)
     const refreshed = await loadBeloteRoomWithSeats(room.id)
     const io = getIo(req)
     rescheduleBeloteAutoFill(room.id, io)
@@ -409,6 +417,7 @@ router.post('/:id/leave', authMiddleware, async (req, res) => {
       }
     }
 
+    await touchBeloteRoomActivity(room.id)
     rescheduleBeloteAutoFill(room.id, io)
     await emitBeloteRoomUpdated(room.id, io)
     return res.json({ ok: true })
@@ -434,6 +443,7 @@ router.post('/:id/ready', authMiddleware, async (req, res) => {
       data: { isReady: !seat.isReady },
     })
 
+    await touchBeloteRoomActivity(req.params.id)
     const io = getIo(req)
     await emitBeloteRoomUpdated(req.params.id, io)
     return res.json({ ok: true, isReady: !seat.isReady })
@@ -727,6 +737,28 @@ router.post('/invitations/:invitationId/reject', authMiddleware, async (req, res
     return res.json({ ok: true })
   } catch (e) {
     console.error('[belote-rooms] reject invite', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/** GET /game/:gameId/action-log — journal du pli en cours (rechargement page) */
+router.get('/game/:gameId/action-log', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+
+    const table = await loadBeloteTable(req.params.gameId)
+    if (!table) {
+      return res.status(404).json({ error: 'Partie introuvable' })
+    }
+
+    const state = table.getState()
+    const dealLogId = state.dealLogId ?? 'deal'
+    const { getActionLog } = await import('../config/redis.config.js')
+    const entries = await getActionLog(req.params.gameId, dealLogId)
+    return res.json({ entries, dealLogId })
+  } catch (e) {
+    console.error('[belote-rooms] action-log', e)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 })

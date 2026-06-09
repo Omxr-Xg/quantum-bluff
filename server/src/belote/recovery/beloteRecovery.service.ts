@@ -10,8 +10,11 @@ import {
 import { getBeloteGamePresentUserIds } from '../services/belotePresence.service.js'
 import { scheduleBeloteTurnTimer } from '../services/beloteTurnTimer.service.js'
 import { scheduleBeloteBotTurns } from '../services/beloteBotTurns.service.js'
+import { getGameIo } from '../../sockets/gameIo.registry.js'
 import { rootLogger } from '../../observability/logger.js'
 
+/** Salles WAITING sans partie : suppression après inactivité (fin de partie, lobby vide). */
+export const BELOTE_WAITING_IDLE_MS = 5 * 60 * 1000
 /** Aucun joueur connecté à la partie depuis ce délai → clôture. */
 export const BELOTE_IDLE_CLOSE_MS = 15 * 60 * 1000
 /** Durée max d’une partie listée / en base avant clôture forcée. */
@@ -132,9 +135,64 @@ export async function pruneStaleBeloteInGameRooms(io?: Server): Promise<number> 
   return closed
 }
 
+export async function touchBeloteRoomActivity(roomId: string): Promise<void> {
+  try {
+    await prisma.beloteRoom.update({
+      where: { id: roomId },
+      data: { updatedAt: new Date() },
+    })
+  } catch {
+    /* salle supprimée entre-temps */
+  }
+}
+
+/**
+ * Supprime les salles belote WAITING sans gameId :
+ * - aucun siège ;
+ * - inactives (updatedAt) depuis BELOTE_WAITING_IDLE_MS.
+ */
+export async function pruneInactiveBeloteWaitingRooms(io?: Server): Promise<number> {
+  const idleCutoff = new Date(Date.now() - BELOTE_WAITING_IDLE_MS)
+  try {
+    const toDelete = await prisma.beloteRoom.findMany({
+      where: {
+        status: 'WAITING',
+        gameId: null,
+        OR: [{ seats: { none: {} } }, { updatedAt: { lt: idleCutoff } }],
+      },
+      select: { id: true },
+    })
+    if (toDelete.length === 0) return 0
+
+    const ids = toDelete.map((r) => r.id)
+    await prisma.beloteRoom.deleteMany({ where: { id: { in: ids } } })
+
+    const socketIo = io ?? getGameIo()
+    if (socketIo) {
+      for (const id of ids) {
+        socketIo.to(`belote-room:${id}`).emit('BELOTE_ROOM_UPDATED', null)
+      }
+    }
+
+    rootLogger.info({ msg: 'belote_waiting_rooms_pruned', count: ids.length })
+    return ids.length
+  } catch (err) {
+    rootLogger.warn({
+      msg: 'belote_waiting_prune_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
+    return 0
+  }
+}
+
 export async function recoverBeloteAtBoot(io?: Server): Promise<void> {
+  const waitingPruned = await pruneInactiveBeloteWaitingRooms(io)
   const n = await pruneStaleBeloteInGameRooms(io)
-  rootLogger.info({ msg: 'belote_recovery_boot_done', closedGames: n })
+  rootLogger.info({
+    msg: 'belote_recovery_boot_done',
+    closedGames: n,
+    waitingPruned,
+  })
 
   const rooms = await prisma.beloteRoom.findMany({
     where: { status: 'IN_GAME', gameId: { not: null } },

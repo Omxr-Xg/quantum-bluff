@@ -77,6 +77,7 @@ export function applyContreeBidAction(
     if (action.type === 'PASS') {
       bids.push({ position, action: 'PASS' })
       if (allPassedFromStart(bids)) {
+        state.biddingTurnPosition = nextPosition(position)
         return { ok: true, redeal: true }
       }
       if (biddingFinished(state)) {
@@ -131,6 +132,9 @@ export function applyContreeBidAction(
   }
 
   if (state.phase === 'CONTREE_ROUND') {
+    if (position !== state.biddingTurnPosition) {
+      return { ok: false, error: 'NOT_YOUR_TURN' }
+    }
     const contractTeam = state.deal.contractTeam
     if (!contractTeam) return { ok: false, error: 'NO_CONTRACT' }
     const defenseTeam = contractTeam === 'A' ? 'B' : 'A'

@@ -23,6 +23,18 @@ export type BeloteSanitizedState = {
   turnTimeLimitSec?: number;
   myLegalPlays?: BeloteCard[];
   myLegalBids?: Array<{ value: number; trump: string }>;
+  dealLogId?: string;
+  actionVersion?: number;
+  lastBeloteAction?: {
+    actionVersion: number;
+    phase: string;
+    playerId: string;
+    playerName: string;
+    action: string;
+    value?: number;
+    trump?: string;
+    card?: BeloteCard;
+  };
   dealEndSummary?: {
     made: boolean;
     contract: number;
@@ -52,6 +64,7 @@ export type BeloteSanitizedState = {
     takerPosition?: number;
     contractTeam?: string;
     currentTrick: Array<{ position: number; card: BeloteCard }>;
+    lastCompletedTrick?: Array<{ position: number; card: BeloteCard }>;
     currentPlayerPosition: number;
   };
 };
@@ -67,6 +80,7 @@ export function useBeloteSocket(
   const [presentUserIds, setPresentUserIds] = useState<string[]>([]);
   const [turnTimeLeft, setTurnTimeLeft] = useState<number | null>(null);
   const [botThinkingId, setBotThinkingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [ended, setEnded] = useState<{
     winningTeam: string;
     teamScoreA: number;
@@ -89,7 +103,15 @@ export function useBeloteSocket(
     const res = await fetch(apiUrl(`/api/belote-rooms/game/${gameId}/state`), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+      setLoadError(
+        errBody.error ??
+          (res.status === 404 ? "Partie introuvable" : "Impossible de charger la partie"),
+      );
+      return;
+    }
+    setLoadError(null);
     const data = (await res.json()) as {
       state: BeloteSanitizedState;
       presentUserIds?: string[];
@@ -127,6 +149,7 @@ export function useBeloteSocket(
       presentUserIds?: string[];
     }) => {
       if (payload.gameId !== gameId) return;
+      setLoadError(null);
       setState(payload.state);
       const ids = new Set(payload.presentUserIds ?? []);
       if (myUserId) ids.add(myUserId);
@@ -165,11 +188,24 @@ export function useBeloteSocket(
       void refreshHttp();
     };
 
+    const onSocketError = (payload: { code?: string; message?: string }) => {
+      const code = payload?.code ?? "";
+      if (
+        code === "GAME_NOT_FOUND" ||
+        code === "GAME_CLOSED" ||
+        (code === "NOT_IN_GAME" && !spectate) ||
+        code === "SPECTATE_ERROR"
+      ) {
+        setLoadError(payload.message ?? "Partie indisponible");
+      }
+    };
+
     socket.on("BELOTE_GAME_UPDATE", onUpdate);
     socket.on("BELOTE_TURN_TIMER", onTimer);
     socket.on("BELOTE_GAME_END", onEnd);
     socket.on("BELOTE_BOT_ACTION", onBotAction);
     socket.on("BELOTE_PLAYER_REPLACED_BY_BOT", onReplaced);
+    socket.on("ERROR", onSocketError);
 
     return () => {
       socket.emit("LEAVE_BELOTE_GAME", { gameId });
@@ -178,6 +214,7 @@ export function useBeloteSocket(
       socket.off("BELOTE_GAME_END", onEnd);
       socket.off("BELOTE_BOT_ACTION", onBotAction);
       socket.off("BELOTE_PLAYER_REPLACED_BY_BOT", onReplaced);
+      socket.off("ERROR", onSocketError);
     };
   }, [socket, gameId, refreshHttp, myUserId, spectate]);
 
@@ -192,6 +229,7 @@ export function useBeloteSocket(
   return {
     state,
     ended,
+    loadError,
     presentUserIds,
     turnTimeLeft: effectiveTurnLeft,
     botThinkingId,

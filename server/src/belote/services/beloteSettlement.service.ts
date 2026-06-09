@@ -23,6 +23,7 @@ import {
   recordBeloteDealOutcome,
   recordBeloteGameOutcome,
 } from './beloteAnalytics.service.js'
+import { journalBeloteActionLog } from './beloteActionLog.service.js'
 
 /** Retire runtime, snapshot et remet la salle en attente (partie déjà réglée ou abandonnée). */
 export async function closeBelotePlaySession(
@@ -34,9 +35,13 @@ export async function closeBelotePlaySession(
   void import('./beloteBotTurns.service.js').then(({ clearBeloteBotSession }) =>
     clearBeloteBotSession(gameId),
   )
+  await prisma.beloteRoomSeat.updateMany({
+    where: { roomId },
+    data: { isReady: false },
+  })
   await prisma.beloteRoom.updateMany({
     where: { id: roomId },
-    data: { status: 'WAITING', gameId: null },
+    data: { status: 'WAITING', gameId: null, updatedAt: new Date() },
   })
   await prisma.beloteGameSnapshot.deleteMany({ where: { roomId } }).catch(() => {})
 }
@@ -242,6 +247,7 @@ export async function syncBeloteAfterAction(
   }
 
   const state = table.getState()
+  await journalBeloteActionLog(table.gameId, state.dealLogId, state.lastBeloteAction)
   await persistBeloteSnapshot(table.roomId, table.gameId, state)
 
   if (state.phase === 'GAME_END') {

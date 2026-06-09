@@ -12,6 +12,10 @@ import { cardKey, createBeloteDeck, removeCardFromHand, shuffleBeloteDeck } from
 import { cardPoints, resolveTrumpContext } from './trumpContext.js'
 import { isBeloteBotId, makeBeloteBotId, beloteBotDisplayName } from '../../shared/beloteBots.js'
 import { canPlayCard, playableCards, trickWinnerPosition } from './trickPlay.js'
+import {
+  beloteActionLogKey,
+  clearBeloteDealActionLog,
+} from '../../belote/services/beloteActionLog.service.js'
 import type {
   BeloteAction,
   BeloteCard,
@@ -47,6 +51,7 @@ export class BeloteTableController {
   roomId: string
   private state: BeloteGameState
   private dealIndex = 0
+  private actionVersion = 0
   private remainingDeck: BeloteCard[] = []
 
   constructor(init: BeloteTableInit) {
@@ -123,6 +128,7 @@ export class BeloteTableController {
       ctrl.state.potTotal = belotePotTotal(ctrl.state.buyIn, ctrl.state.players.length)
     }
     ctrl.dealIndex = 0
+    ctrl.actionVersion = snapshot.actionVersion ?? 0
     return ctrl
   }
 
@@ -202,19 +208,40 @@ export class BeloteTableController {
       this.state.phase === 'CLASSIQUE_TAKE' ||
       this.state.phase === 'CLASSIQUE_CHOOSE'
     ) {
-      return this.applyClassiqueAction(player.position, action)
+      const result = this.applyClassiqueAction(player.position, action)
+      if (result.ok) this.recordActionLog(player.position, action)
+      return result
     }
 
     if (this.state.phase === 'BIDDING' || this.state.phase === 'CONTREE_ROUND') {
-      return this.applyAuctionAction(player.position, action)
+      const result = this.applyAuctionAction(player.position, action)
+      if (result.ok) this.recordActionLog(player.position, action)
+      return result
     }
 
     if (this.state.phase === 'PLAYING') {
       if (action.type !== 'PLAY_CARD') return { ok: false, error: 'INVALID_ACTION' }
-      return this.applyPlayCard(player.position, action.card)
+      const result = this.applyPlayCard(player.position, action.card)
+      if (result.ok) this.recordActionLog(player.position, action)
+      return result
     }
 
     return { ok: false, error: 'INVALID_PHASE' }
+  }
+
+  private recordActionLog(position: number, action: BeloteAction): void {
+    const player = this.state.players.find((p) => p.position === position)
+    if (!player) return
+    this.actionVersion++
+    const fields = beloteActionLogKey(action)
+    this.state.actionVersion = this.actionVersion
+    this.state.lastBeloteAction = {
+      actionVersion: this.actionVersion,
+      phase: this.state.phase,
+      playerId: player.userId,
+      playerName: player.username,
+      ...fields,
+    }
   }
 
   markDisconnected(userId: string): void {
@@ -313,12 +340,12 @@ export class BeloteTableController {
     if (!player || player.forfeited) return false
 
     if (phase === 'CLASSIQUE_TAKE' || phase === 'CLASSIQUE_CHOOSE') {
-      const r = this.applyClassiqueAction(pos, { type: 'PASS' })
+      const r = this.applyAction(player.userId, { type: 'PASS' })
       return r.ok
     }
 
     if (phase === 'BIDDING' || phase === 'CONTREE_ROUND') {
-      const r = this.applyAuctionAction(pos, { type: 'PASS' })
+      const r = this.applyAction(player.userId, { type: 'PASS' })
       return r.ok
     }
 
@@ -332,7 +359,7 @@ export class BeloteTableController {
     )
     const card = legal[0]
     if (!card) return false
-    const r = this.applyPlayCard(pos, card)
+    const r = this.applyAction(player.userId, { type: 'PLAY_CARD', card })
     return r.ok
   }
 
@@ -449,6 +476,9 @@ export class BeloteTableController {
     }
 
     player.hand = removeCardFromHand(player.hand, card)
+    if (this.state.deal.currentTrick.length === 0) {
+      delete this.state.deal.lastCompletedTrick
+    }
     this.state.deal.currentTrick.push({ position, card })
     this.touch()
 
@@ -475,6 +505,7 @@ export class BeloteTableController {
       this.state.deal.dealPointsB += points
     }
 
+    this.state.deal.lastCompletedTrick = trick.map((t) => ({ ...t, card: { ...t.card } }))
     this.state.deal.currentTrick = []
     this.state.deal.trickLeaderPosition = winnerPos
     this.state.deal.currentPlayerPosition = winnerPos
@@ -544,16 +575,26 @@ export class BeloteTableController {
   }
 
   private redeal(): void {
+    this.state.deal.dealerPosition = nextPosition(this.state.deal.dealerPosition)
     this.state.bids = []
+    this.state.contreeLevel = 0
+    delete this.state.contractPoints
+    delete this.state.contreePhase
+    delete this.state.contreeDefensePasses
+    delete this.state.contreeAttackPasses
     this.resetDealState()
     this.state.phase =
       this.state.variant === 'CLASSIQUE' ? 'CLASSIQUE_TAKE' : 'BIDDING'
     this.state.biddingTurnPosition = nextPosition(this.state.deal.dealerPosition)
-    this.state.contreeLevel = 0
     this.startDeal()
+    this.touch()
   }
 
   private resetDealState(): void {
+    void clearBeloteDealActionLog(this.gameId, this.state.dealLogId)
+    this.actionVersion = 0
+    delete this.state.actionVersion
+    delete this.state.lastBeloteAction
     this.state.deal = {
       ...this.state.deal,
       trump: undefined,
@@ -601,6 +642,7 @@ export class BeloteTableController {
 
   private dealClassique(): void {
     this.dealIndex++
+    this.state.dealLogId = `deal-${this.dealIndex}`
     let deck = shuffleBeloteDeck(createBeloteDeck(), this.gameId, this.dealIndex)
     for (const p of this.state.players) {
       p.hand = deck.splice(0, 5)
@@ -629,6 +671,7 @@ export class BeloteTableController {
 
   private dealAuction(): void {
     this.dealIndex++
+    this.state.dealLogId = `deal-${this.dealIndex}`
     let deck = shuffleBeloteDeck(createBeloteDeck(), this.gameId, this.dealIndex)
     for (const p of this.state.players) {
       p.hand = deck.splice(0, 8)
