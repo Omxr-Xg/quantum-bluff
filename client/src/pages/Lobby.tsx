@@ -1784,29 +1784,30 @@ export function Lobby() {
 
               {/* Grille : multi-joueurs (+ tournois uniquement sur l’onglet poker). */}
               <div
-                className={`grid grid-cols-1 gap-5 sm:gap-6 lg:min-h-0 lg:flex-1 lg:gap-4 ${
+                className={`grid min-h-0 grid-cols-1 gap-4 sm:gap-5 lg:flex-1 lg:gap-3 lg:overflow-hidden ${
                   lobbyMainTab === "poker" ? "md:grid-cols-2" : ""
                 }`}
               >
 
               {/* Section Serveur Multi-joueurs */}
-              <div ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
-                  <Server className={`w-7 h-7 xl:h-8 xl:w-8 ${cardGameAccent.serverIcon}`} />
+              <div ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:min-h-0 lg:flex-1">
+                <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
+                  <Server className={`h-6 w-6 xl:h-7 xl:w-7 ${cardGameAccent.serverIcon}`} />
                   {t('lobby.multiplayerServers')}
                 </h2>
 
-                <div className="flex min-h-0 flex-1 flex-col gap-3">
+                <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
                   <button
                     onClick={openCreateModal}
                     disabled={!userId || creating}
-                    className={`flex w-full items-center justify-center gap-2 rounded-xl border py-3 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-4 ${cardGameAccent.primaryBtn}`}
+                    className={`flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border py-2.5 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-3 ${cardGameAccent.primaryBtn}`}
                     aria-label={t('lobby.createNewServer')}
                   >
                     {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                     {creating ? t('lobby.creating') : t('lobby.createNewServer')}
                   </button>
 
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
                   <LobbyActivitySection
                     title={t("lobby.waitingRooms")}
                     tourRef={lobbyMainTab === "poker" ? tourRefWaiting : undefined}
@@ -1958,11 +1959,12 @@ export function Lobby() {
                       </li>
                     ))}
                   </LobbyActivitySection>
+                  </div>
                 </div>
               </div>
 
               {lobbyMainTab === "poker" && (
-              <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-amber-400/15 bg-amber-950/30 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+              <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-amber-400/15 bg-amber-950/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:min-h-0 lg:flex-1">
                 <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
                   <Trophy className="w-7 h-7 text-amber-200 xl:h-8 xl:w-8" />
                   {t('lobby.tournamentBlockTitle')}
@@ -2164,10 +2166,10 @@ export function Lobby() {
           <div
             className="md:col-span-2 lg:col-span-1 space-y-5 self-start max-lg:pt-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-4 lg:overflow-hidden lg:pt-0 lg:z-10"
           >
-            <div ref={tourRefDaily} className="lg:shrink-0 lg:overflow-hidden">
+            <div ref={tourRefDaily} className="lg:max-h-[50%] lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
               <DailyChallenges />
             </div>
-            <div ref={tourRefFriends} className="lg:min-h-0 lg:flex-1">
+            <div ref={tourRefFriends} className="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
               <FriendsList />
             </div>
           </div>

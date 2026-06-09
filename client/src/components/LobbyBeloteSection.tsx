@@ -620,17 +620,18 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         {t("lobby.multiplayerServers")}
       </h2>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
         <button
           type="button"
           onClick={openCreateModal}
           disabled={!userId || creating}
-          className={`flex w-full items-center justify-center gap-2 rounded-xl border py-3 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-4 ${beloteAccent.primaryBtn}`}
+          className={`flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border py-2.5 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-3 ${beloteAccent.primaryBtn}`}
         >
           {creating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
           {creating ? t("lobby.creating") : t("lobby.createNewServer")}
         </button>
 
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
         <LobbyActivitySection
           title={t("lobby.waitingRooms")}
           loading={roomsLoading}
@@ -773,6 +774,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
             </li>
           ))}
         </LobbyActivitySection>
+        </div>
       </div>
 
       {passwordJoinModal}

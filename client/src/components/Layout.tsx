@@ -2256,18 +2256,6 @@ export function Layout({ children }: LayoutProps) {
 
       <InvitationBanner />
 
-      {showTopBar ? (
-        <button
-          type="button"
-          onClick={() => {
-            throw new Error("Sentry frontend test Quantum Bluff");
-          }}
-          className="fixed bottom-4 left-4 z-[200] rounded-lg border border-rose-400/50 bg-rose-950/90 px-3 py-2 text-xs font-semibold text-rose-100 shadow-lg backdrop-blur-sm hover:bg-rose-900"
-        >
-          Test Sentry Front
-        </button>
-      ) : null}
-
       <div
         className={`w-full min-w-0 overflow-x-clip overflow-y-visible ${
           isCasinoFullBleed

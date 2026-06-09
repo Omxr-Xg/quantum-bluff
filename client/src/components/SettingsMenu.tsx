@@ -321,6 +321,18 @@ export function SettingsMenu({
 
           {tab === "account" && (
             <div className="space-y-4">
+              <div className={`rounded-xl border border-rose-400/35 bg-rose-950/25 p-5 ${settingsPanelClass}`}>
+                <p className="mb-2 text-sm text-rose-200/90">Test temporaire Sentry — à retirer après validation.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    throw new Error("Sentry frontend test Quantum Bluff");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-rose-500/50 bg-rose-900/70 px-4 py-2.5 text-sm font-semibold text-rose-50 transition hover:bg-rose-800"
+                >
+                  Test Sentry Front
+                </button>
+              </div>
               <div className={`rounded-xl border border-cyan-500/25 bg-cyan-950/20 p-5 ${settingsPanelClass}`}>
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-500/15">

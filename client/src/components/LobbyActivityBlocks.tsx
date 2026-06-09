@@ -3,9 +3,10 @@ import { Loader2, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export const lobbyActivitySectionClass =
-  "flex min-h-[260px] flex-1 flex-col rounded-xl border border-white/12 bg-gradient-to-b from-white/[0.07] to-white/[0.025] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-md sm:min-h-[280px] sm:p-5";
+  "flex min-h-0 flex-1 flex-col rounded-xl border border-white/12 bg-gradient-to-b from-white/[0.07] to-white/[0.025] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-md sm:p-3.5";
 
-export const lobbyActivityListClass = "min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1";
+export const lobbyActivityListClass =
+  "min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1";
 
 export function LobbyFriendRoomBadge() {
   const { t } = useTranslation();
@@ -42,7 +43,7 @@ export function LobbyActivitySection({
 
   return (
     <div ref={tourRef} className={lobbyActivitySectionClass}>
-      <p className="mb-3 flex items-center gap-2 text-base font-bold tracking-tight text-slate-100">
+      <p className="mb-2 flex shrink-0 items-center gap-2 text-sm font-bold tracking-tight text-slate-100">
         {title}
       </p>
       {loading && !hasItems ? (
