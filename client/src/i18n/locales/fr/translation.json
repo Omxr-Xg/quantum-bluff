@@ -317,8 +317,8 @@
   },
   "luckyNumber": {
     "back": "Retour jeux rétro",
-    "brand": "Lucky Number",
-    "tagline": "Pick your number, trust luck",
+    "brand": "Numéro chanceux",
+    "tagline": "Choisissez votre numéro, fiez-vous à la chance",
     "selectedLabel": "Nombre choisi",
     "drawnLabel": "Nombre tiré",
     "multiplierHint": "Numéro trouvé → gain x{{mult}}",
@@ -1875,6 +1875,8 @@
     "tableCustomColorTitle": "Couleur personnalisée",
     "tableCustomColorHint": "Palette libre — déblocage permanent à 50 000 jetons.",
     "tableCustomColorApply": "Appliquer",
+    "tableCustomColorApplying": "Application…",
+    "tableCustomColorApplied": "Appliqué",
     "tableCustomBackgroundTitle": "Fond personnalisé",
     "tableCustomBackgroundHint": "Importez votre propre image de jeu — 40 000 jetons.",
     "tableCustomBackgroundUpload": "Importer une image",
@@ -2652,7 +2654,7 @@
     "crash5Rounds": "Jouer 5 parties de crash",
     "pokerWin500Chips": "Gagner 500 jetons au poker",
     "wheel5Spins": "Tourner la roue 5 fois",
-    "luckyNumber10Rounds": "Jouer 10 parties de Lucky Number",
+    "luckyNumber10Rounds": "Jouer 10 parties de Numéro chanceux",
     "win3Multiplayer": "Gagner 3 mains multijoueur",
     "inviteFriend": "Inviter un ami à une table",
     "reachRiver5": "Atteindre la river 5 fois",
@@ -2680,10 +2682,10 @@
       "CRASH": "Crash",
       "BELOTE": "Belote",
       "WHEEL": "Roue de la fortune",
-      "LUCKY_NUMBER": "Lucky Number",
+      "LUCKY_NUMBER": "Numéro chanceux",
       "SOCIAL": "Social",
-      "DAILY_ACTIVITY": "Activité",
-      "GLOBAL": "Global"
+      "DAILY_ACTIVITY": "Activité quotidienne",
+      "GLOBAL": "Général"
     },
     "errors": {
       "auth": "Connexion requise.",

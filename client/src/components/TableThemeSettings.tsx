@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Lock, Loader2, Upload } from "lucide-react";
 import {
@@ -22,9 +22,16 @@ import {
   CUSTOM_FELT_BACKGROUND_UNLOCK,
   CUSTOM_FELT_COLOR_UNLOCK,
   feltBackgroundPriceChips,
+  feltGradientFromCustomColor,
   feltThemePriceChips,
   tableUnlockPriceChips,
 } from "../utils/tableThemeShop";
+
+const DEFAULT_CUSTOM_FELT_COLOR = "#0b7f52";
+
+function normalizeHexColor(hex: string): string {
+  return hex.trim().toLowerCase();
+}
 import { apiUrl } from "../utils/apiBase";
 
 const THEME_IDS: TableThemeId[] = ["default", "vegasRed", "vegasPurple", "darkBlue"];
@@ -43,14 +50,22 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
     setTableTheme,
     setFeltBackgroundId,
     setCustomFeltColor,
-    feltGradient,
   } = useTableTheme();
   const { data, isLoading, refetch } = useGetTableThemeShopQuery();
   const [purchaseUnlock, { isLoading: purchasing }] = usePurchaseTableUnlockMutation();
   const [updatePrefs] = useUpdateTablePreferencesMutation();
   const [uploadBackground, { isLoading: uploadingBg }] = useUploadTableBackgroundMutation();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [draftCustomColor, setDraftCustomColor] = useState(DEFAULT_CUSTOM_FELT_COLOR);
+  const [applyingCustomColor, setApplyingCustomColor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fromContext = customFeltColor;
+    const fromPrefs = data?.preferences?.feltCustomColor;
+    const next = fromContext || fromPrefs;
+    if (next) setDraftCustomColor(next);
+  }, [customFeltColor, data?.preferences?.feltCustomColor]);
 
   const owned = useMemo(() => {
     const ids = new Set(data?.preferences?.ownedUnlockIds ?? []);
@@ -68,6 +83,15 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
   const bgUnlocked = (id: TableFeltBackgroundId) => id === "ba1" || owned.has(id);
   const customColorUnlocked = owned.has(CUSTOM_FELT_COLOR_UNLOCK);
   const customBgUnlocked = owned.has(CUSTOM_FELT_BACKGROUND_UNLOCK);
+  const savedCustomColor = data?.preferences?.feltCustomColor ?? null;
+  const isCustomColorApplied = Boolean(
+    customColorUnlocked &&
+      data?.preferences?.feltThemeId === "custom" &&
+      tableTheme === "custom" &&
+      savedCustomColor &&
+      normalizeHexColor(savedCustomColor) === normalizeHexColor(draftCustomColor),
+  );
+  const draftFeltGradient = feltGradientFromCustomColor(draftCustomColor);
 
   const buyUnlock = async (unlockId: string, onSuccess?: () => void) => {
     setPendingId(unlockId);
@@ -114,28 +138,23 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
     }
   };
 
-  const enableCustomColor = async (skipUnlockCheck = false) => {
+  const applyCustomColor = async (skipUnlockCheck = false) => {
     if (!skipUnlockCheck && !customColorUnlocked) {
-      await buyUnlock(CUSTOM_FELT_COLOR_UNLOCK, () => void enableCustomColor(true));
+      await buyUnlock(CUSTOM_FELT_COLOR_UNLOCK, () => void applyCustomColor(true));
       return;
     }
-    const color = customFeltColor || "#0b7f52";
+    if (isCustomColorApplied) return;
+    const color = draftCustomColor;
+    setApplyingCustomColor(true);
     try {
       await updatePrefs({ feltThemeId: "custom", feltCustomColor: color }).unwrap();
       setCustomFeltColor(color);
+      await refetch();
       onSelectSfx?.();
     } catch {
       addToast(t("settings.tableThemePurchaseError"), "error");
-    }
-  };
-
-  const onCustomColorChange = async (hex: string) => {
-    if (!customColorUnlocked) return;
-    setCustomFeltColor(hex);
-    try {
-      await updatePrefs({ feltThemeId: "custom", feltCustomColor: hex }).unwrap();
-    } catch {
-      /* garde la sélection locale */
+    } finally {
+      setApplyingCustomColor(false);
     }
   };
 
@@ -227,7 +246,7 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
             <button
               type="button"
               disabled={purchasing && pendingId === CUSTOM_FELT_COLOR_UNLOCK}
-              onClick={() => void enableCustomColor()}
+              onClick={() => void applyCustomColor()}
               className="inline-flex items-center gap-1 rounded-full border border-amber-300/30 bg-amber-950/40 px-3 py-1.5 text-xs font-semibold text-amber-100"
             >
               {purchasing && pendingId === CUSTOM_FELT_COLOR_UNLOCK ? (
@@ -244,21 +263,32 @@ export function TableThemeSettings({ onSelectSfx }: TableThemeSettingsProps) {
           <div className="flex flex-wrap items-center gap-3">
             <input
               type="color"
-              value={customFeltColor || "#0b7f52"}
-              onChange={(e) => void onCustomColorChange(e.target.value)}
+              value={draftCustomColor}
+              onChange={(e) => setDraftCustomColor(e.target.value)}
               className="h-12 w-16 cursor-pointer rounded-lg border border-white/15 bg-transparent"
               aria-label={t("settings.tableCustomColorTitle")}
             />
             <div
               className="h-12 min-w-[8rem] flex-1 rounded-lg border border-black/20 shadow-inner"
-              style={{ background: feltGradient }}
+              style={{ background: draftFeltGradient }}
             />
             <button
               type="button"
-              onClick={() => void enableCustomColor()}
-              className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5"
+              disabled={isCustomColorApplied || applyingCustomColor}
+              onClick={() => void applyCustomColor()}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                isCustomColorApplied
+                  ? "cursor-default border-white/8 bg-slate-800/70 text-slate-500"
+                  : applyingCustomColor
+                    ? "cursor-wait border-white/10 bg-slate-800/50 text-slate-400"
+                    : "border-white/15 text-slate-200 hover:bg-white/5"
+              }`}
             >
-              {t("settings.tableCustomColorApply")}
+              {isCustomColorApplied
+                ? t("settings.tableCustomColorApplied")
+                : applyingCustomColor
+                  ? t("settings.tableCustomColorApplying")
+                  : t("settings.tableCustomColorApply")}
             </button>
           </div>
         ) : null}

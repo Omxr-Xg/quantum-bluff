@@ -1883,6 +1883,8 @@
     "tableCustomColorTitle": "Custom color",
     "tableCustomColorHint": "Pick any color from the palette — permanent unlock for 50,000 tokens.",
     "tableCustomColorApply": "Apply",
+    "tableCustomColorApplying": "Applying…",
+    "tableCustomColorApplied": "Applied",
     "tableCustomBackgroundTitle": "Custom background",
     "tableCustomBackgroundHint": "Upload your own game background — 40,000 tokens.",
     "tableCustomBackgroundUpload": "Upload image",
