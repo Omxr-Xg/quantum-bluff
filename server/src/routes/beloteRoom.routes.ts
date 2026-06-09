@@ -17,14 +17,12 @@ import {
 import { normalizeBeloteVariant } from '../logic/belote/beloteVariants.js'
 import { intChips } from '../utils/chips.js'
 import { activeBeloteGames, persistBeloteSnapshot } from '../shared/activeBeloteGames.js'
+import { loadBeloteTable, touchBeloteRoomActivity } from '../belote/recovery/beloteRecovery.service.js'
 import {
-  BELOTE_STUCK_MAX_MS,
-  loadBeloteTable,
-  pruneBeloteGameIfStale,
-  pruneInactiveBeloteWaitingRooms,
-  pruneStaleBeloteInGameRooms,
-  touchBeloteRoomActivity,
-} from '../belote/recovery/beloteRecovery.service.js'
+  getBeloteLobbyPayload,
+  listBeloteGamesInProgressForLobby,
+  listBeloteWaitingRoomsForLobby,
+} from '../belote/services/beloteLobby.service.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { getGameIo } from '../sockets/gameIo.registry.js'
 import { broadcastBeloteGame, syncBeloteAfterAction } from '../belote/services/beloteSettlement.service.js'
@@ -130,163 +128,37 @@ router.post('/create', authMiddleware, async (req, res) => {
   }
 })
 
+/** GET /lobby — salles d'attente + parties en cours (lecture rapide, sans prune synchrone) */
+router.get('/lobby', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    return res.json(await getBeloteLobbyPayload(userId))
+  } catch (e) {
+    console.error('[belote-rooms] lobby', e)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 /** GET / */
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
-
-    const io = getIo(req)
-    await pruneInactiveBeloteWaitingRooms(io)
-
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-    const rooms = await prisma.beloteRoom.findMany({
-      where: {
-        status: 'WAITING',
-        createdAt: { gte: oneHourAgo },
-        OR: [
-          { visibility: 'PUBLIC' },
-          { hostId: userId },
-          { seats: { some: { userId } } },
-        ],
-      },
-      include: {
-        seats: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                level: true,
-                avatarUrl: true,
-                avatarHasBinary: true,
-              },
-            },
-          },
-          orderBy: { position: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 40,
-    })
-
-    return res.json({
-      rooms: rooms.map((r) => formatRoomResponse(r as BeloteRoomRow)),
-    })
+    const waitingRooms = await listBeloteWaitingRoomsForLobby(userId)
+    return res.json({ rooms: waitingRooms })
   } catch (e) {
     console.error('[belote-rooms] list', e)
     return res.status(500).json({ error: 'Erreur serveur' })
   }
 })
 
-const BELOTE_GAME_MAX_DURATION_MS = BELOTE_STUCK_MAX_MS
-
-async function getBeloteFriendIds(userId: string): Promise<Set<string>> {
-  const friendships = await prisma.friendship.findMany({
-    where: { OR: [{ user1Id: userId }, { user2Id: userId }] },
-  })
-  const set = new Set<string>()
-  for (const f of friendships) {
-    set.add(f.user1Id === userId ? f.user2Id : f.user1Id)
-  }
-  return set
-}
-
 /** GET /games-in-progress — parties Belote actives (ami dans la partie si salle privée) */
 router.get('/games-in-progress', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
-
-    const io = getIo(req)
-    await pruneInactiveBeloteWaitingRooms(io)
-    await pruneStaleBeloteInGameRooms(io)
-
-    const myFriends = await getBeloteFriendIds(userId)
-    const rooms = await prisma.beloteRoom.findMany({
-      where: { status: 'IN_GAME', gameId: { not: null } },
-      include: {
-        seats: {
-          include: {
-            user: { select: { id: true, username: true } },
-          },
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 40,
-    })
-
-    const now = Date.now()
-    const result: Array<{
-      roomId: string
-      roomName: string
-      gameId: string
-      playerCount: number
-      maxPlayers: number
-      phase: string
-      canJoin: boolean
-      canSpectate: boolean
-    }> = []
-
-    for (const room of rooms) {
-      if (!room.gameId) continue
-
-      await pruneBeloteGameIfStale(room.gameId, room.id, io)
-      const fresh = await prisma.beloteRoom.findUnique({
-        where: { id: room.id },
-        select: { status: true, gameId: true },
-      })
-      if (!fresh?.gameId || fresh.status !== 'IN_GAME') continue
-
-      const seatUserIds = room.seats
-        .map((s) => s.userId)
-        .filter((id): id is string => typeof id === 'string' && id.length > 0)
-      const userInGame = seatUserIds.includes(userId)
-      const hasFriendInGame = seatUserIds.some((id) => myFriends.has(id))
-
-      if (room.visibility === 'PRIVATE') {
-        const canSeePrivate =
-          userInGame ||
-          room.hostId === userId ||
-          myFriends.has(room.hostId) ||
-          hasFriendInGame
-        if (!canSeePrivate) continue
-      }
-
-      const table = await loadBeloteTable(room.gameId)
-      const snap = table?.getState()
-
-      if (!snap) continue
-
-      const startedAt = snap?.startedAt
-        ? Date.parse(snap.startedAt)
-        : room.updatedAt.getTime()
-      if (Number.isFinite(startedAt) && now - startedAt > BELOTE_GAME_MAX_DURATION_MS) {
-        continue
-      }
-
-      const phase = snap?.phase ?? 'PLAYING'
-      if (phase === 'GAME_END') continue
-
-      const playerCount = room.seats.length
-      if (playerCount === 0) continue
-
-      const canJoin = userInGame
-      const canSpectate = !userInGame
-
-      result.push({
-        roomId: room.id,
-        roomName: room.name,
-        gameId: room.gameId,
-        playerCount,
-        maxPlayers: room.maxPlayers,
-        phase,
-        canJoin,
-        canSpectate,
-      })
-    }
-
-    return res.json(result)
+    return res.json(await listBeloteGamesInProgressForLobby(userId))
   } catch (e) {
     console.error('[belote-rooms] games-in-progress', e)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -317,15 +189,23 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Partie en cours' })
     }
 
-    if (room.passwordHash) {
+    const existing = room.seats.find((s) => s.userId === userId)
+    const isHost = room.hostId === userId
+
+    if (room.passwordHash && !existing && !isHost) {
       const pwd = typeof req.body?.password === 'string' ? req.body.password : ''
       const ok = await bcrypt.compare(pwd, room.passwordHash)
-      if (!ok) return res.status(403).json({ error: 'Mot de passe incorrect' })
+      if (!ok) {
+        return res.status(403).json({
+          error: 'Mot de passe incorrect',
+          code: 'WRONG_PASSWORD',
+        })
+      }
     }
 
     if (room.visibility === 'PRIVATE') {
       const code = typeof req.body?.joinCode === 'string' ? req.body.joinCode.trim().toUpperCase() : ''
-      if (room.joinCode && code !== room.joinCode && room.hostId !== userId) {
+      if (room.joinCode && code !== room.joinCode && !isHost) {
         const invited = await prisma.beloteRoomInvitation.findFirst({
           where: {
             roomId: room.id,
@@ -333,14 +213,15 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
             status: 'ACCEPTED',
           },
         })
-        const member = room.seats.some((s) => s.userId === userId)
-        if (!invited && !member) {
-          return res.status(403).json({ error: 'Code ou invitation requis' })
+        if (!invited && !existing) {
+          return res.status(403).json({
+            error: 'Code ou invitation requis',
+            code: 'JOIN_CODE_REQUIRED',
+          })
         }
       }
     }
 
-    const existing = room.seats.find((s) => s.userId === userId)
     if (!existing) {
       if (room.seats.length >= room.maxPlayers) {
         return res.status(400).json({ error: 'Salle pleine' })
@@ -744,6 +625,12 @@ router.post('/invitations/:invitationId/reject', authMiddleware, async (req, res
     await prisma.beloteRoomInvitation.update({
       where: { id: invitation.id },
       data: { status: 'REJECTED' },
+    })
+
+    const io = getIo(req)
+    io?.to(`user:${invitation.senderId}`).emit('INVITATION_REJECTED', {
+      userId,
+      roomId: invitation.roomId,
     })
 
     return res.json({ ok: true })

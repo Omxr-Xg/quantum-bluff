@@ -1,6 +1,28 @@
 import { clientAvatarUrlFromUser } from '../../utils/userAvatarPublic.js'
 import { isBeloteBotId } from '../../shared/beloteBots.js'
 
+export type BeloteRoomLobbySeatRow = {
+  participantType: 'HUMAN' | 'BOT'
+  userId: string | null
+  botId: string | null
+  user: { id: string } | null
+}
+
+export type BeloteRoomLobbyRow = {
+  id: string
+  name: string
+  hostId: string
+  maxPlayers: number
+  visibility: 'PUBLIC' | 'PRIVATE'
+  status: string
+  targetScore: number
+  buyIn: number
+  variant: string
+  gameId: string | null
+  passwordHash?: string | null
+  seats: BeloteRoomLobbySeatRow[]
+}
+
 export type BeloteRoomSeatRow = {
   id: string
   position: number
@@ -29,6 +51,7 @@ export type BeloteRoomRow = {
   visibility: 'PUBLIC' | 'PRIVATE'
   status: string
   joinCode: string | null
+  passwordHash?: string | null
   targetScore: number
   buyIn: number
   variant: string
@@ -37,6 +60,27 @@ export type BeloteRoomRow = {
   autoFillBotsDelaySec?: number
   defaultBotDifficulty?: string
   seats: BeloteRoomSeatRow[]
+}
+
+export function formatBeloteRoomLobby(room: BeloteRoomLobbyRow) {
+  const counts = countRoomParticipants(room.seats as BeloteRoomSeatRow[])
+  return {
+    id: room.id,
+    name: room.name,
+    hostId: room.hostId,
+    maxPlayers: room.maxPlayers,
+    visibility: room.visibility,
+    status: room.status,
+    targetScore: room.targetScore,
+    buyIn: room.buyIn,
+    variant: room.variant,
+    gameId: room.gameId,
+    hasPassword: Boolean(room.passwordHash),
+    counts,
+    players: room.seats.map((s) => ({
+      id: seatPlayerId(s as BeloteRoomSeatRow),
+    })),
+  }
 }
 
 export function countRoomParticipants(seats: BeloteRoomSeatRow[]) {
@@ -60,6 +104,7 @@ export function formatBeloteRoom(room: BeloteRoomRow, opts?: { hostUserId?: stri
     visibility: room.visibility,
     status: room.status,
     joinCode: room.visibility === 'PRIVATE' ? room.joinCode : undefined,
+    hasPassword: Boolean(room.passwordHash),
     targetScore: room.targetScore,
     buyIn: room.buyIn,
     variant: room.variant,
@@ -100,9 +145,15 @@ export function formatBeloteRoom(room: BeloteRoomRow, opts?: { hostUserId?: stri
   }
 }
 
-export function seatPlayerId(seat: BeloteRoomSeatRow): string {
-  if (seat.participantType === 'BOT') return seat.botId ?? seat.id
-  return seat.user?.id ?? seat.userId ?? seat.id
+export function seatPlayerId(seat: {
+  participantType: 'HUMAN' | 'BOT'
+  botId: string | null
+  userId: string | null
+  user: { id: string } | null
+  id?: string
+}): string {
+  if (seat.participantType === 'BOT') return seat.botId ?? seat.id ?? ''
+  return seat.user?.id ?? seat.userId ?? seat.id ?? ''
 }
 
 export function isBotSeatRow(seat: BeloteRoomSeatRow): boolean {

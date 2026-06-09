@@ -19,7 +19,7 @@ import { useToast } from "../contexts/ToastContext";
 import { useUser } from "../hooks/useUser";
 import { apiFetch, apiUrl } from "../utils/apiBase";
 import { formatFetchError } from "../utils/fetchErrors";
-import { shouldShowPollError, startStaggeredPolling } from "../utils/resilientPoll";
+import { shouldShowPollError } from "../utils/resilientPoll";
 import { getAuthItem } from "../utils/authStorage";
 import {
   BELOTE_BUY_IN_DEFAULT,
@@ -48,6 +48,7 @@ export type BeloteRoomListItem = {
   buyIn: number;
   variant: BeloteGameVariant;
   gameId: string | null;
+  hasPassword?: boolean;
   autoFillBotsEnabled?: boolean;
   autoFillBotsDelaySec?: number;
   defaultBotDifficulty?: string;
@@ -63,6 +64,7 @@ export type BeloteRoomListItem = {
     username: string;
     position: number;
     isReady: boolean;
+    level?: number;
     avatarUrl?: string | null;
   }>;
   presentUserIds?: string[];
@@ -133,20 +135,26 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const [autoFillBots, setAutoFillBots] = useState(false);
   const [showCreateAdvanced, setShowCreateAdvanced] = useState(false);
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
+  const [passwordJoinRoom, setPasswordJoinRoom] = useState<BeloteRoomListItem | null>(null);
+  const [joinPasswordInput, setJoinPasswordInput] = useState("");
 
   const waitingRooms = useMemo(
     () => rooms.filter((r) => r.status === "WAITING"),
     [rooms],
   );
 
-  const loadWaitingRooms = useCallback(async () => {
+  const loadLobby = useCallback(async () => {
     try {
-      const res = await apiFetch(apiUrl("/api/belote-rooms"), { headers: authHeaders() });
+      const res = await apiFetch(apiUrl("/api/belote-rooms/lobby"), { headers: authHeaders() });
       if (!res.ok) throw new Error(t("common.error"));
-      const data = (await res.json()) as { rooms: BeloteRoomListItem[] };
-      const next = data.rooms ?? [];
-      roomsCacheRef.current = next;
-      setRooms(next);
+      const data = (await res.json()) as {
+        waitingRooms?: BeloteRoomListItem[];
+        gamesInProgress?: BeloteGameInProgressItem[];
+      };
+      const nextRooms = data.waitingRooms ?? [];
+      roomsCacheRef.current = nextRooms;
+      setRooms(nextRooms);
+      setGames(Array.isArray(data.gamesInProgress) ? data.gamesInProgress : []);
       roomsPollFailuresRef.current = 0;
       setRoomsError(null);
     } catch (e) {
@@ -154,37 +162,27 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
       if (shouldShowPollError(roomsCacheRef.current.length > 0, roomsPollFailuresRef.current)) {
         setRoomsError(formatFetchError(e, t));
       }
+    } finally {
+      setRoomsLoading(false);
+      setGamesLoading(false);
     }
   }, [t]);
 
-  const loadGamesInProgress = useCallback(async () => {
-    try {
-      const res = await apiFetch(apiUrl("/api/belote-rooms/games-in-progress"), {
-        headers: authHeaders(),
-      });
-      if (!res.ok) return;
-      const data = (await res.json()) as BeloteGameInProgressItem[];
-      setGames(Array.isArray(data) ? data : []);
-    } catch {
-      /* conserve la liste précédente */
-    }
-  }, []);
-
-  const refresh = useCallback(async () => {
-    await Promise.all([loadWaitingRooms(), loadGamesInProgress()]);
-  }, [loadWaitingRooms, loadGamesInProgress]);
-
   useEffect(() => {
     if (!active || inVoiceCall) return;
+    let cancelled = false;
     setRoomsLoading(true);
     setGamesLoading(true);
-    const stop = startStaggeredPolling(async () => {
-      await refresh();
-      setRoomsLoading(false);
-      setGamesLoading(false);
-    }, 5000, { initialDelayMs: 1600 });
-    return stop;
-  }, [active, refresh, inVoiceCall]);
+    void (async () => {
+      await loadLobby();
+      if (cancelled) return;
+    })();
+    const iv = window.setInterval(() => void loadLobby(), 12_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(iv);
+    };
+  }, [active, loadLobby, inVoiceCall]);
 
   useEffect(() => {
     const roomId = searchParams.get("beloteRoom");
@@ -253,7 +251,9 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         throw new Error((err as { error?: string }).error ?? t("common.error"));
       }
       const data = (await res.json()) as { room: BeloteRoomListItem };
-      navigate(`/belote/waiting-room?roomId=${data.room.id}`);
+      navigate(`/belote/waiting-room?roomId=${data.room.id}`, {
+        state: newPassword ? { joinPassword: newPassword } : undefined,
+      });
     } catch (e) {
       addToast(e instanceof Error ? e.message : t("common.error"), "error");
     } finally {
@@ -261,8 +261,27 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
     }
   };
 
-  const joinWaitingRoom = (id: string) => {
-    navigate(`/belote/waiting-room?roomId=${id}`);
+  const joinWaitingRoom = (room: BeloteRoomListItem) => {
+    if (room.hasPassword) {
+      setJoinPasswordInput("");
+      setPasswordJoinRoom(room);
+      return;
+    }
+    navigate(`/belote/waiting-room?roomId=${room.id}`);
+  };
+
+  const confirmPasswordJoin = () => {
+    if (!passwordJoinRoom) return;
+    const pwd = joinPasswordInput.trim();
+    if (!pwd) {
+      addToast(t("belote.passwordRequired"), "error");
+      return;
+    }
+    navigate(`/belote/waiting-room?roomId=${passwordJoinRoom.id}`, {
+      state: { joinPassword: pwd },
+    });
+    setPasswordJoinRoom(null);
+    setJoinPasswordInput("");
   };
 
   const joinGame = (game: BeloteGameInProgressItem) => {
@@ -294,6 +313,55 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   };
 
   if (!active) return null;
+
+  const passwordJoinModal =
+    passwordJoinRoom && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md"
+            onClick={() => setPasswordJoinRoom(null)}
+            role="presentation"
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950/90 p-6 shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="mb-1 text-lg font-bold text-white">{passwordJoinRoom.name}</h3>
+              <p className="mb-4 text-sm text-slate-400">{t("belote.enterPassword")}</p>
+              <input
+                type="password"
+                className="mb-4 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none focus:border-emerald-400/50"
+                value={joinPasswordInput}
+                onChange={(e) => setJoinPasswordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmPasswordJoin();
+                }}
+                autoComplete="current-password"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordJoinRoom(null)}
+                  className="flex-1 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmPasswordJoin}
+                  className="flex-1 rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  {t("lobby.join")}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
 
   const createModal =
     showCreate && typeof document !== "undefined"
@@ -645,7 +713,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => joinWaitingRoom(room.id)}
+                          onClick={() => joinWaitingRoom(room)}
                           className={`min-h-7 w-24 shrink-0 rounded px-1 py-1 text-[9px] font-semibold text-white transition sm:w-28 sm:text-[10px] ${beloteAccent.joinBtn}`}
                         >
                           {t("lobby.join")}
@@ -713,6 +781,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         </div>
       </div>
 
+      {passwordJoinModal}
       {createModal}
     </div>
   );

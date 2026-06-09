@@ -7,7 +7,10 @@ import {
   cleanupOrphanBlackjackRuntime,
   cleanupStaleBlackjackRooms,
 } from '../blackjack/recovery/blackjackRecovery.service.js';
-import { pruneInactiveBeloteWaitingRooms } from '../belote/recovery/beloteRecovery.service.js';
+import {
+  pruneInactiveBeloteWaitingRooms,
+  pruneStaleBeloteInGameRooms,
+} from '../belote/recovery/beloteRecovery.service.js';
 import { cleanupOrphanPokerRuntime } from '../poker/recovery/pokerRecovery.service.js';
 
 /**
@@ -84,6 +87,7 @@ export const initCleanupJobs = () => {
       await cleanupOrphanBlackjackRuntime();
       await cleanupStaleBlackjackRooms();
       await pruneInactiveBeloteWaitingRooms();
+      await pruneStaleBeloteInGameRooms();
       await cleanupOrphanPokerRuntime();
     } catch (error) {
       console.error(' [DA4-BLACKJACK-CLEANUP] Erreur:', error);
