@@ -146,7 +146,7 @@
     "balanceHistoryLoadError": "تعذر تحميل السجل.",
     "balanceHistoryEmpty": "لا معاملات بعد.",
     "balanceHistoryBeforeAfter": "قبل: {{before}} · بعد: {{after}}",
-    "giftCodeHint": "أدخل رمزًا تلقيته من مكان آخر (بريد إلكتروني، حدث، شبكات اجتماعية…). لا تُعرض الرموز هنا.",
+    "giftCodeHint": "أدخل رمزًا تلقيته من مكان آخر.",
     "giftCodeEnterError": "يرجى إدخال رمز.",
     "giftCodeInvalid": "رمز غير صالح.",
     "giftCodeEnterLabel": "رمزك",

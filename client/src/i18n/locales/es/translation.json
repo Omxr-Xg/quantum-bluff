@@ -89,7 +89,7 @@
     "balanceHistoryLoadError": "No se pudo cargar el historial.",
     "balanceHistoryEmpty": "Sin movimientos.",
     "balanceHistoryBeforeAfter": "Antes: {{before}} · Después: {{after}}",
-    "giftCodeHint": "Introduce un código recibido en otro lugar (correo, evento, redes sociales…). Los códigos no se muestran aquí.",
+    "giftCodeHint": "Introduce un código recibido en otro lugar.",
     "giftCodeEnterError": "Introduce un código",
     "giftCodeInvalid": "Código no válido",
     "giftCodeEnterLabel": "Tu código",

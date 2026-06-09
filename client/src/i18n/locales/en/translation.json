@@ -99,7 +99,7 @@
     "balanceHistoryLoadError": "Could not load history.",
     "balanceHistoryEmpty": "No transactions yet.",
     "balanceHistoryBeforeAfter": "Before: {{before}} · After: {{after}}",
-    "giftCodeHint": "Enter a code you received elsewhere (email, event, social media…). Codes are not listed here.",
+    "giftCodeHint": "Enter a code you received elsewhere.",
     "giftCodeEnterError": "Please enter a code.",
     "giftCodeInvalid": "Invalid code.",
     "giftCodeEnterLabel": "Your code",
