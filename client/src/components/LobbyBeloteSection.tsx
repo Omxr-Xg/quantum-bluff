@@ -21,6 +21,7 @@ import { apiFetch, apiUrl } from "../utils/apiBase";
 import { formatFetchError } from "../utils/fetchErrors";
 import { shouldShowPollError } from "../utils/resilientPoll";
 import { getAuthItem } from "../utils/authStorage";
+import { LobbyActivitySection, LobbyFriendRoomBadge } from "./LobbyActivityBlocks";
 import {
   BELOTE_BUY_IN_DEFAULT,
   BELOTE_BUY_IN_PRESETS,
@@ -68,6 +69,7 @@ export type BeloteRoomListItem = {
     avatarUrl?: string | null;
   }>;
   presentUserIds?: string[];
+  isFriendRoom?: boolean;
 };
 
 export type BeloteGameInProgressItem = {
@@ -79,6 +81,7 @@ export type BeloteGameInProgressItem = {
   phase: string;
   canJoin: boolean;
   canSpectate?: boolean;
+  isFriendRoom?: boolean;
 };
 
 const beloteAccent = {
@@ -628,21 +631,14 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
           {creating ? t("lobby.creating") : t("lobby.createNewServer")}
         </button>
 
-        {/* Salles d'attente */}
-        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
-          <p className="mb-2 text-sm font-semibold text-gray-300">{t("lobby.waitingRooms")}</p>
-          {roomsLoading && waitingRooms.length === 0 ? (
-            <p className="flex items-center justify-center gap-2 py-2 text-center text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {t("common.loading")}
-            </p>
-          ) : waitingRooms.length === 0 && roomsError ? (
-            <p className="py-2 text-center text-sm text-red-400">{roomsError}</p>
-          ) : waitingRooms.length === 0 ? (
-            <p className="py-2 text-center text-gray-500">{t("lobby.noServersAvailable")}</p>
-          ) : (
-            <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-              {waitingRooms.map((room) => {
+        <LobbyActivitySection
+          title={t("lobby.waitingRooms")}
+          loading={roomsLoading}
+          hasItems={waitingRooms.length > 0}
+          emptyMessage={t("lobby.noServersAvailable")}
+          errorMessage={waitingRooms.length === 0 ? roomsError : null}
+        >
+          {waitingRooms.map((room) => {
                 const count = room.players?.length ?? 0;
                 const isHost = userId && room.hostId === userId;
                 const isFull = count >= room.maxPlayers;
@@ -651,49 +647,52 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                 return (
                   <li
                     key={room.id}
-                    className="relative rounded-md border border-white/10 bg-white/[0.055] px-1.5 py-1 pr-[13rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md sm:pr-[15rem]"
+                    className="relative rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2.5 pr-[14.5rem] shadow-sm backdrop-blur-md transition hover:border-white/20 sm:pr-[17rem]"
                   >
                     <div className="min-w-0">
-                      <p className="min-w-0 truncate text-left text-xs font-medium leading-none text-white sm:text-[13px]">
-                        {room.name}
-                      </p>
-                      <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-px text-[10px] leading-none text-gray-400">
-                        <span className="shrink-0 text-[10px] text-gray-400">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <p className="min-w-0 truncate text-sm font-semibold text-white sm:text-[15px]">
+                          {room.name}
+                        </p>
+                        {room.isFriendRoom ? <LobbyFriendRoomBadge /> : null}
+                      </div>
+                      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
+                        <span>
                           {t("lobby.playersCount", { count, max: room.maxPlayers })}
                         </span>
                         {room.counts ? (
-                          <span className="shrink-0 text-[10px] text-cyan-200/80">
+                          <span className="text-cyan-200/80">
                             {t("belote.seatCounts", {
                               humans: room.counts.humans,
                               bots: room.counts.bots,
                             })}
                           </span>
                         ) : null}
-                        <span className={`shrink-0 text-[10px] ${beloteAccent.minBalance}`}>
+                        <span className={beloteAccent.minBalance}>
                           {room.targetScore} {t("belote.points")}
                         </span>
-                        <span className="shrink-0 text-[10px] text-amber-200/90">
+                        <span className="text-amber-200/90">
                           {t("belote.buyInShort", { amount: room.buyIn ?? BELOTE_BUY_IN_DEFAULT })}
                         </span>
-                        <span className="shrink-0 text-[10px] text-purple-200/90">
+                        <span className="text-purple-200/90">
                           {t(variantLabelKey(room.variant ?? "CONTEE"))}
                         </span>
                       </div>
                     </div>
-                    <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap">
+                    <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2 whitespace-nowrap">
                       {isPrivate ? (
-                        <span className="flex min-h-7 w-24 shrink-0 items-center justify-center gap-0.5 rounded border border-purple-500/35 bg-purple-600/25 px-1 py-1 text-[9px] font-semibold leading-none text-purple-200 sm:w-28 sm:text-[10px]">
-                          <Lock className="h-2.5 w-2.5" aria-hidden />
+                        <span className="flex min-h-8 w-[5.5rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-purple-500/35 bg-purple-600/25 px-2 py-1.5 text-[10px] font-semibold text-purple-200 sm:w-28 sm:text-xs">
+                          <Lock className="h-3 w-3" aria-hidden />
                           {t("lobby.private")}
                         </span>
                       ) : (
-                        <span className="flex min-h-7 w-24 shrink-0 items-center justify-center gap-0.5 rounded border border-green-500/35 bg-green-600/25 px-1 py-1 text-[9px] font-semibold leading-none text-green-200 sm:w-28 sm:text-[10px]">
-                          <Globe className="h-2.5 w-2.5" aria-hidden />
+                        <span className="flex min-h-8 w-[5.5rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-green-500/35 bg-green-600/25 px-2 py-1.5 text-[10px] font-semibold text-green-200 sm:w-28 sm:text-xs">
+                          <Globe className="h-3 w-3" aria-hidden />
                           {t("lobby.public")}
                         </span>
                       )}
                       {isFull && !alreadyIn ? (
-                        <span className="flex min-h-7 w-24 cursor-not-allowed items-center justify-center rounded bg-slate-700 px-1 py-1 text-[9px] font-semibold text-gray-500 sm:w-28 sm:text-[10px]">
+                        <span className="flex min-h-8 w-[5.5rem] cursor-not-allowed items-center justify-center rounded-lg bg-slate-700 px-2 py-1.5 text-[10px] font-semibold text-gray-500 sm:w-28 sm:text-xs">
                           {t("lobby.roomFull")}
                         </span>
                       ) : isPrivate && !isHost && !alreadyIn ? (
@@ -701,12 +700,12 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                           type="button"
                           onClick={() => void handleRequestJoin(room.id)}
                           disabled={requestingRoom === room.id}
-                          className="flex min-h-7 w-24 max-w-full items-center justify-center gap-0.5 rounded bg-purple-600 px-1 py-1 text-[9px] font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-purple-800 sm:w-28 sm:text-[10px]"
+                          className="flex min-h-8 w-[5.5rem] max-w-full items-center justify-center gap-1 rounded-lg bg-purple-600 px-2 py-1.5 text-[10px] font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-purple-800 sm:w-28 sm:text-xs"
                         >
                           {requestingRoom === room.id ? (
-                            <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" />
+                            <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
                           ) : (
-                            <Lock className="h-2.5 w-2.5 shrink-0" />
+                            <Lock className="h-3 w-3 shrink-0" />
                           )}
                           {t("lobby.requestJoin")}
                         </button>
@@ -714,7 +713,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                         <button
                           type="button"
                           onClick={() => joinWaitingRoom(room)}
-                          className={`min-h-7 w-24 shrink-0 rounded px-1 py-1 text-[9px] font-semibold text-white transition sm:w-28 sm:text-[10px] ${beloteAccent.joinBtn}`}
+                          className={`min-h-8 w-[5.5rem] shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-white transition sm:w-28 sm:text-xs ${beloteAccent.joinBtn}`}
                         >
                           {t("lobby.join")}
                         </button>
@@ -723,62 +722,57 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                   </li>
                 );
               })}
-            </ul>
-          )}
-        </div>
+        </LobbyActivitySection>
 
-        {/* Parties en cours */}
-        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
-          <p className="mb-2 text-sm font-semibold text-gray-300">{t("lobby.gamesInProgress")}</p>
-          {gamesLoading && games.length === 0 ? (
-            <p className="flex items-center justify-center gap-2 py-2 text-center text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {t("common.loading")}
-            </p>
-          ) : games.length === 0 ? (
-            <p className="py-2 text-center text-gray-500">{t("belote.noGamesInProgress")}</p>
-          ) : (
-            <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-              {games.map((g) => (
-                <li
-                  key={g.gameId}
-                  className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/[0.055] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
-                >
-                  <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-1.5 sm:gap-x-2">
-                    <p className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug text-white sm:text-[15px]">
+        <LobbyActivitySection
+          title={t("lobby.gamesInProgress")}
+          loading={gamesLoading}
+          hasItems={games.length > 0}
+          emptyMessage={t("belote.noGamesInProgress")}
+        >
+          {games.map((g) => (
+            <li
+              key={g.gameId}
+              className="rounded-xl border border-white/12 bg-white/[0.06] px-3 py-3 shadow-sm backdrop-blur-md transition hover:border-white/20"
+            >
+              <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <p className="min-w-0 truncate text-sm font-semibold text-white sm:text-[15px]">
                       {g.roomName}
                     </p>
-                    <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1 sm:gap-1.5">
-                      {g.canJoin ? (
-                        <button
-                          type="button"
-                          onClick={() => joinGame(g)}
-                          className={`shrink-0 rounded-md px-1.5 py-1 text-[10px] font-semibold text-white transition sm:px-2 sm:text-[11px] ${beloteAccent.joinBtn}`}
-                        >
-                          {t("lobby.join")}
-                        </button>
-                      ) : null}
-                      {g.canSpectate !== false ? (
-                        <button
-                          type="button"
-                          onClick={() => spectateGame(g)}
-                          className="flex shrink-0 items-center gap-0.5 rounded-md bg-slate-700/80 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-slate-600/90 sm:gap-1 sm:px-2 sm:text-[11px]"
-                        >
-                          <Eye className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                          <span className="whitespace-nowrap">{t("lobby.spectate")}</span>
-                        </button>
-                      ) : null}
-                    </div>
+                    {g.isFriendRoom ? <LobbyFriendRoomBadge /> : null}
                   </div>
-                  <p className="text-xs text-gray-400">
+                  <p className="mt-1 text-xs text-slate-400">
                     {t("lobby.playersCount", { count: g.playerCount, max: g.maxPlayers })} ·{" "}
                     {phaseLabel(g.phase, t)}
                   </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {g.canJoin ? (
+                    <button
+                      type="button"
+                      onClick={() => joinGame(g)}
+                      className={`rounded-lg px-3 py-2 text-xs font-semibold text-white transition sm:text-sm ${beloteAccent.joinBtn}`}
+                    >
+                      {t("lobby.join")}
+                    </button>
+                  ) : null}
+                  {g.canSpectate !== false ? (
+                    <button
+                      type="button"
+                      onClick={() => spectateGame(g)}
+                      className="flex items-center gap-1.5 rounded-lg bg-slate-700/85 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-600/90 sm:text-sm"
+                    >
+                      <Eye className="h-3.5 w-3.5 shrink-0" />
+                      <span className="whitespace-nowrap">{t("lobby.spectate")}</span>
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </li>
+          ))}
+        </LobbyActivitySection>
       </div>
 
       {passwordJoinModal}

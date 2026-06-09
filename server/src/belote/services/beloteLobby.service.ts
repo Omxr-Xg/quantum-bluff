@@ -2,6 +2,11 @@ import { prisma } from '../../config/database.js'
 import { BELOTE_STUCK_MAX_MS } from '../recovery/beloteRecovery.service.js'
 import { formatBeloteRoomLobby, type BeloteRoomLobbyRow } from './beloteRoomFormat.js'
 import { activeBeloteGames } from '../../shared/activeBeloteGames.js'
+import {
+  loadLobbyFriendSortContext,
+  scoreLobbyFriendAffinity,
+  sortLobbyByFriendAffinity,
+} from '../../lobby/lobbyFriendSort.service.js'
 
 const BELOTE_GAME_MAX_DURATION_MS = BELOTE_STUCK_MAX_MS
 const LOBBY_WAITING_MAX_AGE_MS = 60 * 60 * 1000
@@ -15,18 +20,15 @@ export type BeloteGameInProgressLobbyItem = {
   phase: string
   canJoin: boolean
   canSpectate: boolean
+  isFriendRoom?: boolean
 }
 
-async function getBeloteFriendIds(userId: string): Promise<Set<string>> {
-  const friendships = await prisma.friendship.findMany({
-    where: { OR: [{ user1Id: userId }, { user2Id: userId }] },
-    select: { user1Id: true, user2Id: true },
-  })
-  const set = new Set<string>()
-  for (const f of friendships) {
-    set.add(f.user1Id === userId ? f.user2Id : f.user1Id)
-  }
-  return set
+function humanSeatUserIds(
+  seats: Array<{ participantType: string; userId: string | null }>,
+): string[] {
+  return seats
+    .filter((s) => s.participantType === 'HUMAN' && s.userId)
+    .map((s) => s.userId as string)
 }
 
 export async function listBeloteWaitingRoomsForLobby(userId: string) {
@@ -43,6 +45,7 @@ export async function listBeloteWaitingRoomsForLobby(userId: string) {
     },
     select: {
       id: true,
+      createdAt: true,
       name: true,
       hostId: true,
       maxPlayers: true,
@@ -67,7 +70,31 @@ export async function listBeloteWaitingRoomsForLobby(userId: string) {
     take: 40,
   })
 
-  return rooms.map((r) => formatBeloteRoomLobby(r as BeloteRoomLobbyRow))
+  const { myFriends, coPlayCounts } = await loadLobbyFriendSortContext(userId)
+  const enriched = rooms.map((r) => {
+    const formatted = formatBeloteRoomLobby(r as BeloteRoomLobbyRow)
+    const affinity = scoreLobbyFriendAffinity(
+      humanSeatUserIds(r.seats),
+      r.hostId,
+      myFriends,
+      coPlayCounts,
+    )
+    return {
+      ...formatted,
+      isFriendRoom: affinity.isFriendRoom,
+      friendAffinityScore: affinity.friendAffinityScore,
+      _createdAt: r.createdAt?.getTime?.() ?? 0,
+    }
+  })
+
+  return sortLobbyByFriendAffinity(
+    enriched,
+    (row) => ({
+      isFriendRoom: row.isFriendRoom,
+      friendAffinityScore: row.friendAffinityScore,
+    }),
+    (a, b) => b._createdAt - a._createdAt,
+  ).map(({ _createdAt, friendAffinityScore, ...rest }) => rest)
 }
 
 type SnapshotPhase = { phase?: string; startedAt?: string }
@@ -98,7 +125,7 @@ function readGamePhase(
 export async function listBeloteGamesInProgressForLobby(
   userId: string,
 ): Promise<BeloteGameInProgressLobbyItem[]> {
-  const myFriends = await getBeloteFriendIds(userId)
+  const { myFriends, coPlayCounts } = await loadLobbyFriendSortContext(userId)
   const rooms = await prisma.beloteRoom.findMany({
     where: { status: 'IN_GAME', gameId: { not: null } },
     select: {
@@ -117,7 +144,11 @@ export async function listBeloteGamesInProgressForLobby(
   })
 
   const now = Date.now()
-  const result: BeloteGameInProgressLobbyItem[] = []
+  type Row = BeloteGameInProgressLobbyItem & {
+    friendAffinityScore: number
+    _startedAt: number
+  }
+  const result: Row[] = []
 
   for (const room of rooms) {
     if (!room.gameId) continue
@@ -154,6 +185,12 @@ export async function listBeloteGamesInProgressForLobby(
     const playerCount = room.seats.length
     if (playerCount === 0) continue
 
+    const affinity = scoreLobbyFriendAffinity(
+      seatUserIds,
+      room.hostId,
+      myFriends,
+      coPlayCounts,
+    )
     result.push({
       roomId: room.id,
       roomName: room.name,
@@ -163,10 +200,20 @@ export async function listBeloteGamesInProgressForLobby(
       phase: phaseInfo.phase,
       canJoin: userInGame,
       canSpectate: !userInGame,
+      isFriendRoom: affinity.isFriendRoom,
+      friendAffinityScore: affinity.friendAffinityScore,
+      _startedAt: phaseInfo.startedAt,
     })
   }
 
-  return result
+  return sortLobbyByFriendAffinity(
+    result,
+    (r) => ({
+      isFriendRoom: r.isFriendRoom ?? false,
+      friendAffinityScore: r.friendAffinityScore,
+    }),
+    (a, b) => b._startedAt - a._startedAt,
+  ).map(({ _startedAt, friendAffinityScore, ...rest }) => rest)
 }
 
 export async function getBeloteLobbyPayload(userId: string) {

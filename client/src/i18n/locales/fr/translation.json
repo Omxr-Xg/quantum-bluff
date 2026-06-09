@@ -32,6 +32,7 @@
     "multiplayerServers": "Serveurs Multi-joueurs",
     "waitingRooms": "Salles d'attente",
     "gamesInProgress": "Parties en cours",
+    "friendRoom": "Amis",
     "spectate": "Spectateur",
     "serversAvailable": "Serveurs disponibles (max 5 joueurs) :",
     "noServersAvailable": "Aucun serveur disponible",

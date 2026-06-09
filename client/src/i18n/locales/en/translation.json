@@ -33,6 +33,7 @@
     "multiplayerServers": "Multi-player Servers",
     "waitingRooms": "Waiting rooms",
     "gamesInProgress": "Games in progress",
+    "friendRoom": "Friends",
     "spectate": "Spectate",
     "serversAvailable": "Available servers (max 5 players):",
     "noServersAvailable": "No servers available",

@@ -15,6 +15,11 @@ import { prismaKnownRequestCode } from '../utils/prismaKnownRequestCode.js';
 import type { Server } from 'socket.io';
 import { getGameIo } from '../sockets/gameIo.registry.js';
 import { getWaitingRoomPresentUserIds } from '../services/waitingRoomPresence.service.js';
+import {
+  loadLobbyFriendSortContext,
+  scoreLobbyFriendAffinity,
+  sortLobbyByFriendAffinity,
+} from '../lobby/lobbyFriendSort.service.js';
 
 const router = express.Router();
 
@@ -312,27 +317,52 @@ router.get('/', waitingRoomListLimiter, authMiddleware, async (req, res) => {
       filteredRooms = filteredRooms.filter(room => room.visibility === 'PUBLIC');
     }
 
+    const { myFriends, coPlayCounts } = await loadLobbyFriendSortContext(userId)
+
     const formattedRooms = await Promise.all(
-      filteredRooms.map(async (room) => ({
-        id: room.id,
-        name: room.name,
-        hostId: room.hostId,
-        maxPlayers: room.maxPlayers,
-        visibility: room.visibility,
-        status: room.status,
-        turbo: room.turbo,
-        players: room.players
-          .filter((p): p is typeof p & { user: NonNullable<typeof p.user> } => p.user != null)
-          .map((p) => mapWaitingRoomPlayer(p)),
-        playerCount: room.players.length,
-        minBalance: room.minBalance ?? null,
-        smallBlind: room.smallBlind ?? null,
-        bigBlind: room.bigBlind ?? null,
-        blockedPlayers: await getBlockedPlayersForViewer(userId, room.players),
-      })),
+      filteredRooms.map(async (room) => {
+        const playerIds = room.players
+          .map((p) => p.userId)
+          .filter((id): id is string => Boolean(id))
+        const affinity = scoreLobbyFriendAffinity(
+          playerIds,
+          room.hostId,
+          myFriends,
+          coPlayCounts,
+        )
+        return {
+          id: room.id,
+          name: room.name,
+          hostId: room.hostId,
+          maxPlayers: room.maxPlayers,
+          visibility: room.visibility,
+          status: room.status,
+          turbo: room.turbo,
+          players: room.players
+            .filter((p): p is typeof p & { user: NonNullable<typeof p.user> } => p.user != null)
+            .map((p) => mapWaitingRoomPlayer(p)),
+          playerCount: room.players.length,
+          minBalance: room.minBalance ?? null,
+          smallBlind: room.smallBlind ?? null,
+          bigBlind: room.bigBlind ?? null,
+          blockedPlayers: await getBlockedPlayersForViewer(userId, room.players),
+          isFriendRoom: affinity.isFriendRoom,
+          friendAffinityScore: affinity.friendAffinityScore,
+          _createdAt: room.createdAt.getTime(),
+        }
+      }),
     );
 
-    res.json(formattedRooms);
+    const sortedRooms = sortLobbyByFriendAffinity(
+      formattedRooms,
+      (r) => ({
+        isFriendRoom: r.isFriendRoom,
+        friendAffinityScore: r.friendAffinityScore,
+      }),
+      (a, b) => b._createdAt - a._createdAt,
+    ).map(({ _createdAt, friendAffinityScore, ...rest }) => rest)
+
+    res.json(sortedRooms);
   } catch (error) {
     console.error('Erreur liste salles:', error);
     const msg = error instanceof Error ? error.message : String(error);
@@ -370,18 +400,24 @@ router.get('/games-in-progress', waitingRoomListLimiter, authMiddleware, async (
       },
       orderBy: { createdAt: 'desc' }
     });
-    const result = [];
-    const now = Date.now();
-    let myFriends: Set<string> = new Set();
-    const blockedUserIds = await getBlockedUserIds(userId);
-    if (userId) {
-      const friendships = await prisma.friendship.findMany({
-        where: { OR: [{ user1Id: userId }, { user2Id: userId }] }
-      });
-      for (const f of friendships) {
-        myFriends.add(String(f.user1Id) === userId ? f.user2Id : f.user1Id);
-      }
+    type GameInProgressRow = {
+      roomId: string
+      roomName: string
+      gameId: string
+      playerCount: number
+      maxPlayers: number
+      phase: string
+      canJoin: boolean
+      blockedPlayers: BlockedRoomPlayer[]
+      isFriendRoom: boolean
+      friendAffinityScore: number
+      hostId: string
+      _startedAt: number
     }
+    const result: GameInProgressRow[] = [];
+    const now = Date.now();
+    const blockedUserIds = await getBlockedUserIds(userId);
+    const { myFriends, coPlayCounts } = await loadLobbyFriendSortContext(userId);
     for (const room of rooms) {
       if (!room.gameId) continue;
       if (userId && blockedUserIds.has(room.hostId)) continue;
@@ -418,6 +454,23 @@ router.get('/games-in-progress', waitingRoomListLimiter, authMiddleware, async (
         if (occupiedCount === 0) continue; // Partie vide = ne pas afficher
         const maxSeats = isCashGame ? 9 : room.maxPlayers;
         const canJoin = isCashGame && occupiedCount < maxSeats;
+        let participantIds: string[] = [];
+        if (isCashGame) {
+          participantIds = (game as CashGameController)
+            .getOccupiedSeats()
+            .map((s) => s.userId)
+            .filter((id): id is string => Boolean(id));
+        } else if (game.state.players) {
+          participantIds = game.state.players
+            .map((p: { id?: string }) => p.id)
+            .filter((id): id is string => Boolean(id));
+        }
+        const affinity = scoreLobbyFriendAffinity(
+          participantIds,
+          room.hostId,
+          myFriends,
+          coPlayCounts,
+        );
       result.push({
         roomId: room.id,
         roomName: room.name,
@@ -427,12 +480,25 @@ router.get('/games-in-progress', waitingRoomListLimiter, authMiddleware, async (
         phase: game.state.phase ?? 'WAITING',
         canJoin,
         blockedPlayers: await getBlockedPlayersForViewer(userId, room.players),
+        isFriendRoom: affinity.isFriendRoom,
+        friendAffinityScore: affinity.friendAffinityScore,
+        hostId: room.hostId,
+        _startedAt: startedAt,
       });
       } catch (roomErr) {
         console.warn('Erreur salle', room.id, room.gameId, roomErr);
       }
     }
-    res.json(result);
+    const sorted = sortLobbyByFriendAffinity(
+      result,
+      (r) => ({
+        isFriendRoom: r.isFriendRoom,
+        friendAffinityScore: r.friendAffinityScore,
+      }),
+      (a, b) => b._startedAt - a._startedAt,
+    ).map(({ _startedAt, friendAffinityScore, hostId, ...rest }) => rest);
+
+    res.json(sorted);
   } catch (error) {
     console.error('Erreur games-in-progress:', error);
     const msg = error instanceof Error ? error.message : String(error);
