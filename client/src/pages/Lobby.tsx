@@ -1973,7 +1973,7 @@ export function Lobby() {
                 <div className="flex min-h-0 flex-1 flex-col gap-3">
                   <button
                     onClick={openTournamentModal}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/25 bg-amber-900/70 py-3 font-bold text-white shadow-lg shadow-black/20 transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-4"
+                    className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300/25 bg-amber-900/70 py-2.5 font-bold text-white shadow-lg shadow-black/20 transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-3"
                     aria-label={t('tournament.arena.create')}
                   >
                     <Trophy className="w-5 h-5" />
