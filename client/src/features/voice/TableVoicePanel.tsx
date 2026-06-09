@@ -72,36 +72,69 @@ export function TableVoicePanel({
           username: p.username,
         }))
 
-  const micButton = (
+  const micFabClass = settings.micMuted
+    ? 'border-red-400/80 text-red-200 hover:bg-red-950/90'
+    : 'border-emerald-400 text-emerald-100 hover:bg-emerald-500 hover:text-slate-950'
+  const micInlineClass = settings.micMuted
+    ? 'border-red-400/40 bg-red-950/50 text-red-200'
+    : 'border-emerald-400/50 bg-emerald-950/40 text-emerald-100'
+
+  const micButtonFab = (
     <button
       type="button"
       onClick={(e) => {
         e.stopPropagation()
         toggleMic()
       }}
-      className={
-        layout === 'room'
-          ? `relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 bg-slate-950/90 shadow-[0_0_14px_rgba(52,211,153,0.45),0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-              settings.micMuted
-                ? 'border-red-400/80 text-red-200 hover:bg-red-950/90'
-                : 'border-emerald-400 text-emerald-100 hover:bg-emerald-500 hover:text-slate-950'
-            }`
-          : `inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 font-medium transition ${
-              settings.micMuted
-                ? 'border-red-400/40 bg-red-950/50 text-red-200'
-                : 'border-emerald-400/50 bg-emerald-950/40 text-emerald-100'
-            }`
-      }
+      className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 bg-slate-950/90 shadow-[0_0_14px_rgba(52,211,153,0.45),0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${micFabClass}`}
       title={settings.micMuted ? t('voice.unmuteMic') : t('voice.muteMic')}
       aria-label={settings.micMuted ? t('voice.unmuteMic') : t('voice.muteMic')}
       aria-pressed={settings.micMuted}
     >
-      {settings.micMuted ? (
-        <MicOff className={layout === 'room' ? 'h-5 w-5' : 'h-3.5 w-3.5'} />
+      {settings.micMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+    </button>
+  )
+
+  const micButtonInline = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        toggleMic()
+      }}
+      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 font-medium transition ${micInlineClass}`}
+      title={settings.micMuted ? t('voice.unmuteMic') : t('voice.muteMic')}
+      aria-label={settings.micMuted ? t('voice.unmuteMic') : t('voice.muteMic')}
+      aria-pressed={settings.micMuted}
+    >
+      {settings.micMuted ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+      {settings.micMuted ? t('voice.micOff') : t('voice.micOn')}
+    </button>
+  )
+
+  const micButton = layout === 'room' ? micButtonFab : micButtonInline
+
+  const roomSoundFab = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        toggleSound()
+      }}
+      className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 bg-slate-950/90 shadow-[0_0_14px_rgba(56,189,248,0.4),0_14px_34px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+        settings.soundMuted
+          ? 'border-red-400/80 text-red-200 hover:bg-red-950/90'
+          : 'border-sky-400 text-sky-100 hover:bg-sky-500 hover:text-slate-950'
+      }`}
+      title={settings.soundMuted ? t('voice.unmuteSound') : t('voice.muteSound')}
+      aria-label={settings.soundMuted ? t('voice.unmuteSound') : t('voice.muteSound')}
+      aria-pressed={settings.soundMuted}
+    >
+      {settings.soundMuted ? (
+        <VolumeX className="h-5 w-5" />
       ) : (
-        <Mic className={layout === 'room' ? 'h-5 w-5' : 'h-3.5 w-3.5'} />
+        <Volume2 className="h-5 w-5" />
       )}
-      {layout === 'panel' ? (settings.micMuted ? t('voice.micOff') : t('voice.micOn')) : null}
     </button>
   )
 
@@ -116,15 +149,16 @@ export function TableVoicePanel({
       }`}
       title={settings.soundMuted ? t('voice.unmuteSound') : t('voice.muteSound')}
       aria-label={settings.soundMuted ? t('voice.unmuteSound') : t('voice.muteSound')}
+      aria-pressed={settings.soundMuted}
     >
       {settings.soundMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-      {settings.soundMuted ? t('voice.soundOff') : t('voice.soundOn')}
+      {layout === 'panel' ? (settings.soundMuted ? t('voice.soundOff') : t('voice.soundOn')) : null}
     </button>
   )
 
   const controlsRow = (
     <div className="flex flex-wrap items-center gap-1.5">
-      {layout === 'panel' ? micButton : null}
+      {micButtonInline}
       {soundButton}
     </div>
   )
@@ -248,15 +282,18 @@ export function TableVoicePanel({
           </div>
         ) : null}
 
-        <div className="relative">
-          {micButton}
-          {micDenied ? (
-            <span
-              className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-slate-950 bg-amber-400"
-              title={t('voice.micDenied')}
-              aria-hidden
-            />
-          ) : null}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            {micButtonFab}
+            {micDenied ? (
+              <span
+                className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-slate-950 bg-amber-400"
+                title={t('voice.micDenied')}
+                aria-hidden
+              />
+            ) : null}
+          </div>
+          {roomSoundFab}
         </div>
       </div>
     )

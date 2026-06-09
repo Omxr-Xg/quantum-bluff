@@ -2,7 +2,7 @@ import express from 'express'
 import { randomUUID } from 'node:crypto'
 import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { authMiddleware, authPlayerOrAdminMiddleware } from '../middleware/auth.middleware.js'
 import { intChips } from '../utils/chips.js'
 import {
   validateBlackjackBet,
@@ -788,10 +788,13 @@ router.post('/:roomId/start', authMiddleware, async (req, res) => {
 })
 
 /** GET /game/:gameId/state */
-router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
+router.get('/game/:gameId/state', authPlayerOrAdminMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    const isAdminSpectator = Boolean(
+      (req as typeof req & { isAdminSpectator?: boolean }).isAdminSpectator,
+    )
 
     let outcome: Awaited<ReturnType<typeof getRuntimeAssessmentWithStaleRecovery>>
     try {
@@ -830,7 +833,11 @@ router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
     }
     if (!room) return res.status(410).json({ error: 'Salle introuvable' })
 
-    if (room.visibility === 'PRIVATE' && room.hostId !== userId) {
+    if (
+      !isAdminSpectator &&
+      room.visibility === 'PRIVATE' &&
+      room.hostId !== userId
+    ) {
       const seated = await prisma.blackjackRoomSeat.findFirst({
         where: { roomId: room.id, userId },
       })

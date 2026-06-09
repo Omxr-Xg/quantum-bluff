@@ -1,7 +1,8 @@
-import React, { createContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useEffect, useState, useCallback, useMemo } from 'react'
 import i18n from '../i18n/config'
 import { io, Socket } from 'socket.io-client'
 import { useUser } from '../hooks/useUser'
+import { isAdminSpectateRoute } from '../utils/adminSpectate'
 import { useToast } from './ToastContext'
 import { store } from '../store'
 import { api } from '../services/api'
@@ -41,6 +42,20 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [pendingInvitations, setPendingInvitations] = useState<GameInvitationNotification[]>([])
   const { userId, isAdmin } = useUser()
   const { addToast } = useToast()
+  const [navTick, setNavTick] = useState(0)
+  useEffect(() => {
+    if (!isAdmin) return
+    const onNav = () => setNavTick((n) => n + 1)
+    window.addEventListener('popstate', onNav)
+    return () => window.removeEventListener('popstate', onNav)
+  }, [isAdmin])
+  const adminSpectateMode = useMemo(() => {
+    if (!isAdmin) return false
+    return isAdminSpectateRoute(
+      typeof window !== 'undefined' ? window.location.pathname : '',
+      typeof window !== 'undefined' ? window.location.search : '',
+    )
+  }, [isAdmin, navTick])
 
   const dismissInvitation = useCallback((invitationId: string) => {
     setPendingInvitations((prev) => prev.filter((inv) => inv.invitationId !== invitationId))
@@ -58,7 +73,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const token = getAuthItem('token')
 
-    if (!token || isAdmin) {
+    if (!token || (isAdmin && !adminSpectateMode)) {
       setSocket(null)
       setIsConnected(false)
       return
@@ -88,8 +103,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       if (import.meta.env.MODE === 'capacitor') {
         console.info('[QB] SocketContext connected', { id: socketInstance.id })
       }
-      const uid = getAuthItem('userId')
-      if (uid) socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
+      if (!adminSpectateMode) {
+        const uid = getAuthItem('userId')
+        if (uid) socketInstance.emit('JOIN_USER_ROOM', { userId: uid })
+      }
     })
 
     const forwardVoiceIncoming = (payload: unknown) => {
@@ -129,13 +146,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         if (s.connected) s.disconnect()
       }, 0)
     }
-  }, [userId, authVersion, isAdmin])
+  }, [userId, authVersion, isAdmin, adminSpectateMode])
 
   /** Rejoint la room `user:{id}` après chaque reconnexion (appels vocaux ciblés). */
   useEffect(() => {
-    if (!socket || !isConnected || !userId || isAdmin) return
+    if (!socket || !isConnected || !userId || (isAdmin && !adminSpectateMode)) return
     socket.emit('JOIN_USER_ROOM', { userId })
-  }, [socket, isConnected, userId, isAdmin])
+  }, [socket, isConnected, userId, isAdmin, adminSpectateMode])
 
   useEffect(() => {
     if (!socket || !addToast) return

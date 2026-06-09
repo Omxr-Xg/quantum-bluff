@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
 import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
-import { authMiddleware } from '../middleware/auth.middleware.js'
+import { authMiddleware, authPlayerOrAdminMiddleware } from '../middleware/auth.middleware.js'
 import {
   BeloteTableController,
   newBeloteGameId,
@@ -764,7 +764,7 @@ router.get('/game/:gameId/action-log', authMiddleware, async (req, res) => {
 })
 
 /** GET /game/:gameId/state */
-router.get('/game/:gameId/state', authMiddleware, async (req, res) => {
+router.get('/game/:gameId/state', authPlayerOrAdminMiddleware, async (req, res) => {
   try {
     const userId = req.userId
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })

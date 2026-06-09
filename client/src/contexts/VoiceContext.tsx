@@ -919,20 +919,16 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       setListenTo: (v) => pushSettings({ ...settingsRef.current, listenTo: v }),
       toggleMic: () => {
         const inCall = channelIdRef.current?.startsWith('call:')
+        const nextMuted = inCall && callManagerRef.current
+          ? !callManagerRef.current.isMicMuted()
+          : !settingsRef.current.micMuted
         if (inCall && callManagerRef.current) {
-          const nextMuted = !callManagerRef.current.isMicMuted()
           callManagerRef.current.setMicMuted(nextMuted)
-          pushSettings({ ...settingsRef.current, micMuted: nextMuted })
-          if (!nextMuted) setMicDenied(false)
-          return
         }
-        const nextMuted = !settingsRef.current.micMuted
         pushSettings({ ...settingsRef.current, micMuted: nextMuted })
-        if (nextMuted) {
-          meshRef.current?.applyLocalMicMute(true)
-        } else {
+        if (!nextMuted) {
           setMicDenied(false)
-          void meshRef.current?.ensureMic(true)
+          if (!inCall) void meshRef.current?.ensureMic(true)
         }
       },
       toggleSound: () => {

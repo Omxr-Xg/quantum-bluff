@@ -19,7 +19,9 @@ export async function socketAuth(socket: Socket, next: (err?: Error) => void) {
 
     const decoded = verifyToken(token)
     if (decoded.role === 'admin') {
-      return next(new Error('Player token required'))
+      socket.data.userId = decoded.userId
+      socket.data.isAdminSpectator = true
+      return next()
     }
 
     const user = await prisma.user.findUnique({

@@ -85,6 +85,7 @@ import { AntiCheatService } from "../services/antiCheat.service.js";
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   gameId?: string;
+  isAdminSpectator?: boolean;
 }
 
 /**
@@ -245,11 +246,14 @@ export class GameGateway {
 
           const decoded = verifyToken(token);
           if (decoded.role === "admin") {
-            rootLogger.warn({
-              msg: "socket_auth_admin_token_rejected",
+            socket.userId = decoded.userId;
+            socket.isAdminSpectator = true;
+            rootLogger.debug({
+              msg: "socket_auth_admin_spectator_ok",
+              userId: socket.userId,
               socketId: socket.id,
             });
-            return next(new Error("Token joueur requis"));
+            return next();
           }
 
           const user = await prisma.user.findUnique({
@@ -311,7 +315,7 @@ export class GameGateway {
         clientsCount,
       });
 
-      if (socket.userId) {
+      if (socket.userId && !socket.isAdminSpectator) {
         this.socketToUser.set(socket.id, socket.userId);
         this.userToSocket.set(socket.userId, socket.id);
         void markUserOnline(socket.userId, socket.id).catch((err) =>

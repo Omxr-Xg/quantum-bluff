@@ -86,9 +86,16 @@ export class WebRTCVoiceMesh {
   }
 
   updateSettings(settings: VoiceSettings): void {
+    const prevMicMuted = this.settings.micMuted
+    const prevSoundMuted = this.settings.soundMuted
     this.settings = { ...settings, peerMutes: new Set(settings.peerMutes) }
+    if (prevMicMuted !== settings.micMuted) {
+      this.applyLocalMicMute(settings.micMuted)
+    }
     void this.syncPeers()
-    this.applyPlaybackVolumes()
+    if (prevSoundMuted !== settings.soundMuted || prevMicMuted !== settings.micMuted) {
+      this.applyPlaybackVolumes()
+    }
   }
 
   applyRoster(roster: VoiceRosterPayload): void {

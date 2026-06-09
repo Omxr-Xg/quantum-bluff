@@ -72,6 +72,10 @@ function playerAppHref(pathAndQuery: string): string {
   return new URL(combined, window.location.origin).toString();
 }
 
+function openPlayerSpectate(pathAndQuery: string): void {
+  window.open(playerAppHref(pathAndQuery), "_blank", "noopener,noreferrer");
+}
+
 function authHeaders(): HeadersInit {
   const token = getAuthItem("token");
   return {
@@ -879,12 +883,8 @@ export function AdminConsole() {
                         <button
                           type="button"
                           onClick={() =>
-                            window.open(
-                              playerAppHref(
-                                `/game?gameId=${encodeURIComponent(row.gameId)}&spectate=1`,
-                              ),
-                              "_blank",
-                              "noopener,noreferrer",
+                            openPlayerSpectate(
+                              `/game?gameId=${encodeURIComponent(row.gameId)}&spectate=1`,
                             )
                           }
                           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-500 bg-slate-700/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600"
@@ -984,16 +984,12 @@ export function AdminConsole() {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-2">
-                          {gid.length > 0 ? (
+                          {gid.length > 0 && room.runtimeAlive && room.status === "PLAYING" ? (
                             <button
                               type="button"
                               onClick={() =>
-                                window.open(
-                                  playerAppHref(
-                                    `/blackjack/table/${encodeURIComponent(gid)}?spectate=1`,
-                                  ),
-                                  "_blank",
-                                  "noopener,noreferrer",
+                                openPlayerSpectate(
+                                  `/blackjack/table/${encodeURIComponent(gid)}?spectate=1`,
                                 )
                               }
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-500 bg-slate-700/80 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-600"
@@ -1064,12 +1060,8 @@ export function AdminConsole() {
                             <button
                               type="button"
                               onClick={() =>
-                                window.open(
-                                  playerAppHref(
-                                    `/belote/game?gameId=${encodeURIComponent(gid)}&spectate=1`,
-                                  ),
-                                  "_blank",
-                                  "noopener,noreferrer",
+                                openPlayerSpectate(
+                                  `/belote/game?gameId=${encodeURIComponent(gid)}&spectate=1`,
                                 )
                               }
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-500 bg-slate-700/80 px-2 py-1 text-xs font-semibold text-white hover:bg-slate-600"

@@ -68,3 +68,49 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return res.status(401).json({ error: 'Token invalide' })
   }
 }
+
+/** Lecture seule des parties : accepte le JWT admin (spectateur console). */
+export async function authPlayerOrAdminMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const token = extractBearerToken(req.headers.authorization)
+  if (!token) {
+    return res.status(401).json({ error: 'Token manquant ou mal formé' })
+  }
+
+  try {
+    if (await isBlacklisted(token)) {
+      return res.status(401).json({ error: 'Token révoqué' })
+    }
+
+    const decoded = verifyToken(token)
+
+    if (decoded.role === 'admin') {
+      req.userId = decoded.userId
+      ;(req as Request & { isAdminSpectator?: boolean }).isAdminSpectator = true
+      return next()
+    }
+
+    const userExists = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, bannedUntil: true },
+    })
+    if (!userExists) {
+      return res.status(401).json({ error: 'Session expirée, reconnecte-toi' })
+    }
+    if (userExists.bannedUntil && userExists.bannedUntil > new Date()) {
+      return res.status(403).json({
+        error: `Compte suspendu jusqu'au ${userExists.bannedUntil.toLocaleString('fr-FR')}.`,
+        code: 'ACCOUNT_SUSPENDED',
+        bannedUntil: userExists.bannedUntil.toISOString(),
+      })
+    }
+
+    req.userId = decoded.userId
+    return next()
+  } catch {
+    return res.status(401).json({ error: 'Token invalide' })
+  }
+}
