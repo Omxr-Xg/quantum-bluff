@@ -990,7 +990,8 @@
       "TOURNAMENT_BUY_IN": "Torneo — buy-in",
       "TOURNAMENT_BUY_IN_REFUND": "Torneo — reembolso del buy-in",
       "TOURNAMENT_PRIZE": "Torneo — premio",
-      "TOURNAMENT_CANCEL_REFUND": "Torneo cancelado — reembolso del buy-in"
+      "TOURNAMENT_CANCEL_REFUND": "Torneo cancelado — reembolso del buy-in",
+      "USERNAME_CHANGE": "Cambio de usuario"
     }
   },
   "pokerChat": {
@@ -1135,6 +1136,10 @@
     "basicInfoSection": "Información básica",
     "usernameLabel": "Nombre de usuario",
     "usernamePlaceholder": "Tu nombre de usuario",
+    "usernameChangeCostInfo": "Cambiar de usuario cuesta {{cost}} fichas.",
+    "usernameChangeCostHint": "Este cambio te costará {{cost}} fichas.",
+    "usernameChangeConfirm": "¿Cambiar tu usuario a « {{username}} » por {{cost}} fichas?",
+    "usernameChangeInsufficient": "Necesitas {{cost}} fichas para cambiar de usuario.",
     "emailLabel": "Correo electrónico",
     "emailPlaceholder": "tu@correo.com",
     "securitySection": "Seguridad",

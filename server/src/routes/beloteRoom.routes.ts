@@ -16,6 +16,7 @@ import {
 } from '../logic/belote/beloteBuyIn.js'
 import { normalizeBeloteVariant } from '../logic/belote/beloteVariants.js'
 import { intChips } from '../utils/chips.js'
+import { markFriendInvitedToTable } from '../dailyChallenges/dailyChallenge.service.js'
 import { activeBeloteGames, persistBeloteSnapshot } from '../shared/activeBeloteGames.js'
 import { loadBeloteTable, touchBeloteRoomActivity } from '../belote/recovery/beloteRecovery.service.js'
 import {
@@ -561,6 +562,8 @@ router.post('/invitations', authMiddleware, async (req, res) => {
       where: { id: userId },
       select: { username: true },
     })
+
+    await markFriendInvitedToTable(userId)
 
     const io = getIo(req)
     io?.to(`user:${receiverId}`).emit('GAME_INVITATION_RECEIVED', {

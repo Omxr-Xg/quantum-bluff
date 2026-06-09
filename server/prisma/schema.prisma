@@ -425,12 +425,20 @@ model LoanLedgerEvent {
   @@map("loan_ledger_events")
 }
 
+enum FriendMessageKind {
+  TEXT
+  VOICE_CALL
+}
+
 model FriendMessage {
-  id         String   @id @default(uuid())
-  senderId   String
-  receiverId String
-  content    String
-  createdAt  DateTime @default(now())
+  id              String            @id @default(uuid())
+  senderId        String
+  receiverId      String
+  content         String            @default("")
+  kind            FriendMessageKind @default(TEXT)
+  callDurationSec Int?
+  callOutcome     String?
+  createdAt       DateTime          @default(now())
 
   sender   User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)

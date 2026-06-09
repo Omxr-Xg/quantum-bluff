@@ -13,21 +13,28 @@ export interface FriendProfile {
   isOnline: boolean
   friendshipCreatedAt: string
   cosmetics?: PublicPlayerCosmetics
-  stats: {
+  playerStats?: {
+    totalWins: number
+    totalGames: number
+  } | null
+  stats?: {
     totalWins: number
     totalGames: number
     winRatePercent: number
+    wins?: number
   }
 }
 
-interface User {
+export interface User {
   id: string
   username: string
   level: number
-  /** @deprecated API renvoie playerStats ; conservé pour compat. */
   stats?: {
-    wins: number
+    totalWins: number
     totalGames: number
+    winRatePercent: number
+    /** @deprecated ancien format */
+    wins?: number
   }
   avatarUrl?: string | null
   isOnline?: boolean
@@ -40,6 +47,24 @@ interface User {
     totalGames: number
   } | null
   cosmetics?: PublicPlayerCosmetics
+  mutualFriendsCount?: number
+}
+
+export type FriendMessageKind = 'TEXT' | 'VOICE_CALL'
+
+export type FriendCallOutcome = 'completed' | 'missed' | 'cancelled' | 'rejected'
+
+export interface FriendMessage {
+  id: string
+  senderId: string
+  receiverId: string
+  content: string
+  kind?: FriendMessageKind
+  callDurationSec?: number | null
+  callOutcome?: FriendCallOutcome | null
+  createdAt: string
+  sender?: { id: string; username: string }
+  receiver?: { id: string; username: string }
 }
 
 export interface PlayerStats {
@@ -92,6 +117,8 @@ type UpdateProfileResponse = {
   avatarUrl: string | null
   username: string
   email: string
+  chips?: number
+  usernameChangeCost?: number
 }
 
 export type RegisterPayload = {
@@ -482,10 +509,7 @@ export const api = createApi({
       }),
     }),
 
-    getFriendMessages: builder.query<
-      { id: string; senderId: string; receiverId: string; content: string; createdAt: string; sender: { id: string; username: string }; receiver: { id: string; username: string } }[],
-      { userId: string; friendId: string }
-    >({
+    getFriendMessages: builder.query<FriendMessage[], { userId: string; friendId: string }>({
       query: ({ userId, friendId }) =>
         `/friends/messages?userId=${encodeURIComponent(userId)}&friendId=${encodeURIComponent(friendId)}`,
       providesTags: (_, __, { friendId }) => [{ type: 'FriendMessage', id: friendId }],

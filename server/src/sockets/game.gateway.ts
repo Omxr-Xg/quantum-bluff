@@ -45,8 +45,9 @@ import {
 import { flushPendingIncomingCalls } from "../voice/voiceCallDelivery.js";
 import { metrics as promMetrics } from "../observability/metrics.js";
 import {
-  incrementMultiplayerPlayCount,
-  markWinWithPair,
+  markChatMessageSent,
+  markFriendInvitedToTable,
+  markPokerHandResult,
 } from "../dailyChallenges/dailyChallenge.service.js";
 import { sanitizePublicAvatarUrl } from "../utils/avatarUrl.js";
 import { clientAvatarUrlFromUser } from "../utils/userAvatarPublic.js";
@@ -492,6 +493,7 @@ export class GameGateway {
                   username: sender?.username ?? "Joueur",
                 },
               });
+            await markFriendInvitedToTable(inviterId)
             console.log(
               `📨 Invitation envoyée: ${inviterId} → ${invitedUserId} (salle ${roomId})`,
             );
@@ -578,6 +580,7 @@ export class GameGateway {
                 },
                 game: "blackjack",
               });
+            await markFriendInvitedToTable(inviterId)
             console.log(
               `📨 Invitation blackjack: ${inviterId} → ${invitedUserId} (${blackjackRoomId})`,
             );
@@ -1291,6 +1294,7 @@ export class GameGateway {
           }
 
           const id = randomUUID();
+          void markChatMessageSent(uid)
           socket.broadcast.to(gameId).emit("GAME_CHAT", {
             id,
             gameId,
@@ -2230,14 +2234,17 @@ export class GameGateway {
           winsAfter = updated.totalWins;
           await awardXpInTransaction(tx, player.id, xpAmount);
           if (participatedInHand) {
-            await incrementMultiplayerPlayCount(player.id, isPracticeBotGameId(game.id), tx);
-          }
-          if (isWinningPlayer) {
-            await markWinWithPair(
+            await markPokerHandResult(
               player.id,
-              game.state.showdownHandName,
-              true,
-                isPracticeBotGameId(game.id),
+              {
+                isBotGame: isPracticeBotGameId(game.id),
+                participated: true,
+                didWin: isWinningPlayer,
+                chipsWon: isWinningPlayer ? chipsWon : 0,
+                handEndReason: game.state.handEndReason,
+                communityCardCount: game.state.communityCards?.length ?? 0,
+                finalHandName: game.state.showdownHandName,
+              },
               tx,
             );
           }

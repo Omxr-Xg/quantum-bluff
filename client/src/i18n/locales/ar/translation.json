@@ -998,7 +998,8 @@
       "TOURNAMENT_BUY_IN": "بطولة — رسوم الدخول",
       "TOURNAMENT_BUY_IN_REFUND": "بطولة — استرداد رسوم الدخول",
       "TOURNAMENT_PRIZE": "بطولة — جائزة",
-      "TOURNAMENT_CANCEL_REFUND": "بطولة ملغاة — استرداد رسوم الدخول"
+      "TOURNAMENT_CANCEL_REFUND": "بطولة ملغاة — استرداد رسوم الدخول",
+      "USERNAME_CHANGE": "تغيير اسم المستخدم"
     }
   },
   "pokerChat": {
@@ -1143,6 +1144,10 @@
     "basicInfoSection": "المعلومات الأساسية",
     "usernameLabel": "اسم المستخدم",
     "usernamePlaceholder": "اسم المستخدم",
+    "usernameChangeCostInfo": "تغيير اسم المستخدم يكلف {{cost}} رقاقة.",
+    "usernameChangeCostHint": "سيُخصم منك {{cost}} رقاقة لهذا التغيير.",
+    "usernameChangeConfirm": "تغيير اسم المستخدم إلى « {{username}} » مقابل {{cost}} رقاقة؟",
+    "usernameChangeInsufficient": "تحتاج إلى {{cost}} رقاقة لتغيير اسم المستخدم.",
     "emailLabel": "البريد الإلكتروني",
     "emailPlaceholder": "you@email.com",
     "securitySection": "الأمان",

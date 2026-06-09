@@ -12,20 +12,17 @@ import {
   useLazySearchUsersQuery,
   useSendFriendRequestMutation,
   useSendFriendMessageMutation,
+  type User,
 } from "../services/api";
+import { FriendSearchResultRow } from "./FriendSearchResultRow";
+import { FriendChatMessages } from "./FriendChatMessages";
 import { getPlayerAvatar } from "../utils/avatars";
 import { formatFriendLastSeen } from "../utils/formatLastSeen";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { CosmeticAvatar, CosmeticBannerCard, CosmeticTitle } from "./PlayerCosmetics";
 
-type SearchUser = {
-  id: string;
-  username: string;
-  level: number;
-};
-
 export function FriendsList() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { userId } = useUser();
   const { addToast } = useToast();
@@ -33,7 +30,7 @@ export function FriendsList() {
   const { socket, isConnected, connect } = useSocket();
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendUsername, setFriendUsername] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searchError, setSearchError] = useState("");
   const [searchSuccess, setSearchSuccess] = useState(false);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
@@ -104,7 +101,7 @@ export function FriendsList() {
 
       try {
         const users = await triggerSearchUsers(query).unwrap();
-        setSearchResults(users.filter((user): user is SearchUser => Boolean(user.id && user.username)));
+        setSearchResults(users.filter((user): user is User => Boolean(user.id && user.username)));
         setSearchError(users.length > 0 ? "" : t("friends.noUserFound"));
       } catch {
         setSearchResults([]);
@@ -199,13 +196,6 @@ export function FriendsList() {
   const closeChat = () => {
     setSelectedChat(null);
     setMessageInput("");
-  };
-  const formatMessageTime = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-      return "";
-    }
   };
   const handleSendMessage = async () => {
     const content = messageInput.trim();
@@ -374,7 +364,7 @@ export function FriendsList() {
 
     {showAddFriend && (
       <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-        <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur-xl">
+        <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center justify-between border-b border-white/10 p-5">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-full border border-blue-300/30 bg-blue-950/70">
@@ -423,25 +413,16 @@ export function FriendsList() {
             ) : null}
 
             {!searching && searchResults.length > 0 ? (
-              <div className="mb-4 max-h-56 space-y-2 overflow-y-auto pr-1">
+              <div className="mb-4 max-h-72 space-y-2 overflow-y-auto pr-1">
                 {searchResults.map((user) => (
-                  <div
+                  <FriendSearchResultRow
                     key={user.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-white">{user.username}</p>
-                      <p className="text-xs text-gray-400">{t("friends.level", { level: user.level })}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSendRequest(user.username)}
-                      disabled={sendingRequest}
-                      className="rounded-lg border border-blue-300/20 bg-blue-900/80 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:opacity-50"
-                    >
-                      {t("friends.addFriend")}
-                    </button>
-                  </div>
+                    user={user}
+                    viewerUserId={userId}
+                    onAdd={(username) => void handleSendRequest(username)}
+                    disabled={sendingRequest}
+                    compact
+                  />
                 ))}
               </div>
             ) : null}
@@ -544,25 +525,11 @@ export function FriendsList() {
             ) : messages.length === 0 ? (
               <p className="py-8 text-center text-gray-400">{t("friends.noMessagesYet")}</p>
             ) : (
-              messages.map((msg) => {
-                const isMe = msg.senderId === userId;
-                return (
-                  <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                        isMe
-                          ? "rounded-tr-none border border-blue-300/20 bg-blue-900/80"
-                          : "rounded-tl-none border border-white/10 bg-white/[0.07]"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap break-words text-white">{msg.content}</p>
-                      <span className={`mt-1 block text-xs ${isMe ? "text-blue-200" : "text-gray-400"}`}>
-                        {formatMessageTime(msg.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
+              <FriendChatMessages
+                messages={messages}
+                viewerUserId={userId ?? ""}
+                locale={i18n.language}
+              />
             )}
             <div ref={messagesEndRef} aria-hidden />
           </div>

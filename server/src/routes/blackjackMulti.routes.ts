@@ -35,7 +35,10 @@ import {
   XP_BLACKJACK_HAND,
   XP_BLACKJACK_WIN_BONUS,
 } from '../logic/gamification.js'
-import { incrementMultiplayerPlayCount } from '../dailyChallenges/dailyChallenge.service.js'
+import {
+  incrementMultiplayerPlayCount,
+  markBlackjackRoundResult,
+} from '../dailyChallenges/dailyChallenge.service.js'
 import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
@@ -283,6 +286,7 @@ async function payoutAndFinish(
         XP_BLACKJACK_HAND + winBonus
       )
       await incrementMultiplayerPlayCount(userId, false, tx)
+      await markBlackjackRoundResult(userId, reason, payout, totalBet, tx)
       settlements.push({
         userId,
         username,

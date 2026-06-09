@@ -47,7 +47,21 @@ function mockCreateTx() {
         return { count }
       }),
       findMany: jest.fn(async ({ where }: any) => {
-        return mockProgressRows.filter((r) => r.userId === where.userId && r.dayKey === where.dayKey)
+        return mockProgressRows.filter((r) => {
+          if (r.userId !== where.userId) return false
+          if (where.dayKey != null && r.dayKey !== where.dayKey) return false
+          return true
+        })
+      }),
+      count: jest.fn(async ({ where }: any) => {
+        return mockProgressRows.filter((r) => {
+          if (r.userId !== where.userId) return false
+          if (where.claimed === true && !r.claimed) return false
+          if (where.dayKey?.gte && r.dayKey < where.dayKey.gte) return false
+          if (where.dayKey?.lte && r.dayKey > where.dayKey.lte) return false
+          if (where.challengeCode?.not && r.challengeCode === where.challengeCode.not) return false
+          return true
+        }).length
       }),
       findUnique: jest.fn(async ({ where }: any) => {
         const key = where.userId_dayKey_challengeCode
@@ -59,6 +73,17 @@ function mockCreateTx() {
               r.challengeCode === key.challengeCode
           ) ?? null
         )
+      }),
+      findUniqueOrThrow: jest.fn(async ({ where }: any) => {
+        const key = where.userId_dayKey_challengeCode
+        const row = mockProgressRows.find(
+          (r) =>
+            r.userId === key.userId &&
+            r.dayKey === key.dayKey &&
+            r.challengeCode === key.challengeCode
+        )
+        if (!row) throw new Error('row not found')
+        return row
       }),
       update: jest.fn(async ({ where, data }: any) => {
         const key = where.userId_dayKey_challengeCode
@@ -87,8 +112,25 @@ function mockCreateTx() {
         return data
       }),
     },
+    userBadge: {
+      createMany: jest.fn(async () => ({ count: 0 })),
+    },
   }
 }
+
+jest.mock('../dailyChallenges/dailyChallengeRotation.js', () => {
+  const actual = jest.requireActual('../dailyChallenges/dailyChallengeRotation.js')
+  return {
+    ...actual,
+    getCycleDayIndex: () => 1,
+    getActiveChallengeCodesForDate: () => [
+      'WIN_WITH_PAIR',
+      'WIN_200_ROULETTE',
+      'PLAY_5_TIMES',
+      'WIN_200_SLOT',
+    ],
+  }
+})
 
 var mockPrisma: { $transaction: jest.Mock }
 jest.mock('../config/database.js', () => {
@@ -116,16 +158,14 @@ describe('dailyChallenge.service', () => {
     mockPrisma.$transaction.mockClear()
   })
 
-  it('initialise les 4 challenges fixes sur GET me', async () => {
+  it('initialise les défis du jour courant + hebdo sur GET me', async () => {
     const payload = await getMyDailyChallenges('u1')
     expect(payload.dayKey).toBe(nowIsoDay())
-    expect(payload.challenges).toHaveLength(4)
-    expect(payload.challenges.map((c) => c.code)).toEqual([
-      'WIN_WITH_PAIR',
-      'WIN_200_ROULETTE',
-      'PLAY_5_TIMES',
-      'WIN_200_SLOT',
-    ])
+    expect(payload.challenges.length).toBeGreaterThanOrEqual(4)
+    expect(payload.cycleDay).toBeGreaterThanOrEqual(1)
+    expect(payload.cycleDay).toBeLessThanOrEqual(7)
+    expect(payload.weekly.goal).toBe(20)
+    expect(payload.weekly.badgeId).toBe('weekly_grinder')
   })
 
   it('plafonne la progression roulette au goal', async () => {

@@ -16,6 +16,7 @@ import {
 } from '../utils/chatLinkCensor.js'
 import { clientAvatarUrlFromUser } from '../utils/userAvatarPublic.js'
 import { resolvePublicCosmetics } from '../shop/publicCosmetics.js'
+import { getMutualFriendsCounts } from '../friends/friendMutual.service.js'
 
 const router = express.Router()
 
@@ -346,6 +347,9 @@ messagesRouter.post('/', friendMessageSendLimiter, async (req, res) => {
         senderId: message.senderId,
         receiverId: message.receiverId,
         content: message.content,
+        kind: message.kind,
+        callDurationSec: message.callDurationSec,
+        callOutcome: message.callOutcome,
         createdAt: message.createdAt.toISOString(),
         sender: message.sender,
         receiver: message.receiver
@@ -434,6 +438,9 @@ router.get('/search', friendSearchLimiter, async (req, res) => {
         level: true,
         avatarUrl: true,
         avatarHasBinary: true,
+        equippedBannerId: true,
+        equippedFrameId: true,
+        equippedTitleId: true,
         playerStats: {
           select: {
             totalWins: true,
@@ -444,11 +451,41 @@ router.get('/search', friendSearchLimiter, async (req, res) => {
       take: 10
     })
 
+    const presenceByUserId = await getPresenceBatch(users.map((u) => u.id))
+    const mutualCounts = requesterId
+      ? await getMutualFriendsCounts(
+          requesterId,
+          users.map((u) => u.id),
+        )
+      : new Map<string, number>()
+
     return res.json(
-      users.map((u) => ({
-        ...u,
-        avatarUrl: clientAvatarUrlFromUser(u),
-      })),
+      users.map((u) => {
+        const presence = presenceByUserId.get(u.id)
+        const totalWins = u.playerStats?.totalWins ?? 0
+        const totalGames = u.playerStats?.totalGames ?? 0
+        const winRatePercent =
+          totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0
+        return {
+          id: u.id,
+          username: u.username,
+          level: u.level,
+          avatarUrl: clientAvatarUrlFromUser(u),
+          cosmetics: resolvePublicCosmetics(u),
+          isOnline: presence?.online ?? false,
+          lastSeenAt:
+            presence?.online || !presence?.lastSeenAt
+              ? null
+              : new Date(presence.lastSeenAt).toISOString(),
+          playerStats: u.playerStats,
+          stats: {
+            totalWins,
+            totalGames,
+            winRatePercent,
+          },
+          mutualFriendsCount: mutualCounts.get(u.id) ?? 0,
+        }
+      }),
     )
   } catch (error) {
     console.error('GET /api/friends/search error:', error)

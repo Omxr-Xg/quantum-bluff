@@ -18,6 +18,8 @@ import { extractBearerToken, generateToken, verifyToken } from '../auth/jwt.serv
 import { sanitizePublicAvatarUrl } from '../utils/avatarUrl.js'
 import { assertCanUseAvatarPreset } from '../shop/avatar.service.js'
 import { isShopError } from '../shop/shop.service.js'
+import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
+import { USERNAME_CHANGE_COST_CHIPS } from '../config/profileEconomy.js'
 import {
   canonicalStoredAvatarPath,
   ingestAvatarToBuffer,
@@ -779,7 +781,10 @@ router.patch('/profile', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Email invalide' })
     }
 
-    if (nextUsername && nextUsername !== existing.username) {
+    const usernameChanging =
+      nextUsername != null && nextUsername.length > 0 && nextUsername !== existing.username
+
+    if (usernameChanging) {
       const taken = await prisma.user.findUnique({ where: { username: nextUsername }, select: { id: true } })
       if (taken && taken.id !== userId) {
         return res.status(400).json({ error: 'Nom d’utilisateur déjà utilisé' })
@@ -846,10 +851,68 @@ router.patch('/profile', authMiddleware, async (req, res) => {
       }
     }
 
+    const profileSelect = {
+      id: true,
+      username: true,
+      email: true,
+      avatarUrl: true,
+      avatarHasBinary: true,
+      chips: true,
+    } as const
+
+    if (usernameChanging) {
+      const updated = await prisma.$transaction(async (tx) => {
+        const wallet = await tx.user.findUnique({
+          where: { id: userId },
+          select: { chips: true },
+        })
+        if (!wallet) return { kind: 'not_found' as const }
+        if (wallet.chips < USERNAME_CHANGE_COST_CHIPS) {
+          return { kind: 'insufficient' as const }
+        }
+
+        const balanceBefore = wallet.chips
+        const balanceAfter = balanceBefore - USERNAME_CHANGE_COST_CHIPS
+        const user = await tx.user.update({
+          where: { id: userId },
+          data: { ...data, chips: balanceAfter },
+          select: profileSelect,
+        })
+        await createWalletLedgerMovement(tx, {
+          userId,
+          reason: 'USERNAME_CHANGE',
+          balanceBefore,
+          balanceAfter,
+          gameType: 'profile',
+        })
+        return { kind: 'ok' as const, user, chips: balanceAfter }
+      })
+
+      if (updated.kind === 'not_found') {
+        return res.status(404).json({ error: 'Utilisateur introuvable' })
+      }
+      if (updated.kind === 'insufficient') {
+        return res.status(402).json({
+          error: `Il faut ${USERNAME_CHANGE_COST_CHIPS.toLocaleString('fr-FR')} jetons pour changer de pseudo`,
+          code: 'INSUFFICIENT_CHIPS',
+          requiredChips: USERNAME_CHANGE_COST_CHIPS,
+        })
+      }
+
+      const { user } = updated
+      return res.json({
+        username: user.username,
+        email: user.email,
+        avatarUrl: clientAvatarUrlFromUser(user),
+        chips: updated.chips,
+        usernameChangeCost: USERNAME_CHANGE_COST_CHIPS,
+      })
+    }
+
     const user = await prisma.user.update({
       where: { id: userId },
       data,
-      select: { id: true, username: true, email: true, avatarUrl: true, avatarHasBinary: true },
+      select: profileSelect,
     })
     return res.json({
       username: user.username,

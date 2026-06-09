@@ -994,7 +994,8 @@
       "TOURNAMENT_BUY_IN": "Турнір — бай-ін",
       "TOURNAMENT_BUY_IN_REFUND": "Турнір — повернення бай-іну",
       "TOURNAMENT_PRIZE": "Турнір — призові",
-      "TOURNAMENT_CANCEL_REFUND": "Турнір скасовано — повернення бай-іну"
+      "TOURNAMENT_CANCEL_REFUND": "Турнір скасовано — повернення бай-іну",
+      "USERNAME_CHANGE": "Зміна ніка"
     }
   },
   "pokerChat": {
@@ -1139,6 +1140,10 @@
     "basicInfoSection": "Основна інформація",
     "usernameLabel": "Ім'я користувача",
     "usernamePlaceholder": "Ваше ім'я користувача",
+    "usernameChangeCostInfo": "Зміна ніка коштує {{cost}} фішок.",
+    "usernameChangeCostHint": "Ця зміна коштуватиме {{cost}} фішок.",
+    "usernameChangeConfirm": "Змінити нік на « {{username}} » за {{cost}} фішок?",
+    "usernameChangeInsufficient": "Потрібно {{cost}} фішок, щоб змінити нік.",
     "emailLabel": "Електронна пошта",
     "emailPlaceholder": "ви@email.com",
     "securitySection": "Безпека",

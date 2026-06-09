@@ -9,6 +9,7 @@ import { useUser } from "../hooks/useUser";
 import { useGetPlayerStatsQuery, useGetShopCosmeticsQuery, useGetShopLoadoutQuery } from "../services/api";
 import {
   BADGE_CATALOG,
+  MANUAL_ONLY_BADGE_IDS,
   GAMIFICATION_CHANGED_EVENT,
   readGamification,
   refreshGamificationFromServer,
@@ -312,7 +313,9 @@ export function Profile() {
                   <p className="mt-1 text-[10px] opacity-80">
                     {unlocked
                       ? t("gamification.badgeUnlocked")
-                      : t("gamification.badgeLocked", { level: badge.minLevel })}
+                      : MANUAL_ONLY_BADGE_IDS.has(badge.id)
+                        ? t("gamification.badgeEventLocked")
+                        : t("gamification.badgeLocked", { level: badge.minLevel })}
                   </p>
                 </div>
               );

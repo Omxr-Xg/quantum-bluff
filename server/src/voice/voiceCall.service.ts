@@ -73,6 +73,7 @@ export async function activateCall(callId: string): Promise<string | undefined> 
   const negotiationId = newNegotiationId()
   c.status = 'active'
   c.negotiationId = negotiationId
+  c.connectedAt = Date.now()
   await storeSaveCall(c)
   await storeSetActiveCallForUsers(callId, c.memberIds)
   return negotiationId

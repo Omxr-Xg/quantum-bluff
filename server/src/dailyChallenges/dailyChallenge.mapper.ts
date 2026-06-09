@@ -1,6 +1,7 @@
 import type { DailyChallengeProgress, Prisma } from '../generated/prisma/index.js'
 import { DAILY_CHALLENGE_DEFINITION_BY_CODE } from './dailyChallengeDefinitions.js'
 import type { DailyChallengeProgressDto } from './dailyChallenge.types.js'
+import { getActiveChallengeCodesForDate } from './dailyChallengeRotation.js'
 
 export function mapProgressRowToDto(row: DailyChallengeProgress): DailyChallengeProgressDto {
   const def = DAILY_CHALLENGE_DEFINITION_BY_CODE.get(row.challengeCode as DailyChallengeProgressDto['code'])
@@ -20,13 +21,10 @@ export function dailyChallengeOrder(
   a: Pick<DailyChallengeProgress, 'challengeCode'>,
   b: Pick<DailyChallengeProgress, 'challengeCode'>
 ): number {
-  const iA = Array.from(DAILY_CHALLENGE_DEFINITION_BY_CODE.keys()).indexOf(
-    a.challengeCode as DailyChallengeProgressDto['code']
-  )
-  const iB = Array.from(DAILY_CHALLENGE_DEFINITION_BY_CODE.keys()).indexOf(
-    b.challengeCode as DailyChallengeProgressDto['code']
-  )
-  return iA - iB
+  const order = getActiveChallengeCodesForDate()
+  const iA = order.indexOf(a.challengeCode as DailyChallengeProgressDto['code'])
+  const iB = order.indexOf(b.challengeCode as DailyChallengeProgressDto['code'])
+  return (iA === -1 ? 999 : iA) - (iB === -1 ? 999 : iB)
 }
 
 export type DailyChallengeDbClient = Prisma.TransactionClient

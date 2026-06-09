@@ -15,6 +15,7 @@ import { luckyNumberPlayLock } from '../luckyNumber/luckyNumberPlayLock.js'
 import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
+import { markLuckyNumberRound } from '../dailyChallenges/dailyChallenge.service.js'
 
 const router = express.Router()
 
@@ -115,6 +116,7 @@ router.post('/play', authMiddleware, async (req, res) => {
           )
         }
       }
+      await markLuckyNumberRound(userId, tx)
     })
 
     const updated = await prisma.user.findUnique({

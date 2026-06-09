@@ -36,7 +36,7 @@ import {
   XP_ROULETTE_SPIN,
   XP_ROULETTE_WIN_BONUS,
 } from '../logic/gamification.js'
-import { addRouletteNetWinProgress } from '../dailyChallenges/dailyChallenge.service.js'
+import { addRouletteNetWinProgress, markRouletteSpin } from '../dailyChallenges/dailyChallenge.service.js'
 
 const router = express.Router()
 
@@ -243,6 +243,7 @@ router.post('/spin', authMiddleware, async (req, res) => {
       if (netWin > 0) {
         await addRouletteNetWinProgress(userId, netWin, tx)
       }
+      await markRouletteSpin(userId, bets, totalPayout, totalStake, result, tx)
       const xpGain = XP_ROULETTE_SPIN + (netPositive ? XP_ROULETTE_WIN_BONUS : 0)
       let gamification: {
         experience: number

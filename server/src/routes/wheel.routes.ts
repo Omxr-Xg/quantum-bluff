@@ -14,6 +14,7 @@ import { wheelSpinLock } from '../wheel/wheelSpinLock.js'
 import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
+import { markWheelSpin } from '../dailyChallenges/dailyChallenge.service.js'
 
 const router = express.Router()
 
@@ -109,6 +110,7 @@ router.post('/spin', authMiddleware, async (req, res) => {
           )
         }
       }
+      await markWheelSpin(userId, tx)
     })
 
     const updated = await prisma.user.findUnique({

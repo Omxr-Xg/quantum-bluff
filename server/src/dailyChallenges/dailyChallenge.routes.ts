@@ -6,7 +6,9 @@ import {
   claimDailyChallenge,
   getMyDailyChallenges,
   isDailyChallengeError,
+  recordOnlinePresenceMinute,
 } from './dailyChallenge.service.js'
+import { WEEKLY_CHALLENGE_CODE } from './dailyChallengeRotation.js'
 
 const router = express.Router()
 
@@ -24,6 +26,18 @@ router.get('/me', async (req, res) => {
   }
 })
 
+router.post('/presence-minute', async (req, res) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' })
+    await recordOnlinePresenceMinute(userId)
+    return res.json({ ok: true })
+  } catch (error) {
+    console.error('[dailyChallenges] POST /presence-minute error:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 router.post('/:challengeCode/claim', async (req, res) => {
   try {
     const userId = req.userId
@@ -34,8 +48,9 @@ router.post('/:challengeCode/claim', async (req, res) => {
     if (io) {
       emitUserRewardsUpdated(io, userId, {
         chips: payload.chips,
-        source: 'daily_challenge',
+        source: challengeCode === WEEKLY_CHALLENGE_CODE ? 'weekly_challenge' : 'daily_challenge',
         challengeCode: payload.challengeCode,
+        newBadges: payload.newBadges,
       })
     }
     return res.json({ success: true, ...payload })

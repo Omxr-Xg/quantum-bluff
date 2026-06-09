@@ -20,6 +20,7 @@ import { crashRoundPublicView } from '../crash/crashRoundReconcile.js'
 import { createCasinoRoundContext } from '../casino/services/roundContext.service.js'
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
+import { markCrashCashout, markCrashRoundStarted } from '../dailyChallenges/dailyChallenge.service.js'
 
 const router = express.Router()
 
@@ -118,6 +119,7 @@ router.post('/start', authMiddleware, async (req, res) => {
       startedAtMs,
       status: 'running',
     })
+    await markCrashRoundStarted(userId)
 
     const updated = await prisma.user.findUnique({
       where: { id: userId },
@@ -214,6 +216,7 @@ router.post('/cashout', authMiddleware, async (req, res) => {
       cashoutMultiplier: multiplier,
       payout,
     })
+    await markCrashCashout(userId, multiplier)
 
     const updated = await prisma.user.findUnique({
       where: { id: userId },

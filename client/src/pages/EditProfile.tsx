@@ -9,6 +9,7 @@ import { useUpdateProfileAvatarMutation } from "../services/api";
 import { fileToAvatarDataUrl, presetAvatarToDataUrl } from "../utils/avatarUpload";
 import { avatarPresetIdFromUrl } from "../utils/avatars";
 import { getAuthItem, setAuthItem } from "../utils/authStorage";
+import { USERNAME_CHANGE_COST_CHIPS } from "../config/profileEconomy";
 
 const editGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
@@ -70,6 +71,10 @@ export function EditProfile() {
     setImageFile(null);
   };
 
+  const trimmedUsername = formData.username.trim();
+  const usernameWillChange =
+    trimmedUsername.length > 0 && trimmedUsername !== currentProfile.username;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -86,11 +91,26 @@ export function EditProfile() {
       return;
     }
 
+    if (usernameWillChange) {
+      const costLabel = USERNAME_CHANGE_COST_CHIPS.toLocaleString();
+      const confirmed = window.confirm(
+        t("editProfile.usernameChangeConfirm", {
+          username: trimmedUsername,
+          cost: costLabel,
+        })
+      );
+      if (!confirmed) {
+        setIsSaving(false);
+        return;
+      }
+    }
+
     try {
       const token = getAuthItem("token");
       let avatarToPersist = profileImage;
-      let usernameToPersist = formData.username.trim();
+      let usernameToPersist = trimmedUsername;
       let emailToPersist = formData.email.trim();
+      let updatedChips: number | undefined;
       if (token) {
         /* Les presets sont des URLs Vite bundlées (ex. /assets/FA1-abc123.png) :
          * `sanitizePublicAvatarUrl` côté serveur ne les accepte pas (uniquement
@@ -111,6 +131,9 @@ export function EditProfile() {
         }
         usernameToPersist = result.username;
         emailToPersist = result.email;
+        if (typeof result.chips === "number") {
+          updatedChips = result.chips;
+        }
       }
       saveUserProfile({
         username: usernameToPersist,
@@ -120,6 +143,9 @@ export function EditProfile() {
       setAuthItem("username", usernameToPersist);
       setAuthItem("quantum_bluff_username", usernameToPersist);
       setAuthItem("quantum_bluff_email", emailToPersist);
+      if (typeof updatedChips === "number") {
+        setAuthItem("quantum_bluff_balance", String(updatedChips));
+      }
       window.dispatchEvent(new Event("auth-changed"));
       setSuccessMessage(t("editProfile.profileUpdated"));
       setTimeout(() => {
@@ -129,8 +155,14 @@ export function EditProfile() {
       setSuccessMessage("");
       let message = t("common.error");
       if (typeof err === "object" && err !== null && "data" in err) {
-        const d = (err as { data?: { error?: string } }).data;
-        if (typeof d?.error === "string" && d.error.trim() !== "") message = d.error;
+        const d = (err as { data?: { error?: string; code?: string } }).data;
+        if (d?.code === "INSUFFICIENT_CHIPS") {
+          message = t("editProfile.usernameChangeInsufficient", {
+            cost: USERNAME_CHANGE_COST_CHIPS.toLocaleString(),
+          });
+        } else if (typeof d?.error === "string" && d.error.trim() !== "") {
+          message = d.error;
+        }
       }
       alert(message);
     } finally {
@@ -247,6 +279,15 @@ export function EditProfile() {
                     className={editInputClass}
                     placeholder={t("editProfile.usernamePlaceholder")}
                   />
+                  <p className="mt-1 text-xs text-slate-500">
+                    {usernameWillChange
+                      ? t("editProfile.usernameChangeCostHint", {
+                          cost: USERNAME_CHANGE_COST_CHIPS.toLocaleString(),
+                        })
+                      : t("editProfile.usernameChangeCostInfo", {
+                          cost: USERNAME_CHANGE_COST_CHIPS.toLocaleString(),
+                        })}
+                  </p>
                 </div>
 
                 <div>

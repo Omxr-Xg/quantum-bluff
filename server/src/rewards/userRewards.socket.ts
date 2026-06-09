@@ -2,8 +2,9 @@ import type { Server } from 'socket.io'
 
 export type UserRewardsUpdatedPayload = {
   chips: number
-  source: 'daily_login' | 'daily_challenge' | 'referral' | 'achievement'
+  source: 'daily_login' | 'daily_challenge' | 'weekly_challenge' | 'referral' | 'achievement'
   challengeCode?: string
+  newBadges?: string[]
 }
 
 /** Notifie le client connecté (`user:{id}`) que le solde / récompenses ont changé. */

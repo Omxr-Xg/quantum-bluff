@@ -13,7 +13,10 @@ export const BADGE_CATALOG: { id: string; minLevel: number }[] = [
   { id: "master", minLevel: 18 },
   { id: "champion", minLevel: 22 },
   { id: "legend", minLevel: 25 },
+  { id: "weekly_grinder", minLevel: 0 },
 ];
+
+export const MANUAL_ONLY_BADGE_IDS = new Set(["weekly_grinder"]);
 
 export type StoredGamification = {
   experience: number;

@@ -2,14 +2,11 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '../hooks/useUser';
 import { useSearchUsersQuery, useSendFriendRequestMutation } from '../services/api';
-import { Search, UserPlus, Loader2 } from 'lucide-react';
-import { getPlayerAvatar } from '../utils/avatars';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { Search, Loader2 } from 'lucide-react';
+import { FriendSearchResultRow } from './FriendSearchResultRow';
 
 const pokerGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
-const pokerInnerCard =
-  "rounded-xl border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md";
 const pokerInput =
   "rounded-xl border border-white/10 bg-slate-950/55 text-white placeholder-slate-500 transition-all focus:border-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-500/25";
 
@@ -76,42 +73,13 @@ export const FriendSearch = () => {
       {results && results.length > 0 ? (
         <div className="space-y-2">
           {results.map((user) => (
-            <div
+            <FriendSearchResultRow
               key={user.id}
-              className={`flex items-center justify-between gap-3 p-3 ${pokerInnerCard}`}
-            >
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-blue-300/30 bg-blue-950/60">
-                  {getPlayerAvatar(user.username, user.id, userId, user.avatarUrl) ? (
-                    <ImageWithFallback
-                      src={getPlayerAvatar(user.username, user.id, userId, user.avatarUrl)}
-                      alt=""
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-sm font-bold text-white">{user.username.charAt(0).toUpperCase()}</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="font-medium text-white">{user.username}</div>
-                  <div className="text-xs text-gray-400">
-                    {t("friends.level", { level: user.level })} •{" "}
-                    {t("friends.gamesCount", {
-                      count: user.playerStats?.totalGames ?? user.stats?.totalGames ?? 0,
-                    })}
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleSendRequest(user.username)}
-                disabled={isSending}
-                className="rounded-lg border border-blue-300/20 bg-blue-950/70 p-2 text-white transition hover:bg-blue-900/80 disabled:opacity-50"
-                title={t("friends.addAsFriend")}
-              >
-                <UserPlus className="h-5 w-5" />
-              </button>
-            </div>
+              user={user}
+              viewerUserId={userId}
+              onAdd={(username) => void handleSendRequest(username)}
+              disabled={isSending}
+            />
           ))}
         </div>
       ) : debouncedTerm.length >= 2 && !isLoading ? (

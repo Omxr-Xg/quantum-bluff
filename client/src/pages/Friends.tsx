@@ -34,10 +34,13 @@ import { useToast } from "../contexts/ToastContext";
 import { useTopBar } from "../contexts/TopBarContext";
 import { useVoice } from "../contexts/VoiceContext";
 
+import { FriendSearchResultRow } from "../components/FriendSearchResultRow";
+import { FriendChatMessages } from "../components/FriendChatMessages";
 import {
   useGetFriendsQuery,
   useGetFriendRequestsQuery,
   useSearchUsersQuery,
+  type User,
   useSendFriendRequestMutation,
   useRespondToFriendRequestMutation,
   useGetFriendMessagesQuery,
@@ -173,7 +176,7 @@ export function Friends() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendUsername, setFriendUsername] = useState("");
-  const [searchResults, setSearchResults] = useState<{ id?: string; username?: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searchError, setSearchError] = useState("");
   const [searchSuccess, setSearchSuccess] = useState(false);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
@@ -591,8 +594,12 @@ export function Friends() {
   useEffect(() => {
     if (!socket || !userId || !selectedChat) return;
 
-    const handleFriendMessage = (data: { senderId: string; receiverId: string }) => {
-      if (userId && data.senderId === userId) return;
+    const handleFriendMessage = (data: {
+      senderId: string;
+      receiverId: string;
+      kind?: string;
+    }) => {
+      if (userId && data.senderId === userId && data.kind !== "VOICE_CALL") return;
       if (
         (data.senderId === selectedChat && data.receiverId === userId) ||
         (data.receiverId === selectedChat && data.senderId === userId)
@@ -644,24 +651,6 @@ export function Friends() {
           : serverMsg ?? (e?.status === 403 ? t("friends.chatOnlyWithFriends") : t("friends.sendMessageError"));
       addToast(msg, "error");
     }
-  };
-
-  const formatMessageTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    if (Number.isNaN(date.getTime())) return t("friends.justNow");
-    const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) return t("friends.justNow");
-
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    const lang = i18n.language;
-
-    if (diffHours < 24) {
-      return date.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
-    }
-    if (diffDays < 7) return t("friends.daysAgo", { count: diffDays });
-    return date.toLocaleDateString(lang);
   };
 
   return (
@@ -1020,7 +1009,7 @@ export function Friends() {
                           <CosmeticTitle cosmetics={friend.cosmetics} className="mb-1 text-xs font-semibold" />
                           <div className="flex items-center gap-1.5 text-sm text-slate-400">
                             <Trophy className="h-4 w-4 text-cyan-200/80" />
-                            {friend.stats?.wins ?? friend.playerStats?.totalWins ?? 0}{" "}
+                            {friend.stats?.totalWins ?? friend.stats?.wins ?? friend.playerStats?.totalWins ?? 0}{" "}
                             {t("profile.wins")}
                           </div>
                           <div className={`mt-1 text-xs font-semibold ${friend.isOnline ? "text-emerald-300" : "text-slate-500"}`}>
@@ -1421,7 +1410,7 @@ export function Friends() {
 
       {showAddFriend && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className={`w-full max-w-md overflow-hidden ${pokerGlassCard}`}>
+          <div className={`w-full max-w-lg overflow-hidden ${pokerGlassCard}`}>
             <div className="flex items-center justify-between border-b border-white/10 p-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full border border-blue-300/30 bg-blue-950/60">
@@ -1475,23 +1464,16 @@ export function Friends() {
               )}
 
               {searchResults.length > 0 && !searching && (
-                <div className="mb-4">
-                  <h3 className="mb-2 font-semibold text-white">{t("friends.results")}</h3>
+                <div className="mb-4 max-h-72 space-y-2 overflow-y-auto pr-1">
+                  <h3 className="mb-1 text-sm font-semibold text-slate-300">{t("friends.results")}</h3>
                   {searchResults.map((user) => (
-                    <div
+                    <FriendSearchResultRow
                       key={user.id}
-                      className={`mb-2 flex items-center justify-between p-3 ${pokerInnerCard}`}
-                    >
-                      <span className="text-white">{user.username}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleSendRequest(user.username!)}
-                        disabled={sendingRequest}
-                        className="rounded-lg border border-blue-300/20 bg-blue-900/80 px-3 py-1 text-sm text-white hover:bg-blue-800 disabled:opacity-50"
-                      >
-                        {t("friends.addFriend")}
-                      </button>
-                    </div>
+                      user={user}
+                      viewerUserId={userId}
+                      onAdd={(username) => void handleSendRequest(username)}
+                      disabled={sendingRequest}
+                    />
                   ))}
                 </div>
               )}
@@ -1612,27 +1594,11 @@ export function Friends() {
               ) : messages.length === 0 ? (
                 <p className="text-gray-400 text-center py-8">{t('friends.noMessagesYet')}</p>
               ) : (
-                messages.map((msg) => {
-                  const isMe = msg.senderId === userId;
-                  return (
-                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div
-                        className={`rounded-2xl px-4 py-3 max-w-[70%] ${
-                          isMe
-                            ? 'rounded-tr-none border border-blue-300/20 bg-blue-900/80'
-                            : 'rounded-tl-none border border-white/10 bg-white/[0.07]'
-                        }`}
-                      >
-                        <p className="text-white whitespace-pre-wrap break-words">{msg.content}</p>
-                        <span
-                          className={`text-xs mt-1 block ${isMe ? 'text-blue-200' : 'text-gray-400'}`}
-                        >
-                          {formatMessageTime(msg.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
+                <FriendChatMessages
+                  messages={messages}
+                  viewerUserId={userId ?? ""}
+                  locale={i18n.language}
+                />
               )}
               <div ref={messagesEndRef} aria-hidden />
             </div>

@@ -35,6 +35,7 @@ import { createCasinoRoundContext } from '../casino/services/roundContext.servic
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 import type { CasinoRoundContext } from '../casino/domain/casinoRound.types.js'
 import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
+import { markBlackjackRoundResult } from '../dailyChallenges/dailyChallenge.service.js'
 import { emitToUsers, FRIEND_LOAN_SOCKET } from '../services/friendLoan.emit.js'
 
 const router = express.Router()
@@ -153,6 +154,7 @@ async function finalizeHand(
     })
   }
 
+  await markBlackjackRoundResult(userId, reason, payout, totalBet, tx)
   const winBonus = payout > totalBet ? XP_BLACKJACK_WIN_BONUS : 0
   const gamification = await awardXpInTransaction(tx, userId, XP_BLACKJACK_HAND + winBonus)
   const lvl = levelFromExperience(updated.experience)

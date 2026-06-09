@@ -12,6 +12,8 @@ export type StoredVoiceCall = {
   status: 'ringing' | 'active' | 'ended'
   negotiationId?: string
   createdAt: number
+  connectedAt?: number
+  chatLogged?: boolean
 }
 
 const CALL_KEY_PREFIX = 'voice:call:'

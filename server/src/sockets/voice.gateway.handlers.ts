@@ -51,6 +51,7 @@ import { getCachedUserProfile } from '../utils/userProfileCache.js'
 import { isDbConnectionError, withDbRetry } from '../utils/dbRetry.js'
 import { rootLogger } from '../observability/logger.js'
 import { emitVoiceEventToUser } from '../voice/voiceCallDelivery.js'
+import { logPrivateCallBeforeEnd } from '../friends/friendCallMessage.service.js'
 
 type VoiceSocket = Socket & { userId?: string; voiceChannelId?: string }
 
@@ -100,6 +101,7 @@ async function leaveChannel(
     if (call) {
       emitCallEnded(io, call, channelId, userId)
       if (call.type === 'private') {
+        await logPrivateCallBeforeEnd(io, parsed.id, 'hangup')
         await endCall(parsed.id)
       } else {
         const remaining = getVoiceChannel(channelId)
@@ -467,6 +469,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
               callId: pending.callId,
               reason: 'timeout',
             })
+            await logPrivateCallBeforeEnd(io, pending.callId, 'timeout')
             await endCall(pending.callId)
           })()
         })
@@ -488,7 +491,10 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
         await leaveChannel(io, socket, call.channelId)
       } else {
         emitCallEnded(io, call, call.channelId, userId)
-        if (call.type === 'private') await endCall(callId)
+        if (call.type === 'private') {
+          await logPrivateCallBeforeEnd(io, callId, 'hangup')
+          await endCall(callId)
+        }
       }
     } catch (err) {
       console.error('[voice] VOICE_CALL_END', err)
@@ -504,6 +510,7 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
       if (!call || call.creatorId !== userId) return
       clearCallRingTimeout(callId)
       emitCallEnded(io, call, call.channelId, userId)
+      await logPrivateCallBeforeEnd(io, callId, 'cancel')
       await endCall(callId)
     } catch (err) {
       console.error('[voice] VOICE_CALL_CANCEL', err)
@@ -577,6 +584,11 @@ export function registerVoiceGatewayHandlers(io: Server, socket: VoiceSocket): v
           const updated = await getCall(callId)
           if (!updated || updated.type === 'private' || updated.memberIds.length <= 1) {
             clearCallRingTimeout(callId)
+            const endContext =
+              action === 'reject' ? 'reject' : action === 'block' ? 'block' : 'ignore'
+            if (!updated || updated.type === 'private') {
+              await logPrivateCallBeforeEnd(io, callId, endContext)
+            }
             await endCall(callId)
           }
         }

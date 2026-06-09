@@ -59,6 +59,8 @@ export function getEffectiveRouletteMaxTotalStake(level: number): number {
 export type BadgeDefinition = {
   id: string
   minLevel: number
+  /** Badges accordés manuellement (défis, événements) — jamais via le niveau. */
+  manualOnly?: boolean
 }
 
 /** Catalogue MVP : badges débloqués uniquement par niveau. */
@@ -73,6 +75,7 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
   { id: 'master', minLevel: 18 },
   { id: 'champion', minLevel: 22 },
   { id: 'legend', minLevel: 25 },
+  { id: 'weekly_grinder', minLevel: 0, manualOnly: true },
 ]
 
 export const XP_POKER_HAND_BOT = 12
@@ -90,6 +93,18 @@ export const XP_BELOTE_WIN = 25
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
 
+export async function grantManualBadge(
+  tx: Tx,
+  userId: string,
+  badgeId: string
+): Promise<boolean> {
+  const ins = await tx.userBadge.createMany({
+    data: [{ userId, badgeId }],
+    skipDuplicates: true,
+  })
+  return ins.count > 0
+}
+
 export async function unlockBadgesForLevel(
   tx: Tx,
   userId: string,
@@ -100,7 +115,9 @@ export async function unlockBadgesForLevel(
     select: { badgeId: true },
   })
   const have = new Set(existing.map((e) => e.badgeId))
-  const toAdd = BADGE_CATALOG.filter((b) => b.minLevel <= newLevel && !have.has(b.id)).map((b) => b.id)
+  const toAdd = BADGE_CATALOG.filter(
+    (b) => !b.manualOnly && b.minLevel <= newLevel && !have.has(b.id)
+  ).map((b) => b.id)
   if (toAdd.length === 0) return []
   await tx.userBadge.createMany({
     data: toAdd.map((badgeId) => ({ userId, badgeId })),
