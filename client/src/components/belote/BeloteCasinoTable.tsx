@@ -178,7 +178,7 @@ export function BeloteCasinoTable({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         transition={{ delay: i * DEAL_STAGGER_SEC, duration: 0.22 }}
                       >
-                        <BelotePlayingCard card={tr.card} size="sm" />
+                        <BelotePlayingCard card={tr.card} size="md" />
                       </motion.div>
                     ))}
                   </div>
@@ -270,7 +270,7 @@ export function BeloteCasinoTable({
                             className="-ml-1.5 first:ml-0"
                             style={{ zIndex: ci }}
                           >
-                            <BelotePlayingCard hidden size="xs" animationDelay={ci * 0.02} />
+                            <BelotePlayingCard hidden size="sm" animationDelay={ci * 0.02} />
                           </div>
                         ))}
                         {p.handCount > 4 ? (

@@ -3,6 +3,7 @@ import type { BeloteTableController } from '../../logic/belote/BeloteTableContro
 import { activeBeloteGames } from '../../shared/activeBeloteGames.js'
 import { isBeloteBotId } from '../../shared/beloteBots.js'
 import { syncBeloteAfterAction } from './beloteSettlement.service.js'
+import { recoverStuckBeloteBotTurn } from './beloteBotTurns.service.js'
 
 export const BELOTE_TURN_TIME_SEC = 30
 export const BELOTE_TURN_MS = BELOTE_TURN_TIME_SEC * 1000
@@ -63,9 +64,17 @@ export function scheduleBeloteTurnTimer(
   clearBeloteTurnTimer(gameId)
 
   if (currentTurnPlayerIsBot(table)) {
-    void import('./beloteBotTurns.service.js').then(({ scheduleBeloteBotTurns }) =>
-      scheduleBeloteBotTurns(io, gameId),
-    )
+    void import('./beloteBotTurns.service.js').then(({ scheduleBeloteBotTurns }) => {
+      scheduleBeloteBotTurns(io, gameId)
+    })
+    const botEpoch = bumpEpoch(gameId)
+    const botWatchdog = setTimeout(() => {
+      if (turnEpoch.get(gameId) !== botEpoch) return
+      const live = activeBeloteGames.getSync(gameId)
+      if (!live || !currentTurnPlayerIsBot(live)) return
+      void recoverStuckBeloteBotTurn(io, gameId)
+    }, 8_000)
+    turnTimeouts.set(gameId, botWatchdog)
     return
   }
 

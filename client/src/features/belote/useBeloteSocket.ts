@@ -153,6 +153,7 @@ export function useBeloteSocket(
       if (payload.gameId !== gameId) return;
       setLoadError(null);
       setState(payload.state);
+      setBotThinkingId(null);
       const ids = new Set(payload.presentUserIds ?? []);
       if (myUserId) ids.add(myUserId);
       setPresentUserIds([...ids]);
@@ -184,7 +185,7 @@ export function useBeloteSocket(
     const onBotAction = (payload: { gameId: string; botId: string }) => {
       if (payload.gameId !== gameId) return;
       setBotThinkingId(payload.botId);
-      window.setTimeout(() => setBotThinkingId((id) => (id === payload.botId ? null : id)), 900);
+      window.setTimeout(() => setBotThinkingId((id) => (id === payload.botId ? null : id)), 1200);
     };
     const onReplaced = () => {
       void refreshHttp();

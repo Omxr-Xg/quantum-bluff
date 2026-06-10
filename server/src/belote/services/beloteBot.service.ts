@@ -40,7 +40,9 @@ export async function decideBeloteBotAction(
   if (neural) {
     decision = { ...neural, reason: `neural:${neural.reason}` }
     source = 'NEURAL'
-    modelVersionId = await getActiveBeloteModelVersionId()
+    void getActiveBeloteModelVersionId().then((id) => {
+      modelVersionId = id
+    })
   } else {
     if (env.aiServiceEnabled) neuralRejected = true
     decision = heuristicDecision(table, botPlayerId, legalActions)

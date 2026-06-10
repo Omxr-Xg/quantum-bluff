@@ -5,8 +5,8 @@ import type { BeloteCard } from "../../features/belote/useBeloteSocket";
 
 type CardSize = "xs" | "sm" | "md" | "board" | "lg";
 
-/** Réduction ~20 % des cartes belote sur téléphone. */
-const BELOTE_MOBILE_CARD_CLASS = "max-md:origin-center max-md:scale-[0.8]";
+/** Belote : cartes ~25 % plus grandes que le sizing poker par défaut. */
+const BELOTE_CARD_SCALE_CLASS = "origin-center scale-[1.25]";
 
 export function BelotePlayingCard({
   card,
@@ -25,7 +25,7 @@ export function BelotePlayingCard({
   animationDelay?: number;
   className?: string;
 }) {
-  const cardClassName = [className, BELOTE_MOBILE_CARD_CLASS].filter(Boolean).join(" ");
+  const cardClassName = [className, BELOTE_CARD_SCALE_CLASS].filter(Boolean).join(" ");
 
   if (hidden || !card) {
     return (
@@ -59,7 +59,7 @@ export function BelotePlayingCard({
 
   return (
     <motion.div
-      className={[className, BELOTE_MOBILE_CARD_CLASS].filter(Boolean).join(" ")}
+      className={[className, BELOTE_CARD_SCALE_CLASS].filter(Boolean).join(" ")}
       initial={{ opacity: 0, y: 10, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
