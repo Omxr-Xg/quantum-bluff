@@ -246,6 +246,11 @@
     "tagline": "كل ثانية خدعة",
     "betLabel": "الرهان",
     "launch": "إطلاق",
+    "placeBet": "رهان",
+    "countdownLabel": "الجولة القادمة خلال",
+    "betPlaced": "تم الرهان — {{seconds}}ث",
+    "betLocked": "الرهان مقفل — إقلاع قريب",
+    "roundStarting": "جاري الإقلاع…",
     "relaunch": "العب مجدداً",
     "cashoutAt": "اسحب عند x{{mult}}",
     "statusReady": "جاهز للإقلاع",
@@ -259,7 +264,13 @@
     "lastWin": "آخر ربح: +{{amount}} رقائق (x{{mult}})",
     "lastLose": "آخر جولة: -{{amount}} رقائق (انهيار x{{mult}})",
     "resultCashed": "تم السحب عند x{{mult}}",
-    "resultCrashed": "انهيار عند x{{mult}}"
+    "resultCrashed": "انهيار عند x{{mult}}",
+    "crashedLabel": "انهيار!",
+    "cashedTitle": "تم السحب!",
+    "multiplierLabel": "المضاعف",
+    "autoCashoutLabel": "سحب تلقائي",
+    "potentialWin": "الربح المحتمل",
+    "lastCrash": "آخر انهيار"
   },
   "mines": {
     "back": "العودة إلى الألعاب الفردية",

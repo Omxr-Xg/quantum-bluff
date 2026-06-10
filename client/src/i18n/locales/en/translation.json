@@ -259,6 +259,11 @@
     "tagline": "Every second is a bluff",
     "betLabel": "Bet",
     "launch": "Launch",
+    "placeBet": "Place bet",
+    "countdownLabel": "Next round in",
+    "betPlaced": "Bet placed — {{seconds}}s",
+    "betLocked": "Bet locked — takeoff soon",
+    "roundStarting": "Launching…",
     "relaunch": "Play again",
     "cashoutAt": "Cash out at x{{mult}}",
     "statusReady": "Ready for takeoff",
@@ -272,7 +277,13 @@
     "lastWin": "Last win: +{{amount}} chips (x{{mult}})",
     "lastLose": "Last round: -{{amount}} chips (crash x{{mult}})",
     "resultCashed": "Cashed out at x{{mult}}",
-    "resultCrashed": "Crashed at x{{mult}}"
+    "resultCrashed": "Crashed at x{{mult}}",
+    "crashedLabel": "Crashed!",
+    "cashedTitle": "Cashed out!",
+    "multiplierLabel": "Multiplier",
+    "autoCashoutLabel": "Auto cashout",
+    "potentialWin": "Potential win",
+    "lastCrash": "Last crash"
   },
   "mines": {
     "back": "Back to solo games",

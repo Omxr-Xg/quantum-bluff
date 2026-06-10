@@ -242,6 +242,11 @@
     "tagline": "Cada segundo es un farol",
     "betLabel": "Apuesta",
     "launch": "Lanzar",
+    "placeBet": "Apostar",
+    "countdownLabel": "Próxima ronda en",
+    "betPlaced": "Apuesta colocada — {{seconds}}s",
+    "betLocked": "Apuesta bloqueada — despegue inminente",
+    "roundStarting": "Despegando…",
     "relaunch": "Rejugar",
     "cashoutAt": "Retirar en x{{mult}}",
     "statusReady": "Listo para despegar",
@@ -255,7 +260,13 @@
     "lastWin": "Última ganancia: +{{amount}} fichas (x{{mult}})",
     "lastLose": "Última ronda: -{{amount}} fichas (crash x{{mult}})",
     "resultCashed": "Retirado en x{{mult}}",
-    "resultCrashed": "Crash en x{{mult}}"
+    "resultCrashed": "Crash en x{{mult}}",
+    "crashedLabel": "¡Crash!",
+    "cashedTitle": "¡Cobrado!",
+    "multiplierLabel": "Multiplicador",
+    "autoCashoutLabel": "Retiro automático",
+    "potentialWin": "Ganancia potencial",
+    "lastCrash": "Último crash"
   },
   "mines": {
     "back": "Volver a juegos solo",

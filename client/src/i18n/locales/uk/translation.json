@@ -244,6 +244,11 @@
     "tagline": "Кожна секунда — блеф",
     "betLabel": "Ставка",
     "launch": "Запуск",
+    "placeBet": "Ставка",
+    "countdownLabel": "Наступний раунд через",
+    "betPlaced": "Ставку зроблено — {{seconds}}с",
+    "betLocked": "Ставку зафіксовано — зліт незабаром",
+    "roundStarting": "Зліт…",
     "relaunch": "Зіграти знову",
     "cashoutAt": "Забрати на x{{mult}}",
     "statusReady": "Готовий до зльоту",
@@ -257,7 +262,13 @@
     "lastWin": "Останній виграш: +{{amount}} фішок (x{{mult}})",
     "lastLose": "Останній раунд: -{{amount}} фішок (крах x{{mult}})",
     "resultCashed": "Забрано на x{{mult}}",
-    "resultCrashed": "Крах на x{{mult}}"
+    "resultCrashed": "Крах на x{{mult}}",
+    "crashedLabel": "Крах!",
+    "cashedTitle": "Забрано!",
+    "multiplierLabel": "Множник",
+    "autoCashoutLabel": "Авто-забір",
+    "potentialWin": "Потенційний виграш",
+    "lastCrash": "Останній крах"
   },
   "mines": {
     "back": "Назад до соло-ігор",

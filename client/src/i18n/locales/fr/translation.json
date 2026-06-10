@@ -258,6 +258,11 @@
     "tagline": "Chaque seconde est un bluff",
     "betLabel": "Mise",
     "launch": "Lancer",
+    "placeBet": "Parier",
+    "countdownLabel": "Prochain round dans",
+    "betPlaced": "Mise placée — {{seconds}}s",
+    "betLocked": "Mise verrouillée — décollage imminent",
+    "roundStarting": "Décollage…",
     "relaunch": "Relancer",
     "cashoutAt": "Retirer à x{{mult}}",
     "statusReady": "Prêt à décoller",
@@ -271,7 +276,13 @@
     "lastWin": "Dernier gain : +{{amount}} jetons (x{{mult}})",
     "lastLose": "Dernier round : -{{amount}} jetons (crash x{{mult}})",
     "resultCashed": "Retiré à x{{mult}}",
-    "resultCrashed": "Crash à x{{mult}}"
+    "resultCrashed": "Crash à x{{mult}}",
+    "crashedLabel": "Crash !",
+    "cashedTitle": "Encaissé !",
+    "multiplierLabel": "Multiplicateur",
+    "autoCashoutLabel": "Retrait auto",
+    "potentialWin": "Gain potentiel",
+    "lastCrash": "Dernier crash"
   },
   "mines": {
     "back": "Retour jeux solo",
