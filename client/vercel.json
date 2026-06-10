@@ -1,7 +1,8 @@
 {
   "build": {
     "env": {
-      "VITE_BASE_PATH": "/"
+      "VITE_BASE_PATH": "/",
+      "NODE_OPTIONS": "--max-old-space-size=4096"
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
