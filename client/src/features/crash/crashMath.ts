@@ -12,31 +12,22 @@ export function multiplierAtElapsedMs(elapsedMs: number): number {
   return Math.floor(m * 100) / 100
 }
 
-export function elapsedMsForMultiplier(multiplier: number): number {
-  if (multiplier <= 1) return 0
-  return (Math.log(multiplier) / CRASH_GROWTH_RATE) * 1000
+/** Décalage horaire serveur ↔ client (ms). */
+export function serverOffsetFromSample(serverNowMs: number, nowLocal = Date.now()): number {
+  return serverNowMs - nowLocal
 }
 
-/** Recale `startedAt` pour que l’extrapolation client colle au sample serveur. */
-export function alignStartedAtFromServerSample(serverNowMs: number, serverMultiplier: number): number {
-  return serverNowMs - elapsedMsForMultiplier(serverMultiplier)
-}
-
-/** Horloge alignée sur le serveur (évite un affichage en avance sur le cashout). */
-export function createServerClockSync() {
-  let offsetMs = 0
-  return {
-    sync(serverNowMs: number) {
-      offsetMs = serverNowMs - Date.now()
-    },
-    nowMs() {
-      return Date.now() + offsetMs
-    },
-    multiplierAtStartedAt(startedAtMs: number) {
-      const elapsedMs = Math.max(0, this.nowMs() - startedAtMs)
-      return multiplierAtElapsedMs(elapsedMs)
-    },
-  }
+/**
+ * Multiplicateur affiché : startedAt fixe (serveur) + horloge synchronisée.
+ * Ne jamais recaler startedAt après le démarrage — seul l’offset bouge.
+ */
+export function multiplierFromStartedAt(
+  startedAtMs: number,
+  serverOffsetMs: number,
+  nowLocal = Date.now(),
+): number {
+  const elapsedMs = Math.max(0, nowLocal + serverOffsetMs - startedAtMs)
+  return multiplierAtElapsedMs(elapsedMs)
 }
 
 export function clampBet(value: number, balance: number): number {
@@ -61,38 +52,24 @@ export function multiplierColorClass(mult: number, phase: 'ready' | 'running' | 
   return 'text-fuchsia-300'
 }
 
-/** Points normalisés pour la courbe SVG (y = 1 - e^(-t)). */
 /** Point de crash visuel pour les rounds spectateur (sans mise). */
 export function generateDemoCrashPoint(): number {
-  const r = Math.random();
-  let min: number;
-  let max: number;
+  const r = Math.random()
+  let min: number
+  let max: number
   if (r < 0.7) {
-    min = 1.01;
-    max = 2;
+    min = 1.01
+    max = 2
   } else if (r < 0.9) {
-    min = 2;
-    max = 5;
+    min = 2
+    max = 5
   } else if (r < 0.98) {
-    min = 5;
-    max = 10;
+    min = 5
+    max = 10
   } else {
-    min = 10;
-    max = 50;
+    min = 10
+    max = 50
   }
-  const raw = min + Math.random() * (max - min);
-  return Math.floor(raw * 100) / 100;
-}
-
-export function buildCurvePoints(elapsedMs: number, width: number, height: number, maxPoints = 48): string {
-  const maxT = Math.max(3, elapsedMs / 1000)
-  const coords: string[] = []
-  for (let i = 0; i <= maxPoints; i++) {
-    const t = (i / maxPoints) * maxT
-    const yNorm = 1 - Math.exp(-t * 0.85)
-    const x = (t / maxT) * width
-    const y = height - yNorm * height * 0.88 - height * 0.06
-    coords.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`)
-  }
-  return coords.join(' ')
+  const raw = min + Math.random() * (max - min)
+  return Math.floor(raw * 100) / 100
 }

@@ -36,9 +36,24 @@ export async function fetchCrashActiveRound(): Promise<CrashActiveRound | null> 
   try {
     const res = await fetch(apiUrl("/api/crash/active"), { headers });
     if (!res.ok) return null;
-    const data = (await res.json()) as { active?: boolean; roundId?: string };
+    const data = (await res.json()) as {
+      active?: boolean;
+      roundId?: string;
+      bet?: number;
+      startedAt?: number;
+      multiplier?: number;
+      serverNow?: number;
+    };
     if (!data.active || !data.roundId) return null;
-    return data as CrashActiveRound;
+    return {
+      active: true,
+      roundId: data.roundId,
+      bet: data.bet ?? 0,
+      startedAt: data.startedAt ?? Date.now(),
+      status: "running",
+      multiplier: data.multiplier ?? 1,
+      serverNow: data.serverNow,
+    };
   } catch {
     return null;
   }

@@ -5,8 +5,6 @@ export const CRASH_MAX_BET = 500
 export const CRASH_BET_STEP = 10
 /** Croissance exponentielle : m(t) = e^(rate × t secondes). */
 export const CRASH_GROWTH_RATE = 0.21
-/** Tolérance réseau / frame sur le multiplicateur déclaré au cashout. */
-export const CRASH_CASHOUT_TOLERANCE = 0.08
 
 export type CrashBetValidation =
   | { ok: true; bet: number }
@@ -69,31 +67,16 @@ export function isRoundCrashed(elapsedSec: number, crashPoint: number): boolean 
   return multiplierAtElapsedSeconds(elapsedSec) >= crashPoint
 }
 
-export function validateCashoutMultiplier(
-  requested: number,
+/** Cashout 100 % serveur : coef au moment exact de la requête (le client n’envoie rien). */
+export function resolveCashoutMultiplier(
   elapsedSec: number,
   crashPoint: number,
-): { ok: true; multiplier: number } | { ok: false; code: 'TOO_EARLY' | 'TOO_HIGH' | 'ALREADY_CRASHED' | 'INVALID_MULTIPLIER' } {
-  if (!Number.isFinite(requested) || requested < 1) {
-    return { ok: false, code: 'INVALID_MULTIPLIER' }
-  }
-  const serverMult = multiplierAtElapsedSeconds(elapsedSec)
+): { ok: true; multiplier: number } | { ok: false; code: 'TOO_EARLY' | 'ALREADY_CRASHED' } {
   if (isRoundCrashed(elapsedSec, crashPoint)) {
     return { ok: false, code: 'ALREADY_CRASHED' }
   }
-  if (requested > serverMult + CRASH_CASHOUT_TOLERANCE) {
-    return { ok: false, code: 'TOO_HIGH' }
-  }
-  if (requested >= crashPoint) {
-    return { ok: false, code: 'ALREADY_CRASHED' }
-  }
-  // Client en avance (latence réseau) : créditer jusqu’à serverMult + tolérance.
-  // Client en retard : créditer le multiplicateur serveur au moment de la requête.
-  const credited =
-    requested > serverMult
-      ? Math.min(requested, serverMult + CRASH_CASHOUT_TOLERANCE)
-      : serverMult
-  const multiplier = Math.floor(Math.min(credited, crashPoint - 0.01) * 100) / 100
+  const mult = multiplierAtElapsedSeconds(elapsedSec)
+  const multiplier = Math.floor(Math.min(mult, crashPoint - 0.01) * 100) / 100
   if (multiplier < 1) return { ok: false, code: 'TOO_EARLY' }
   return { ok: true, multiplier }
 }

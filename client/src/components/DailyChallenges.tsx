@@ -1,100 +1,63 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { CheckCircle, Target, Trophy } from "lucide-react";
 import { useUser } from "../hooks/useUser";
-import { apiFetch, apiUrl } from "../utils/apiBase";
+import { apiUrl } from "../utils/apiBase";
 import { useTranslation } from "react-i18next";
 import { getAuthItem, setAuthItem } from "../utils/authStorage";
 import { mergeGamificationFromServerResponse } from "../utils/gamificationStorage";
-
-interface Challenge {
-  code: string;
-  i18nKey: string;
-  category: string;
-  progress: number;
-  goal: number;
-  completed: boolean;
-  claimed: boolean;
-  rewardTokens: number;
-}
-
-interface WeeklyBonus {
-  code: string;
-  weekKey: string;
-  i18nKey: string;
-  progress: number;
-  goal: number;
-  completed: boolean;
-  claimed: boolean;
-  rewardTokens: number;
-  badgeId: string;
-}
+import {
+  useClaimDailyChallengeMutation,
+  useGetDailyChallengesQuery,
+  type DailyChallengeDto,
+} from "../services/api";
+import {
+  readDailyChallengesCache,
+  writeDailyChallengesCache,
+} from "../utils/dailyChallengesCache";
 
 export function DailyChallenges() {
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [weeklyChallenges, setWeeklyChallenges] = useState<Challenge[]>([]);
-  const [weeklyBonus, setWeeklyBonus] = useState<WeeklyBonus | null>(null);
-  const [cycleDay, setCycleDay] = useState<number>(1);
-  const [loading, setLoading] = useState(true);
-  const [errorKey, setErrorKey] = useState<string | null>(null);
   const { t } = useTranslation();
   const { userId } = useUser();
 
-  const fetchChallenges = useCallback(async () => {
-    if (!userId) {
-      setChallenges([]);
-      setWeeklyChallenges([]);
-      setWeeklyBonus(null);
-      setErrorKey(null);
-      setLoading(false);
-      return;
-    }
+  const cached = useMemo(
+    () => (userId ? readDailyChallengesCache(userId) : null),
+    [userId],
+  );
 
-    try {
-      const token = getAuthItem("token");
-      if (!token) {
-        setChallenges([]);
-        setErrorKey("dailyChallenges.errors.auth");
-        setLoading(false);
-        return;
-      }
+  const {
+    data: live,
+    isLoading,
+    isFetching,
+    refetch,
+    isError,
+  } = useGetDailyChallengesQuery(undefined, {
+    skip: !userId,
+    refetchOnMountOrArgChange: 30,
+  });
 
-      const res = await apiFetch(apiUrl("/api/daily-challenges/me"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  const [claimChallenge, { isLoading: claiming }] = useClaimDailyChallengeMutation();
 
-      const data = await res.json();
-      if (!res.ok) {
-        setChallenges([]);
-        setErrorKey("dailyChallenges.errors.loadFailed");
-        return;
-      }
+  const data = live ?? cached;
+  const challenges = data?.challenges ?? [];
+  const weeklyChallenges = data?.weeklyChallenges ?? [];
+  const weeklyBonus = data?.weeklyBonus ?? null;
+  const cycleDay = data?.cycleDay ?? 1;
 
-      setChallenges(data.challenges || []);
-      setWeeklyChallenges(data.weeklyChallenges || []);
-      setWeeklyBonus(data.weeklyBonus ?? null);
-      setCycleDay(typeof data.cycleDay === "number" ? data.cycleDay : 1);
-      setErrorKey(null);
-    } catch (err) {
-      console.error("DailyChallenges error:", err);
-      setErrorKey("dailyChallenges.errors.network");
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
+  const showBlockingLoad = isLoading && !data;
+  const errorKey =
+    isError && !data ? "dailyChallenges.errors.loadFailed" : null;
 
   useEffect(() => {
-    const deferMs = 300;
-    const id = window.setTimeout(() => void fetchChallenges(), deferMs);
-    return () => window.clearTimeout(id);
-  }, [fetchChallenges]);
+    if (live && userId) writeDailyChallengesCache(userId, live);
+  }, [live, userId]);
 
   useEffect(() => {
     const onRewards = () => {
-      void fetchChallenges();
+      void refetch();
     };
     window.addEventListener("user-rewards-updated", onRewards);
     return () => window.removeEventListener("user-rewards-updated", onRewards);
-  }, [fetchChallenges]);
+  }, [refetch]);
 
   useEffect(() => {
     if (!userId) return;
@@ -102,56 +65,36 @@ export function DailyChallenges() {
     if (!token) return;
 
     const tick = () => {
-      void apiFetch(apiUrl("/api/daily-challenges/presence-minute"), {
+      void fetch(apiUrl("/api/daily-challenges/presence-minute"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => undefined);
     };
 
-    tick();
+    const startId = window.setTimeout(tick, 2500);
     const id = window.setInterval(tick, 60_000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(startId);
+      window.clearInterval(id);
+    };
   }, [userId]);
 
   const handleClaim = async (challengeCode: string) => {
     try {
-      const token = getAuthItem("token");
-      if (!token) {
-        setErrorKey("dailyChallenges.errors.auth");
-        return;
+      const result = await claimChallenge(challengeCode).unwrap();
+      if (typeof result.chips === "number") {
+        setAuthItem("quantum_bluff_balance", String(result.chips));
       }
-
-      const res = await fetch(apiUrl(`/api/daily-challenges/${challengeCode}/claim`), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setErrorKey(null);
-        if (typeof data.chips === "number") {
-          setAuthItem("quantum_bluff_balance", String(data.chips));
-        }
-        if (Array.isArray(data.newBadges) && data.newBadges.length > 0) {
-          mergeGamificationFromServerResponse({ newBadges: data.newBadges });
-        }
-        window.dispatchEvent(new Event("auth-changed"));
-        await fetchChallenges();
-      } else {
-        console.error(data.error);
-        setErrorKey("dailyChallenges.errors.claimFailed");
+      if (Array.isArray(result.newBadges) && result.newBadges.length > 0) {
+        mergeGamificationFromServerResponse({ newBadges: result.newBadges });
       }
+      window.dispatchEvent(new Event("auth-changed"));
     } catch (err) {
       console.error("Claim error:", err);
-      setErrorKey("dailyChallenges.errors.claimNetwork");
     }
   };
 
-  const renderChallengeCard = (c: Challenge, variant: "daily" | "weekly" = "daily") => {
+  const renderChallengeCard = (c: DailyChallengeDto, variant: "daily" | "weekly" = "daily") => {
     const percent = c.goal > 0 ? Math.min(100, (c.progress / c.goal) * 100) : 0;
     const categoryKey = `dailyChallenges.categories.${c.category}`;
     const isWeekly = variant === "weekly";
@@ -236,12 +179,16 @@ export function DailyChallenges() {
         {c.completed && !c.claimed && (
           <button
             type="button"
-            className={`mt-2 w-full rounded py-1.5 text-sm transition ${
+            disabled={claiming}
+            className={`mt-2 w-full rounded py-1.5 text-sm transition disabled:opacity-50 ${
               isWeekly
                 ? "bg-violet-500 font-semibold hover:bg-violet-400"
                 : "bg-green-500 hover:bg-green-600"
             }`}
-            onClick={() => void handleClaim(c.code)}
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleClaim(c.code);
+            }}
           >
             {t("dailyChallenges.claimReward")}
           </button>
@@ -258,18 +205,25 @@ export function DailyChallenges() {
   };
 
   const heading = (
-    <div className="mb-2">
-      <h2 className="flex items-center gap-2 text-lg font-bold text-white xl:text-xl">
-        <Target className="h-5 w-5 shrink-0 text-amber-200/90 xl:h-6 xl:w-6" aria-hidden />
-        {t("dailyChallenges.title")}
-      </h2>
-      <p className="mt-0.5 text-xs text-slate-400">
-        {t("dailyChallenges.cycleDay", { day: cycleDay })}
-      </p>
+    <div className="mb-2 flex items-start justify-between gap-2">
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-bold text-white xl:text-xl">
+          <Target className="h-5 w-5 shrink-0 text-amber-200/90 xl:h-6 xl:w-6" aria-hidden />
+          {t("dailyChallenges.title")}
+        </h2>
+        <p className="mt-0.5 text-xs text-slate-400">
+          {t("dailyChallenges.cycleDay", { day: cycleDay })}
+        </p>
+      </div>
+      {isFetching && data && (
+        <span className="mt-1 text-[10px] text-slate-500" aria-live="polite">
+          …
+        </span>
+      )}
     </div>
   );
 
-  if (loading) {
+  if (showBlockingLoad) {
     return (
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl xl:p-4">
         <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
@@ -338,8 +292,12 @@ export function DailyChallenges() {
                   {weeklyBonus.completed && !weeklyBonus.claimed && (
                     <button
                       type="button"
-                      className="mt-2 w-full rounded bg-fuchsia-500 py-1.5 text-sm font-semibold transition hover:bg-fuchsia-400"
-                      onClick={() => void handleClaim(weeklyBonus.code)}
+                      disabled={claiming}
+                      className="mt-2 w-full rounded bg-fuchsia-500 py-1.5 text-sm font-semibold transition hover:bg-fuchsia-400 disabled:opacity-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleClaim(weeklyBonus.code);
+                      }}
                     >
                       {t("dailyChallenges.claimWeekly")}
                     </button>

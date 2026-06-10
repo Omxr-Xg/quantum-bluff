@@ -43,9 +43,11 @@ export function FriendsList() {
   const {
     data: friends,
     isLoading: loadingFriends,
-    refetch: refetchFriends
+    isFetching: fetchingFriends,
+    refetch: refetchFriends,
   } = useGetFriendsQuery(userId!, {
-    skip: !userId
+    skip: !userId,
+    refetchOnMountOrArgChange: 45,
   });
 
   useEffect(() => {
@@ -248,15 +250,18 @@ export function FriendsList() {
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.06] via-blue-950/[0.12] to-transparent" />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-      <div className="mb-3 flex items-center gap-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xl font-bold text-white xl:text-2xl">
           <Users className="h-6 w-6 text-amber-100/85 xl:h-7 xl:w-7" />
           {t('lobby.friends')}
         </h2>
+        {fetchingFriends && friends && friends.length > 0 && (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-slate-500" aria-hidden />
+        )}
       </div>
 
       <div className="min-h-0 flex-1 rounded-xl border border-white/10 bg-white/[0.035] p-3">
-        {loadingFriends ? (
+        {loadingFriends && !friends?.length ? (
           <div className="flex justify-center py-6">
             <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
           </div>

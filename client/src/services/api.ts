@@ -292,6 +292,35 @@ export type AppNotification = {
   createdAt: string
 }
 
+export type DailyChallengeDto = {
+  code: string
+  i18nKey: string
+  category: string
+  progress: number
+  goal: number
+  completed: boolean
+  claimed: boolean
+  rewardTokens: number
+}
+
+export type DailyChallengesResponse = {
+  dayKey: string
+  cycleDay: number
+  challenges: DailyChallengeDto[]
+  weeklyChallenges: DailyChallengeDto[]
+  weeklyBonus: {
+    code: string
+    weekKey: string
+    i18nKey: string
+    progress: number
+    goal: number
+    completed: boolean
+    claimed: boolean
+    rewardTokens: number
+    badgeId: string
+  }
+}
+
 // On configure l'URL et les Headers de base
 const baseQuery = fetchBaseQuery({
   baseUrl: (() => {
@@ -336,6 +365,7 @@ export const api = createApi({
     'PlayerHistory',
     'Season',
     'Notification',
+    'DailyChallenge',
   ],
   endpoints: (builder) => ({
     login: builder.mutation({
@@ -458,8 +488,32 @@ export const api = createApi({
 
     getFriends: builder.query<User[], string>({
       query: (userId) => `/friends/${userId}`,
+      keepUnusedDataFor: 600,
       providesTags: (result) =>
         result ? result.map(({ id }) => ({ type: 'Friend', id } as const)) : ['Friend'],
+    }),
+
+    getDailyChallenges: builder.query<DailyChallengesResponse, void>({
+      query: () => '/daily-challenges/me',
+      keepUnusedDataFor: 600,
+      providesTags: ['DailyChallenge'],
+    }),
+
+    claimDailyChallenge: builder.mutation<
+      {
+        success: boolean
+        chips: number
+        rewardTokens: number
+        challengeCode: string
+        newBadges?: string[]
+      },
+      string
+    >({
+      query: (challengeCode) => ({
+        url: `/daily-challenges/${encodeURIComponent(challengeCode)}/claim`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['DailyChallenge'],
     }),
 
     getFriendProfile: builder.query<FriendProfile, string>({
@@ -861,4 +915,6 @@ export const {
   useGetNotificationsQuery,
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
+  useGetDailyChallengesQuery,
+  useClaimDailyChallengeMutation,
 } = api

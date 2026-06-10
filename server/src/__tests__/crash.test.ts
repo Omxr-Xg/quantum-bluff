@@ -2,7 +2,7 @@ import {
   CRASH_GROWTH_RATE,
   generateCrashPoint,
   multiplierAtElapsedSeconds,
-  validateCashoutMultiplier,
+  resolveCashoutMultiplier,
   validateCrashBet,
   computeCrashPayout,
 } from '../logic/crash.js'
@@ -30,38 +30,31 @@ describe('crash — multiplier growth', () => {
   })
 })
 
-describe('crash — cashout validation', () => {
+describe('crash — cashout (server-authoritative)', () => {
   it('allows cashout before crash', () => {
     const crashPoint = 5
-    const result = validateCashoutMultiplier(1.5, 2, crashPoint)
+    const result = resolveCashoutMultiplier(2, crashPoint)
     expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.multiplier).toBe(multiplierAtElapsedSeconds(2))
+    }
   })
 
   it('rejects cashout after crash time', () => {
     const crashPoint = 1.2
-    const result = validateCashoutMultiplier(1.1, 10, crashPoint)
+    const result = resolveCashoutMultiplier(10, crashPoint)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.code).toBe('ALREADY_CRASHED')
   })
 
-  it('credits client multiplier within latency tolerance when ahead of server', () => {
+  it('uses server multiplier at request time only', () => {
     const crashPoint = 10
     const elapsed = 5
-    const serverMult = multiplierAtElapsedSeconds(elapsed)
-    const requested = Math.floor((serverMult + 0.05) * 100) / 100
-    const result = validateCashoutMultiplier(requested, elapsed, crashPoint)
+    const result = resolveCashoutMultiplier(elapsed, crashPoint)
     expect(result.ok).toBe(true)
-    if (result.ok) expect(result.multiplier).toBe(requested)
-  })
-
-  it('credits server multiplier when client is behind', () => {
-    const crashPoint = 10
-    const elapsed = 5
-    const serverMult = multiplierAtElapsedSeconds(elapsed)
-    const requested = Math.floor((serverMult - 0.05) * 100) / 100
-    const result = validateCashoutMultiplier(requested, elapsed, crashPoint)
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.multiplier).toBe(serverMult)
+    if (result.ok) {
+      expect(result.multiplier).toBe(multiplierAtElapsedSeconds(elapsed))
+    }
   })
 })
 

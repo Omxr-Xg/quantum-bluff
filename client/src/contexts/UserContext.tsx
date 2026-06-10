@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUserBalance, updateUserBalance, addToUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
 import { getAuthItem } from "../utils/authStorage";
+import { store } from "../store";
+import { api } from "../services/api";
 
 interface UserContextType {
   userId: string | null;
@@ -47,6 +49,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     window.addEventListener(BALANCE_CHANGED_EVENT, onBalanceChanged);
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, onBalanceChanged);
   }, []);
+
+  /** Précharge défis + amis dès la connexion (cache RTK avant d’ouvrir le lobby). */
+  useEffect(() => {
+    if (!userId || !getAuthItem("token")) return;
+    store.dispatch(api.util.prefetch("getDailyChallenges", undefined, { force: false }));
+    store.dispatch(api.util.prefetch("getFriends", userId, { force: false }));
+  }, [userId]);
 
   const setChipsSynced = (value: number) => {
     updateUserBalance(value);
