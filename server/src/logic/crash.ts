@@ -87,7 +87,13 @@ export function validateCashoutMultiplier(
   if (requested >= crashPoint) {
     return { ok: false, code: 'ALREADY_CRASHED' }
   }
-  const multiplier = Math.floor(Math.min(requested, serverMult) * 100) / 100
+  // Client en avance (latence réseau) : créditer jusqu’à serverMult + tolérance.
+  // Client en retard : créditer le multiplicateur serveur au moment de la requête.
+  const credited =
+    requested > serverMult
+      ? Math.min(requested, serverMult + CRASH_CASHOUT_TOLERANCE)
+      : serverMult
+  const multiplier = Math.floor(Math.min(credited, crashPoint - 0.01) * 100) / 100
   if (multiplier < 1) return { ok: false, code: 'TOO_EARLY' }
   return { ok: true, multiplier }
 }

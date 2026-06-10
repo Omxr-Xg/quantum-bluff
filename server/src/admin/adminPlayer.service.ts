@@ -295,7 +295,26 @@ const createCosmeticSchema = z.object({
   frameStyle: frameStyleSchema.optional(),
   titleStyle: titleStyleSchema.optional(),
   grantToUserId: z.string().uuid().optional(),
+  /** Résolu côté serveur (correspondance exacte du pseudo, insensible à la casse). */
+  grantToUsername: z.string().min(1).max(64).optional(),
 })
+
+async function resolveGrantTargetUserId(input: {
+  grantToUserId?: string
+  grantToUsername?: string
+}): Promise<string | null> {
+  if (input.grantToUserId) return input.grantToUserId
+  const username = input.grantToUsername?.trim()
+  if (!username) return null
+  const user = await prisma.user.findFirst({
+    where: { username: { equals: username, mode: 'insensitive' } },
+    select: { id: true },
+  })
+  if (!user) {
+    throw new AdminPlayerError(404, `Joueur introuvable : ${username}`)
+  }
+  return user.id
+}
 
 function buildStyleJsonFromInput(input: z.infer<typeof createCosmeticSchema>): string {
   const { type, id } = input
@@ -353,15 +372,22 @@ export async function adminCreateUniqueCosmetic(body: unknown) {
   await prisma.cosmeticItem.create({ data: entry })
   registerRuntimeCosmetic(entry)
 
+  const grantTargetUserId = await resolveGrantTargetUserId(data)
   let offered = false
-  if (data.grantToUserId) {
-    await adminGrantCosmetic(data.grantToUserId, data.id)
+  let offerId: string | undefined
+  let offeredToUserId: string | undefined
+  if (grantTargetUserId) {
+    const grant = await adminGrantCosmetic(grantTargetUserId, data.id)
     offered = true
+    offerId = grant.offerId
+    offeredToUserId = grantTargetUserId
   }
 
   return {
     cosmetic: { ...entry, displayName: data.displayName },
     offered,
+    offerId,
+    offeredToUserId,
   }
 }
 

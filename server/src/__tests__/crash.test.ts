@@ -43,6 +43,26 @@ describe('crash — cashout validation', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.code).toBe('ALREADY_CRASHED')
   })
+
+  it('credits client multiplier within latency tolerance when ahead of server', () => {
+    const crashPoint = 10
+    const elapsed = 5
+    const serverMult = multiplierAtElapsedSeconds(elapsed)
+    const requested = Math.floor((serverMult + 0.05) * 100) / 100
+    const result = validateCashoutMultiplier(requested, elapsed, crashPoint)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.multiplier).toBe(requested)
+  })
+
+  it('credits server multiplier when client is behind', () => {
+    const crashPoint = 10
+    const elapsed = 5
+    const serverMult = multiplierAtElapsedSeconds(elapsed)
+    const requested = Math.floor((serverMult - 0.05) * 100) / 100
+    const result = validateCashoutMultiplier(requested, elapsed, crashPoint)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.multiplier).toBe(serverMult)
+  })
 })
 
 describe('crash — payout', () => {

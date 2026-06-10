@@ -15,6 +15,7 @@ export type CrashUiPhase = "ready" | "running" | "cashed_out" | "crashed";
 type CrashGameViewProps = {
   phase: CrashUiPhase;
   multiplier: number;
+  crashPoint: number | null;
   bet: number;
   autoCashout: string;
   balance: number;
@@ -49,6 +50,7 @@ const STAR_SEEDS = Array.from({ length: 40 }, (_, i) => ({
 export function CrashGameView({
   phase,
   multiplier,
+  crashPoint,
   bet,
   autoCashout,
   balance,
@@ -70,9 +72,15 @@ export function CrashGameView({
   onRelaunch,
 }: CrashGameViewProps) {
   const { t } = useTranslation();
-  const multColor = getCrashMultiplierColor(multiplier);
   const isRunning = phase === "running" || phase === "cashed_out";
   const hasCashedOut = phase === "cashed_out" || cashedOutAt != null;
+  const displayMult =
+    phase === "crashed"
+      ? (crashPoint ?? multiplier)
+      : hasCashedOut
+        ? (cashedOutAt ?? multiplier)
+        : multiplier;
+  const multColor = getCrashMultiplierColor(displayMult);
   const betLocked = phase !== "ready" || hasBet;
 
   const stars = useMemo(() => STAR_SEEDS, []);
@@ -111,7 +119,7 @@ export function CrashGameView({
           className="w-full rounded-xl py-4 text-lg font-black uppercase tracking-wide text-white transition-all disabled:opacity-50"
           style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
         >
-          {t("crash.cashoutAt", { mult: multiplier.toFixed(2) })}
+          {t("crash.cashoutAt", { mult: displayMult.toFixed(2) })}
         </motion.button>
       );
     }
@@ -255,7 +263,7 @@ export function CrashGameView({
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ repeat: Infinity, duration: 0.5 }}
                   >
-                    {multiplier.toFixed(2)}x
+                    {displayMult.toFixed(2)}x
                   </motion.span>
                 </motion.div>
               ) : (
@@ -281,10 +289,10 @@ export function CrashGameView({
                       textShadow: `0 0 40px ${multColor}88`,
                       filter: "drop-shadow(0 0 20px currentColor)",
                     }}
-                    animate={{ scale: multiplier > 5 ? [1, 1.02, 1] : 1 }}
+                    animate={{ scale: displayMult > 5 ? [1, 1.02, 1] : 1 }}
                     transition={{ repeat: Infinity, duration: 0.3 }}
                   >
-                    {multiplier.toFixed(2)}x
+                    {displayMult.toFixed(2)}x
                   </motion.span>
                 </motion.div>
               )}

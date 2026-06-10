@@ -158,12 +158,16 @@ export function Crash() {
     phase === "ready" && !hasBet && balance >= bet && bet >= CRASH_MIN_BET && !acting;
   const insufficient = balance < bet;
 
-  const stopTimers = useCallback(() => {
-    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
+  const stopSettlePoll = useCallback(() => {
     if (settleTimerRef.current) clearInterval(settleTimerRef.current);
     settleTimerRef.current = null;
   }, []);
+
+  const stopTimers = useCallback(() => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    stopSettlePoll();
+  }, [stopSettlePoll]);
 
   const resetToReady = useCallback(() => {
     stopTimers();
@@ -305,7 +309,7 @@ export function Crash() {
         }
 
         if (data.status === "cashed_out") {
-          stopTimers();
+          stopSettlePoll();
           autoCashoutTriggeredRef.current = true;
           const mult = typeof data.multiplier === "number" ? data.multiplier : multiplier;
           const payout = typeof data.payout === "number" ? data.payout : 0;
@@ -318,7 +322,11 @@ export function Crash() {
           syncBalance();
           setHistory(pushHistory(mult));
           window.setTimeout(() => {
-            if (data.crashPoint) setPhase("crashed");
+            if (typeof data.crashPoint === "number") {
+              setCrashPoint(data.crashPoint);
+              setMultiplier(data.crashPoint);
+              setPhase("crashed");
+            }
             window.setTimeout(resetToReady, 1400);
           }, 1800);
           return;
@@ -339,7 +347,7 @@ export function Crash() {
         /* ignore poll errors */
       }
     },
-    [applyServerMultiplierSample, bet, multiplier, resetToReady, stopTimers, syncBalance],
+    [applyServerMultiplierSample, bet, multiplier, resetToReady, stopSettlePoll, stopTimers, syncBalance],
   );
 
   const redrawCanvas = useCallback(() => {
@@ -348,9 +356,15 @@ export function Crash() {
     const elapsed =
       phase !== "ready" && startedAtMs != null ? Date.now() - startedAtMs : 0;
     const crashed = phase === "crashed";
-    const progress = crashCurveProgress(elapsed, multiplier, crashPoint, crashed);
-    drawCrashCanvas(canvas, progress, multiplier, crashed);
-  }, [crashPoint, multiplier, phase, startedAtMs]);
+    const drawMult =
+      phase === "crashed"
+        ? (crashPoint ?? multiplier)
+        : phase === "cashed_out" && cashedOutAt != null
+          ? cashedOutAt
+          : multiplier;
+    const progress = crashCurveProgress(elapsed, drawMult, crashPoint, crashed);
+    drawCrashCanvas(canvas, progress, drawMult, crashed);
+  }, [cashedOutAt, crashPoint, multiplier, phase, startedAtMs]);
 
   useEffect(() => {
     if (phase === "ready") {
@@ -358,7 +372,7 @@ export function Crash() {
       return;
     }
     const tick = () => {
-      if (startedAtMs != null && (phase === "running" || phase === "cashed_out")) {
+      if (startedAtMs != null && phase === "running") {
         const m = isPlayerRoundRef.current
           ? playerMultiplierNow()
           : multiplierAtElapsedMs(Date.now() - startedAtMs);
@@ -410,12 +424,13 @@ export function Crash() {
 
     autoCashoutTriggeredRef.current = true;
     setActing(true);
-    stopTimers();
+    const requestedMult = playerMultiplierNow();
+    stopSettlePoll();
     try {
       const res = await fetch(apiUrl("/api/crash/cashout"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ roundId }),
+        body: JSON.stringify({ roundId, multiplier: requestedMult }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -451,7 +466,11 @@ export function Crash() {
       syncBalance();
       setHistory(pushHistory(mult));
       window.setTimeout(() => {
-        if (data.crashPoint) setPhase("crashed");
+        if (typeof data.crashPoint === "number") {
+          setCrashPoint(data.crashPoint);
+          setMultiplier(data.crashPoint);
+          setPhase("crashed");
+        }
         window.setTimeout(resetToReady, 1400);
       }, 1800);
     } catch (e) {
@@ -473,7 +492,7 @@ export function Crash() {
     playerMultiplierNow,
     resetToReady,
     roundId,
-    stopTimers,
+    stopSettlePoll,
     syncBalance,
     syncServerClock,
     t,
@@ -499,6 +518,7 @@ export function Crash() {
     <CrashGameView
       phase={phase}
       multiplier={multiplier}
+      crashPoint={crashPoint}
       bet={bet}
       autoCashout={autoCashout}
       balance={balance}

@@ -191,17 +191,7 @@ export function AdminCosmeticStudio() {
       if (cosmeticType === "TITLE") body.titleStyle = buildTitlePayload(title);
 
       if (grantUsername.trim()) {
-        const usersRes = await fetch(
-          apiUrl(`/api/admin/console/users?q=${encodeURIComponent(grantUsername.trim())}&take=5`),
-          { headers: authHeaders() },
-        );
-        const usersData = (await usersRes.json()) as {
-          items?: Array<{ id: string; username: string }>;
-        };
-        const match = usersData.items?.find(
-          (u) => u.username.toLowerCase() === grantUsername.trim().toLowerCase(),
-        );
-        if (match) body.grantToUserId = match.id;
+        body.grantToUsername = grantUsername.trim();
       }
 
       const res = await fetch(apiUrl("/api/admin/console/cosmetics"), {
@@ -209,11 +199,26 @@ export function AdminCosmeticStudio() {
         headers: authHeaders(),
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as { error?: string; cosmetic?: { id: string } };
+      const data = (await res.json()) as {
+        error?: string;
+        cosmetic?: { id: string };
+        offered?: boolean;
+      };
       if (!res.ok) throw new Error(data.error ?? t("adminConsole.actionError"));
-      setSuccess(t("adminConsole.cosmeticSaved", { id: data.cosmetic?.id ?? id }));
+      if (grantUsername.trim() && !data.offered) {
+        throw new Error(t("adminConsole.cosmeticGrantFailed"));
+      }
+      setSuccess(
+        data.offered
+          ? t("adminConsole.cosmeticSavedWithOffer", {
+              id: data.cosmetic?.id ?? id,
+              username: grantUsername.trim(),
+            })
+          : t("adminConsole.cosmeticSaved", { id: data.cosmetic?.id ?? id }),
+      );
       setCosmeticId("");
       setDisplayName("");
+      setGrantUsername("");
       await loadCatalog();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("adminConsole.actionError"));

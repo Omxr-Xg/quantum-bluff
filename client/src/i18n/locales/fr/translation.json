@@ -1704,6 +1704,7 @@
     "generic": "Nouvelle notification"
   },
   "cosmeticGift": {
+    "inboxSection": "Cadeaux cosmétiques",
     "inboxBadge": "Cadeau exclusif",
     "tapToOpen": "Appuyez pour voir et accepter",
     "modalTitle": "Cadeau cosmétique",
@@ -2064,6 +2065,9 @@
     "cosmeticGrantUserOptional": "Offrir à (pseudo, optionnel)",
     "cosmeticPublish": "Publier le cosmétique",
     "cosmeticSaved": "Cosmétique « {{id}} » créé",
+    "cosmeticSavedWithOffer": "Cosmétique « {{id}} » créé — offre envoyée à {{username}} (cloche / notifications).",
+    "cosmeticGrantFailed": "Cosmétique créé mais l'offre n'a pas pu être envoyée (vérifiez le pseudo).",
+    "playerDetailOfferSent": "Offre envoyée à {{username}} dans ses notifications.",
     "cosmeticSaveMissing": "Nom et identifiant requis (min. 3 caractères)",
     "cosmeticUniqueLibrary": "Bibliothèque unique",
     "cosmeticNoUnique": "Aucun cosmétique unique pour l'instant",

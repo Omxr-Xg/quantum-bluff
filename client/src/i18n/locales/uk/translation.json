@@ -1276,6 +1276,7 @@
     "generic": "Нове сповіщення"
   },
   "cosmeticGift": {
+    "inboxSection": "Подарунки косметики",
     "inboxBadge": "Ексклюзивний подарунок",
     "tapToOpen": "Натисніть, щоб переглянути",
     "modalTitle": "Подарунок косметики",
@@ -1617,6 +1618,9 @@
     "cosmeticGrantUserOptional": "Подарувати (нік, опційно)",
     "cosmeticPublish": "Опублікувати",
     "cosmeticSaved": "Косметику « {{id}} » створено",
+    "cosmeticSavedWithOffer": "Косметику « {{id}} » створено — пропозицію надіслано {{username}}.",
+    "cosmeticGrantFailed": "Створено, але не вдалося надіслати пропозицію (перевірте нік).",
+    "playerDetailOfferSent": "Пропозицію надіслано {{username}} в сповіщення.",
     "cosmeticSaveMissing": "Потрібні назва та id",
     "cosmeticUniqueLibrary": "Унікальна бібліотека",
     "cosmeticNoUnique": "Ще немає унікальної косметики",

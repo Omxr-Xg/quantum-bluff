@@ -107,6 +107,7 @@ export function AdminPlayerDetailPanel({
   const [catalog, setCatalog] = useState<AdminCosmeticRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [chipAmount, setChipAmount] = useState("1000");
   const [chipNote, setChipNote] = useState("");
   const [chipLoading, setChipLoading] = useState(false);
@@ -175,6 +176,7 @@ export function AdminPlayerDetailPanel({
     if (!cosmeticId) return;
     setGrantLoading(true);
     setError(null);
+    setSuccess(null);
     try {
       const res = await fetch(
         apiUrl(`/api/admin/console/users/${encodeURIComponent(player.id)}/cosmetics/grant`),
@@ -184,10 +186,11 @@ export function AdminPlayerDetailPanel({
           body: JSON.stringify({ cosmeticId }),
         },
       );
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; offered?: boolean; offerId?: string };
       if (!res.ok) throw new Error(data.error ?? t("adminConsole.actionError"));
       await loadDetail();
       setGrantCosmeticId("");
+      setSuccess(t("adminConsole.playerDetailOfferSent", { username: player.username }));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("adminConsole.actionError"));
     } finally {
@@ -312,6 +315,11 @@ export function AdminPlayerDetailPanel({
           {error && (
             <p className="mb-4 rounded-lg border border-red-500/30 bg-red-950/40 px-3 py-2 text-sm text-red-200">
               {error}
+            </p>
+          )}
+          {success && (
+            <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">
+              {success}
             </p>
           )}
 

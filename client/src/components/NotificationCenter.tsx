@@ -87,7 +87,21 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   const pendingFriendRequests = friendRequests?.filter((r) => r.status === "PENDING") ?? [];
   const growthUnreadCount = growthData?.unreadCount ?? 0;
   const growthItems = growthData?.items ?? [];
-  const growthPreviewItems = growthItems.slice(0, 6);
+  const pendingCosmeticGifts = growthItems.filter(
+    (n) => n.type === "COSMETIC_GIFT" && !n.readAt,
+  );
+  const growthPreviewItems = [...growthItems]
+    .sort((a, b) => {
+      const rank = (n: AppNotification) => {
+        if (n.type === "COSMETIC_GIFT" && !n.readAt) return 2;
+        if (!n.readAt) return 1;
+        return 0;
+      };
+      const diff = rank(b) - rank(a);
+      if (diff !== 0) return diff;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    })
+    .slice(0, 6);
 
   const socialBadgeCount =
     pendingInvitations.length +
@@ -439,6 +453,31 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {pendingCosmeticGifts.length > 0 && (
+          <div className="mb-3">
+            <p className="mb-1 flex items-center gap-1 px-2 text-xs font-semibold uppercase text-amber-300/90">
+              <Sparkles className="h-3 w-3" />
+              {t("cosmeticGift.inboxSection")}
+            </p>
+            <ul className="space-y-2">
+              {pendingCosmeticGifts.slice(0, 3).map((n) => (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => void handleGrowthItemClick(n)}
+                    className="w-full rounded-lg border border-amber-400/40 bg-amber-950/30 px-3 py-2.5 text-left transition hover:bg-amber-950/50"
+                  >
+                    <p className="text-sm font-medium text-white">
+                      {formatGrowthNotificationMessage(n, t)}
+                    </p>
+                    <p className="mt-1 text-[10px] text-amber-200/70">{t("cosmeticGift.tapToOpen")}</p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {!hasSocialContent ? (
           <p className="text-slate-400 text-sm py-3 text-center">
             {t("notifications.emptySocial")}

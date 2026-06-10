@@ -165,7 +165,12 @@ router.post('/cashout', authMiddleware, async (req, res) => {
 
     const elapsed = elapsedSec(round.startedAtMs)
     const serverMult = multiplierAtElapsedSeconds(elapsed)
-    const cashoutCheck = validateCashoutMultiplier(serverMult, elapsed, round.crashPoint)
+    const requestedRaw = req.body?.multiplier
+    const requested =
+      typeof requestedRaw === 'number' && Number.isFinite(requestedRaw)
+        ? Math.floor(requestedRaw * 100) / 100
+        : serverMult
+    const cashoutCheck = validateCashoutMultiplier(requested, elapsed, round.crashPoint)
     if (!cashoutCheck.ok) {
       return res.status(400).json({ error: cashoutCheck.code, code: cashoutCheck.code })
     }

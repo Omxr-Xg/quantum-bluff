@@ -1280,6 +1280,7 @@
     "generic": "إشعار جديد"
   },
   "cosmeticGift": {
+    "inboxSection": "هدايا المظهر",
     "inboxBadge": "هدية حصرية",
     "tapToOpen": "اضغط للعرض والقبول",
     "modalTitle": "هدية مظهر",
@@ -1617,6 +1618,9 @@
     "cosmeticGrantUserOptional": "منح لـ (اسم مستخدم، اختياري)",
     "cosmeticPublish": "نشر",
     "cosmeticSaved": "تم إنشاء « {{id}} »",
+    "cosmeticSavedWithOffer": "تم إنشاء « {{id}} » — أُرسلت الهدية إلى {{username}}.",
+    "cosmeticGrantFailed": "تم الإنشاء لكن تعذّر إرسال الهدية (تحقق من الاسم).",
+    "playerDetailOfferSent": "أُرسلت الهدية إلى {{username}} في إشعاراته.",
     "cosmeticSaveMissing": "الاسم والمعرّف مطلوبان",
     "cosmeticUniqueLibrary": "مكتبة فريدة",
     "cosmeticNoUnique": "لا مظاهر فريدة بعد",

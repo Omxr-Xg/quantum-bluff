@@ -1712,6 +1712,7 @@
     "generic": "New notification"
   },
   "cosmeticGift": {
+    "inboxSection": "Cosmetic gifts",
     "inboxBadge": "Exclusive gift",
     "tapToOpen": "Tap to view and accept",
     "modalTitle": "Cosmetic gift",
@@ -2072,6 +2073,9 @@
     "cosmeticGrantUserOptional": "Grant to (username, optional)",
     "cosmeticPublish": "Publish cosmetic",
     "cosmeticSaved": "Cosmetic « {{id}} » created",
+    "cosmeticSavedWithOffer": "Cosmetic « {{id}} » created — offer sent to {{username}} (bell / notifications).",
+    "cosmeticGrantFailed": "Cosmetic created but the offer could not be sent (check the username).",
+    "playerDetailOfferSent": "Offer sent to {{username}} in their notifications.",
     "cosmeticSaveMissing": "Name and id required (min. 3 chars)",
     "cosmeticUniqueLibrary": "Unique library",
     "cosmeticNoUnique": "No unique cosmetics yet",
