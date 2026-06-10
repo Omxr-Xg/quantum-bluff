@@ -1272,7 +1272,19 @@
     "adminBadge": "Повідомлення команди",
     "adminMessageDefaultTitle": "Повідомлення команди",
     "adminMessage": "{{title}} — {{body}}",
+    "cosmeticGift": "Подарунок косметики: {{name}}",
     "generic": "Нове сповіщення"
+  },
+  "cosmeticGift": {
+    "inboxBadge": "Ексклюзивний подарунок",
+    "tapToOpen": "Натисніть, щоб переглянути",
+    "modalTitle": "Подарунок косметики",
+    "modalSubtitle": "Команда дарує вам унікальну косметику",
+    "previewBanner": "Попередній перегляд",
+    "acceptApply": "Прийняти й екіпірувати",
+    "decline": "Відхилити",
+    "alreadyAccepted": "Ви вже прийняли цей подарунок.",
+    "alreadyDeclined": "Ви відхилили цей подарунок."
   },
   "editProfile": {
     "backToProfile": "Назад до профілю",

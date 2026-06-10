@@ -16,7 +16,11 @@ import {
   useMarkNotificationReadMutation,
   type AppNotification,
 } from "../services/api";
-import { formatGrowthNotificationMessage } from "../utils/notificationPayload";
+import {
+  cosmeticGiftOfferIdFromNotification,
+  formatGrowthNotificationMessage,
+} from "../utils/notificationPayload";
+import { CosmeticGiftOfferModal } from "./CosmeticGiftOfferModal";
 import { apiUrl } from "../utils/apiBase";
 import { getAuthItem } from "../utils/authStorage";
 import {
@@ -63,6 +67,7 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
   /** Demandes de prêt reçues (prêteur) depuis la dernière visite Amis — aligné sur GET /pending-social. */
   const [serverLoanBadge, setServerLoanBadge] = useState(0);
   const [localNotices, setLocalNotices] = useState<LocalNoticePayload[]>([]);
+  const [cosmeticGiftOfferId, setCosmeticGiftOfferId] = useState<string | null>(null);
   const recentFriendMessageKeysRef = useRef<Set<string>>(new Set());
 
   const { data: friendRequests, refetch: refetchRequests } = useGetFriendRequestsQuery(
@@ -392,6 +397,12 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         /* ignore */
       }
     }
+    const offerId = cosmeticGiftOfferIdFromNotification(n);
+    if (offerId) {
+      setOpen(false);
+      setCosmeticGiftOfferId(offerId);
+      return;
+    }
     void handleOpenNotificationsPage();
   };
 
@@ -657,6 +668,13 @@ export function NotificationCenter({ variant = "nav" }: NotificationCenterProps)
         )}
       </button>
       {dropdown}
+      {cosmeticGiftOfferId && (
+        <CosmeticGiftOfferModal
+          offerId={cosmeticGiftOfferId}
+          onClose={() => setCosmeticGiftOfferId(null)}
+          onResolved={() => void refetchGrowth()}
+        />
+      )}
     </>
   );
 }

@@ -1700,7 +1700,19 @@
     "adminBadge": "Message de l'équipe",
     "adminMessageDefaultTitle": "Message de l'équipe",
     "adminMessage": "{{title}} — {{body}}",
+    "cosmeticGift": "Cadeau cosmétique : {{name}}",
     "generic": "Nouvelle notification"
+  },
+  "cosmeticGift": {
+    "inboxBadge": "Cadeau exclusif",
+    "tapToOpen": "Appuyez pour voir et accepter",
+    "modalTitle": "Cadeau cosmétique",
+    "modalSubtitle": "L'équipe vous offre un cosmétique unique",
+    "previewBanner": "Aperçu bannière",
+    "acceptApply": "Accepter et équiper",
+    "decline": "Refuser",
+    "alreadyAccepted": "Vous avez déjà accepté ce cadeau.",
+    "alreadyDeclined": "Vous avez refusé ce cadeau."
   },
   "editProfile": {
     "backToProfile": "Retour au profil",
@@ -2147,7 +2159,8 @@
     "playerDetailNoFriends": "Aucun ami",
     "playerDetailGrantCosmetic": "Attribuer un cosmétique existant",
     "playerDetailPickCosmetic": "Choisir…",
-    "playerDetailGrant": "Attribuer",
+    "playerDetailGrant": "Offrir",
+    "playerDetailGrantHint": "Le joueur recevra une offre dans sa messagerie (cloche).",
     "playerDetailCreateUnique": "Créer un cosmétique unique (hors boutique)",
     "playerDetailCosmeticSlug": "Identifiant (ex. fondateur_or)",
     "playerDetailCosmeticName": "Nom affiché",

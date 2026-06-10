@@ -282,6 +282,7 @@ export type NotificationType =
   | 'SEASON_ENDED'
   | 'REFERRAL'
   | 'ADMIN_MESSAGE'
+  | 'COSMETIC_GIFT'
 
 export type AppNotification = {
   id: string

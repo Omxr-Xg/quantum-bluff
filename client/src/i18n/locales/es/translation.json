@@ -1268,7 +1268,19 @@
     "adminBadge": "Mensaje del equipo",
     "adminMessageDefaultTitle": "Mensaje del equipo",
     "adminMessage": "{{title}} — {{body}}",
+    "cosmeticGift": "Regalo cosmético: {{name}}",
     "generic": "Nueva notificación"
+  },
+  "cosmeticGift": {
+    "inboxBadge": "Regalo exclusivo",
+    "tapToOpen": "Toca para ver y aceptar",
+    "modalTitle": "Regalo cosmético",
+    "modalSubtitle": "El equipo te ofrece un cosmético único",
+    "previewBanner": "Vista previa",
+    "acceptApply": "Aceptar y equipar",
+    "decline": "Rechazar",
+    "alreadyAccepted": "Ya aceptaste este regalo.",
+    "alreadyDeclined": "Rechazaste este regalo."
   },
   "editProfile": {
     "backToProfile": "Volver al perfil",

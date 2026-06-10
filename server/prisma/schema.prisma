@@ -153,6 +153,7 @@ model User {
   userTableUnlocks  UserTableUnlock[]
   seasonScores      SeasonScore[]
   notifications     UserNotification[]
+  cosmeticGiftOffers CosmeticGiftOffer[]
 
   hostedTournaments        Tournament[]          @relation("TournamentHost")
   tournamentPlayers        TournamentPlayer[]
@@ -1557,7 +1558,8 @@ model CosmeticItem {
   /// Classes CSS / gradient JSON pour le rendu sans assets binaires.
   styleJson   String?
 
-  owners UserCosmetic[]
+  owners     UserCosmetic[]
+  giftOffers CosmeticGiftOffer[]
 
   @@index([type])
   @@map("cosmetic_items")
@@ -1663,6 +1665,30 @@ enum NotificationType {
   SEASON_ENDED
   REFERRAL
   ADMIN_MESSAGE
+  COSMETIC_GIFT
+}
+
+enum CosmeticGiftStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model CosmeticGiftOffer {
+  id             String             @id @default(uuid())
+  userId         String
+  cosmeticId     String
+  status         CosmeticGiftStatus @default(PENDING)
+  notificationId String?
+  createdAt      DateTime           @default(now())
+  respondedAt    DateTime?
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cosmetic CosmeticItem @relation(fields: [cosmeticId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([cosmeticId])
+  @@map("cosmetic_gift_offers")
 }
 
 model UserNotification {

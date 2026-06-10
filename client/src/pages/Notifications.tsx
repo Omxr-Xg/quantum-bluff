@@ -1,13 +1,18 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { Bell, CheckCheck, Home, Loader2 } from "lucide-react";
-import { formatGrowthNotificationMessage } from "../utils/notificationPayload";
+import { Bell, CheckCheck, Home, Loader2, Sparkles } from "lucide-react";
+import {
+  formatGrowthNotificationMessage,
+  cosmeticGiftOfferIdFromNotification,
+} from "../utils/notificationPayload";
 import {
   useGetNotificationsQuery,
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   type AppNotification,
 } from "../services/api";
+import { CosmeticGiftOfferModal } from "../components/CosmeticGiftOfferModal";
 
 const profileGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
@@ -20,15 +25,35 @@ function isAdminMessage(n: AppNotification): boolean {
   return n.type === "ADMIN_MESSAGE";
 }
 
+function isCosmeticGift(n: AppNotification): boolean {
+  return n.type === "COSMETIC_GIFT";
+}
+
 export function Notifications() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { data, isLoading, refetch } = useGetNotificationsQuery();
   const [markRead] = useMarkNotificationReadMutation();
   const [markAll, { isLoading: markingAll }] = useMarkAllNotificationsReadMutation();
+  const [activeOfferId, setActiveOfferId] = useState<string | null>(null);
 
   const items = data?.items ?? [];
   const unreadCount = data?.unreadCount ?? 0;
+
+  const handleItemClick = async (n: AppNotification) => {
+    if (!n.readAt) {
+      try {
+        await markRead(n.id).unwrap();
+      } catch {
+        /* ignore */
+      }
+    }
+    const offerId = cosmeticGiftOfferIdFromNotification(n);
+    if (offerId) {
+      setActiveOfferId(offerId);
+      return;
+    }
+  };
 
   return (
     <div className="relative min-h-full w-full overflow-x-hidden bg-[#020716]">
@@ -79,18 +104,25 @@ export function Notifications() {
                 <li key={n.id} className="py-3">
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (!n.readAt) {
-                        await markRead(n.id).unwrap();
-                      }
-                    }}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                    onClick={() => void handleItemClick(n)}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition hover:border-amber-400/30 ${
                       n.readAt
                         ? "border-transparent bg-transparent"
                         : "border-cyan-500/30 bg-cyan-950/20"
                     }`}
                   >
-                    {isAdminMessage(n) ? (
+                    {isCosmeticGift(n) ? (
+                      <>
+                        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-300/90">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          {t("cosmeticGift.inboxBadge")}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-white">
+                          {formatGrowthNotificationMessage(n, t)}
+                        </p>
+                        <p className="mt-1 text-xs text-amber-200/70">{t("cosmeticGift.tapToOpen")}</p>
+                      </>
+                    ) : isAdminMessage(n) ? (
                       <>
                         <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
                           {t("growthNotifications.adminBadge")}
@@ -115,6 +147,14 @@ export function Notifications() {
           )}
         </section>
       </div>
+
+      {activeOfferId && (
+        <CosmeticGiftOfferModal
+          offerId={activeOfferId}
+          onClose={() => setActiveOfferId(null)}
+          onResolved={() => void refetch()}
+        />
+      )}
     </div>
   );
 }

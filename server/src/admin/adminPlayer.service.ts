@@ -5,6 +5,7 @@ import { prisma } from '../config/database.js'
 import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
 import { getPlayerHistory, getPlayerStats } from '../player/player.service.js'
 import { ensureCosmeticsSeeded } from '../shop/shop.service.js'
+import { CosmeticGiftError, offerCosmeticGift } from '../shop/cosmeticGift.service.js'
 import { registerRuntimeCosmetic, refreshRuntimeCosmeticsFromDb } from '../shop/cosmeticRegistry.js'
 import { COSMETIC_BY_ID } from '../shop/cosmetics.catalog.js'
 import {
@@ -218,33 +219,15 @@ export async function adminGrantChips(userId: string, body: unknown) {
 }
 
 export async function adminGrantCosmetic(userId: string, cosmeticId: string) {
-  await ensureCosmeticsSeeded()
-  const cosmetic = await prisma.cosmeticItem.findUnique({ where: { id: cosmeticId } })
-  if (!cosmetic) {
-    throw new AdminPlayerError(404, 'Cosmétique introuvable')
-  }
-
   try {
-    await prisma.userCosmetic.create({
-      data: { userId, cosmeticId },
-    })
-  } catch {
-    throw new AdminPlayerError(409, 'Cosmétique déjà possédé')
+    const result = await offerCosmeticGift(userId, cosmeticId)
+    return { cosmeticId, offered: true, offerId: result.offerId }
+  } catch (e) {
+    if (e instanceof CosmeticGiftError) {
+      throw new AdminPlayerError(e.statusCode, e.message)
+    }
+    throw e
   }
-
-  if (!COSMETIC_BY_ID.has(cosmeticId)) {
-    registerRuntimeCosmetic({
-      id: cosmetic.id,
-      type: cosmetic.type,
-      nameKey: cosmetic.nameKey,
-      priceChips: cosmetic.priceChips,
-      purchasable: cosmetic.purchasable,
-      rarity: cosmetic.rarity ?? 'unique',
-      styleJson: cosmetic.styleJson ?? '{}',
-    })
-  }
-
-  return { cosmeticId, acquired: true }
 }
 
 export async function adminRevokeCosmetic(userId: string, cosmeticId: string) {
@@ -370,15 +353,15 @@ export async function adminCreateUniqueCosmetic(body: unknown) {
   await prisma.cosmeticItem.create({ data: entry })
   registerRuntimeCosmetic(entry)
 
-  let granted = false
+  let offered = false
   if (data.grantToUserId) {
     await adminGrantCosmetic(data.grantToUserId, data.id)
-    granted = true
+    offered = true
   }
 
   return {
     cosmetic: { ...entry, displayName: data.displayName },
-    granted,
+    offered,
   }
 }
 

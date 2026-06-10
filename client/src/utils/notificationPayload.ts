@@ -13,6 +13,12 @@ export function notificationChipsLabel(payload: Record<string, unknown>): string
   return "—";
 }
 
+export function cosmeticGiftOfferIdFromNotification(n: AppNotification): string | null {
+  if (n.type !== "COSMETIC_GIFT") return null;
+  const id = n.payload?.offerId;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
 export function formatGrowthNotificationMessage(
   n: AppNotification,
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -53,6 +59,10 @@ export function formatGrowthNotificationMessage(
       return t("growthNotifications.adminMessage", {
         title: String(p.title ?? t("growthNotifications.adminMessageDefaultTitle")),
         body: String(p.body ?? ""),
+      });
+    case "COSMETIC_GIFT":
+      return t("growthNotifications.cosmeticGift", {
+        name: String(p.cosmeticName ?? "—"),
       });
     default:
       return t("growthNotifications.generic");

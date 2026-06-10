@@ -12,7 +12,7 @@ export async function createNotification(
   userId: string,
   type: NotificationType,
   payload: Record<string, unknown>,
-): Promise<void> {
+): Promise<{ id: string; createdAt: Date }> {
   const row = await prisma.userNotification.create({
     data: { userId, type, payload: payload as Prisma.InputJsonValue },
   })
@@ -23,6 +23,7 @@ export async function createNotification(
     payload: row.payload,
     createdAt: row.createdAt.toISOString(),
   })
+  return { id: row.id, createdAt: row.createdAt }
 }
 
 export async function listNotifications(

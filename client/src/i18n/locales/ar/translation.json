@@ -1276,7 +1276,19 @@
     "adminBadge": "رسالة الفريق",
     "adminMessageDefaultTitle": "رسالة الفريق",
     "adminMessage": "{{title}} — {{body}}",
+    "cosmeticGift": "هدية مظهر: {{name}}",
     "generic": "إشعار جديد"
+  },
+  "cosmeticGift": {
+    "inboxBadge": "هدية حصرية",
+    "tapToOpen": "اضغط للعرض والقبول",
+    "modalTitle": "هدية مظهر",
+    "modalSubtitle": "الفريق يقدم لك مظهراً فريداً",
+    "previewBanner": "معاينة",
+    "acceptApply": "قبول وتجهيز",
+    "decline": "رفض",
+    "alreadyAccepted": "قبلت هذه الهدية مسبقاً.",
+    "alreadyDeclined": "رفضت هذه الهدية."
   },
   "editProfile": {
     "backToProfile": "العودة إلى الملف الشخصي",

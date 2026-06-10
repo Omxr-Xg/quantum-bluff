@@ -255,7 +255,7 @@ router.post('/users/:id/cosmetics/grant', async (req, res) => {
     void logAdminAction(req, {
       action: 'user.grant_cosmetic',
       targetId: id,
-      metadata: { cosmeticId: parsed.data.cosmeticId },
+      metadata: { cosmeticId: parsed.data.cosmeticId, offerId: result.offerId },
     })
     return res.json(result)
   } catch (e) {
@@ -306,7 +306,7 @@ router.post('/cosmetics', async (req, res) => {
     void logAdminAction(req, {
       action: 'cosmetic.create_unique',
       targetId: result.cosmetic.id,
-      metadata: { type: result.cosmetic.type, granted: result.granted },
+      metadata: { type: result.cosmetic.type, offered: result.offered },
     })
     return res.status(201).json(result)
   } catch (e) {

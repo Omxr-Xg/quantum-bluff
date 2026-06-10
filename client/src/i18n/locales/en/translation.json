@@ -1708,7 +1708,19 @@
     "adminBadge": "Team message",
     "adminMessageDefaultTitle": "Team message",
     "adminMessage": "{{title}} — {{body}}",
+    "cosmeticGift": "Cosmetic gift: {{name}}",
     "generic": "New notification"
+  },
+  "cosmeticGift": {
+    "inboxBadge": "Exclusive gift",
+    "tapToOpen": "Tap to view and accept",
+    "modalTitle": "Cosmetic gift",
+    "modalSubtitle": "The team is offering you a unique cosmetic",
+    "previewBanner": "Banner preview",
+    "acceptApply": "Accept and equip",
+    "decline": "Decline",
+    "alreadyAccepted": "You already accepted this gift.",
+    "alreadyDeclined": "You declined this gift."
   },
   "editProfile": {
     "backToProfile": "Back to profile",
@@ -2155,7 +2167,8 @@
     "playerDetailNoFriends": "No friends",
     "playerDetailGrantCosmetic": "Grant existing cosmetic",
     "playerDetailPickCosmetic": "Choose…",
-    "playerDetailGrant": "Grant",
+    "playerDetailGrant": "Offer",
+    "playerDetailGrantHint": "The player will receive an offer in notifications.",
     "playerDetailCreateUnique": "Create unique cosmetic (not in shop)",
     "playerDetailCosmeticSlug": "ID (e.g. founder_gold)",
     "playerDetailCosmeticName": "Display name",
