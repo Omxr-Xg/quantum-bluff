@@ -24,6 +24,16 @@ import {
 } from '../notifications/adminBroadcast.service.js'
 import beloteAnalyticsRoutes from './admin.beloteAnalytics.routes.js'
 import { listAdminAuditLogs, logAdminAction } from '../admin/adminAudit.service.js'
+import {
+  AdminPlayerError,
+  adminCreateUniqueCosmetic,
+  adminGrantChips,
+  adminGrantCosmetic,
+  adminRevokeCosmetic,
+  getAdminPlayerDetail,
+  listAdminCosmetics,
+} from '../admin/adminPlayer.service.js'
+import { CosmeticAssetError, saveCosmeticAssetFromDataUrl } from '../admin/cosmeticAsset.service.js'
 
 const router = Router()
 
@@ -188,6 +198,149 @@ router.get('/users', async (req, res) => {
 const patchUserSchema = z.object({
   action: z.enum(['suspend', 'ban', 'reactivate']),
   suspendDays: z.number().int().min(1).max(365).optional(),
+})
+
+router.get('/users/:id/detail', async (req, res) => {
+  const id = req.params.id
+  if (!id) return res.status(400).json({ error: 'Identifiant invalide' })
+  try {
+    const detail = await getAdminPlayerDetail(id)
+    return res.json(detail)
+  } catch (e) {
+    if (e instanceof AdminPlayerError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[adminConsole] user detail', e)
+    return res.status(500).json({ error: 'Lecture profil impossible' })
+  }
+})
+
+router.post('/users/:id/chips', async (req, res) => {
+  const id = req.params.id
+  if (!id || id === env.adminConsoleJwtUserId) {
+    return res.status(400).json({ error: 'Cible invalide' })
+  }
+  try {
+    const result = await adminGrantChips(id, req.body)
+    void logAdminAction(req, {
+      action: 'user.grant_chips',
+      targetId: id,
+      metadata: { amount: result.delta },
+    })
+    return res.json(result)
+  } catch (e) {
+    if (e instanceof AdminPlayerError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[adminConsole] grant chips', e)
+    return res.status(500).json({ error: 'Crédit impossible' })
+  }
+})
+
+const grantCosmeticBody = z.object({
+  cosmeticId: z.string().min(1).max(64),
+})
+
+router.post('/users/:id/cosmetics/grant', async (req, res) => {
+  const id = req.params.id
+  if (!id || id === env.adminConsoleJwtUserId) {
+    return res.status(400).json({ error: 'Cible invalide' })
+  }
+  const parsed = grantCosmeticBody.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Cosmétique invalide' })
+  }
+  try {
+    const result = await adminGrantCosmetic(id, parsed.data.cosmeticId)
+    void logAdminAction(req, {
+      action: 'user.grant_cosmetic',
+      targetId: id,
+      metadata: { cosmeticId: parsed.data.cosmeticId },
+    })
+    return res.json(result)
+  } catch (e) {
+    if (e instanceof AdminPlayerError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[adminConsole] grant cosmetic', e)
+    return res.status(500).json({ error: 'Attribution impossible' })
+  }
+})
+
+router.delete('/users/:id/cosmetics/:cosmeticId', async (req, res) => {
+  const id = req.params.id
+  const cosmeticId = req.params.cosmeticId
+  if (!id || !cosmeticId) {
+    return res.status(400).json({ error: 'Cible invalide' })
+  }
+  try {
+    const result = await adminRevokeCosmetic(id, cosmeticId)
+    void logAdminAction(req, {
+      action: 'user.revoke_cosmetic',
+      targetId: id,
+      metadata: { cosmeticId },
+    })
+    return res.json(result)
+  } catch (e) {
+    if (e instanceof AdminPlayerError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[adminConsole] revoke cosmetic', e)
+    return res.status(500).json({ error: 'Révocation impossible' })
+  }
+})
+
+router.get('/cosmetics', async (_req, res) => {
+  try {
+    const items = await listAdminCosmetics()
+    return res.json({ items })
+  } catch (e) {
+    console.error('[adminConsole] cosmetics list', e)
+    return res.status(500).json({ error: 'Liste cosmétiques impossible' })
+  }
+})
+
+router.post('/cosmetics', async (req, res) => {
+  try {
+    const result = await adminCreateUniqueCosmetic(req.body)
+    void logAdminAction(req, {
+      action: 'cosmetic.create_unique',
+      targetId: result.cosmetic.id,
+      metadata: { type: result.cosmetic.type, granted: result.granted },
+    })
+    return res.status(201).json(result)
+  } catch (e) {
+    if (e instanceof AdminPlayerError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[adminConsole] create cosmetic', e)
+    return res.status(500).json({ error: 'Création impossible' })
+  }
+})
+
+const uploadAssetBody = z.object({
+  dataUrl: z.string().min(32).max(1_200_000),
+})
+
+router.post('/cosmetics/upload-asset', async (req, res) => {
+  const parsed = uploadAssetBody.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Image invalide' })
+  }
+  try {
+    const saved = await saveCosmeticAssetFromDataUrl(parsed.data.dataUrl)
+    void logAdminAction(req, {
+      action: 'cosmetic.upload_asset',
+      metadata: { filename: saved.filename },
+    })
+    return res.status(201).json(saved)
+  } catch (e) {
+    if (e instanceof CosmeticAssetError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[adminConsole] upload cosmetic asset', e)
+    return res.status(500).json({ error: 'Import impossible' })
+  }
 })
 
 router.patch('/users/:id', async (req, res) => {

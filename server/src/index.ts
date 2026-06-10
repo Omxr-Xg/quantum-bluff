@@ -53,6 +53,7 @@ import walletRoutes from './wallet/wallet.routes.js'
 import referralRoutes from './referral/referral.routes.js'
 import achievementRoutes from './achievements/achievement.routes.js'
 import shopRoutes from './shop/shop.routes.js'
+import cosmeticAssetsRoutes from './routes/cosmeticAssets.routes.js'
 import seasonRoutes from './season/season.routes.js'
 import playerRoutes from './player/player.routes.js'
 import notificationRoutes from './notifications/notification.routes.js'
@@ -298,6 +299,7 @@ app.use('/api/wallet', walletRoutes)
 app.use('/api/referral', referralRoutes)
 app.use('/api/achievements', achievementRoutes)
 app.use('/api/shop', shopRoutes)
+app.use('/api/cosmetics', cosmeticAssetsRoutes)
 app.use('/api/seasons', seasonRoutes)
 app.use('/api/player', playerRoutes)
 app.use('/api/notifications', notificationRoutes)

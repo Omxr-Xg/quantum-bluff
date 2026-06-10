@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Eye,
   Megaphone,
+  Sparkles,
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
@@ -35,6 +36,8 @@ import {
 } from "../components/AdminShellBackground";
 import { QuantumBluffLogo } from "../assets/logo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { AdminPlayerDetailPanel } from "../components/admin/AdminPlayerDetailPanel";
+import { AdminCosmeticStudio } from "../components/admin/AdminCosmeticStudio";
 
 const adminBtnSecondary =
   "inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2.5 text-sm text-white shadow-sm transition hover:border-amber-300/25 hover:bg-slate-900/70";
@@ -50,7 +53,8 @@ type Tab =
   | "ratings"
   | "reports"
   | "giftCodes"
-  | "broadcast";
+  | "broadcast"
+  | "cosmeticStudio";
 
 type BroadcastSegment =
   | "new_7d"
@@ -173,6 +177,7 @@ export function AdminConsole() {
   const [skip, setSkip] = useState(0);
   const [reportUnread, setReportUnread] = useState(0);
 
+  const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; username: string } | null>(null);
   const [pwdModal, setPwdModal] = useState<{ id: string; username: string } | null>(null);
   const [pwdInput, setPwdInput] = useState("");
   const [pwdResult, setPwdResult] = useState<string | null>(null);
@@ -458,7 +463,7 @@ export function AdminConsole() {
         void loadGiftCodes();
         setLoading(false);
         return;
-      } else if (tab === "broadcast") {
+      } else if (tab === "broadcast" || tab === "cosmeticStudio") {
         setLoading(false);
         return;
       } else path = `/api/admin/console/ratings?${listParams}`;
@@ -697,6 +702,7 @@ export function AdminConsole() {
     { id: "ratings", label: t("adminConsole.tabRatings") },
     { id: "reports", label: t("adminConsole.tabReports") },
     { id: "giftCodes", label: "Codes Cadeaux" },
+    { id: "cosmeticStudio", label: t("adminConsole.tabCosmeticStudio") },
     { id: "broadcast", label: t("adminConsole.tabBroadcast") },
   ];
 
@@ -794,6 +800,11 @@ export function AdminConsole() {
                   <Gift className="h-4 w-4 shrink-0" aria-hidden />
                   {x.label}
                 </span>
+              ) : x.id === "cosmeticStudio" ? (
+                <span className="inline-flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
+                  {x.label}
+                </span>
               ) : (
                 x.label
               )}
@@ -801,30 +812,32 @@ export function AdminConsole() {
           ))}
         </nav>
 
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
-            <input
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={t("adminConsole.searchPlaceholder")}
-              className={`${adminInputClass} pl-10 pr-10`}
-              autoComplete="off"
-            />
-            {searchInput && (
-              <button
-                type="button"
-                aria-label={t("adminConsole.clearSearch")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-slate-700 hover:text-white"
-                onClick={() => setSearchInput("")}
-              >
-                ×
-              </button>
-            )}
+        {tab !== "broadcast" && tab !== "giftCodes" && tab !== "cosmeticStudio" && (
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t("adminConsole.searchPlaceholder")}
+                className={`${adminInputClass} pl-10 pr-10`}
+                autoComplete="off"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  aria-label={t("adminConsole.clearSearch")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-slate-700 hover:text-white"
+                  onClick={() => setSearchInput("")}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 sm:max-w-xs">{t("adminConsole.filterHint")}</p>
           </div>
-          <p className="text-xs text-slate-500 sm:max-w-xs">{t("adminConsole.filterHint")}</p>
-        </div>
+        )}
 
         {error && (
           <p className="mb-4 rounded-xl border border-red-500/35 bg-red-950/45 px-4 py-3 text-sm text-red-100 backdrop-blur-sm">
@@ -1124,7 +1137,15 @@ export function AdminConsole() {
               <tbody className="divide-y divide-white/5">
                 {(listPayload.items as UserRow[]).map((u) => (
                   <tr key={u.id} className="text-slate-200">
-                    <td className="px-3 py-2 font-medium text-white">{u.username}</td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlayer({ id: u.id, username: u.username })}
+                        className="font-medium text-amber-200 hover:text-amber-100 hover:underline"
+                      >
+                        {u.username}
+                      </button>
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs">{u.email}</td>
                     <td className="px-3 py-2">
                       <button
@@ -1342,6 +1363,8 @@ export function AdminConsole() {
               </div>
             </div>
           )}
+
+        {tab === "cosmeticStudio" && <AdminCosmeticStudio />}
 
         {tab === "broadcast" && (
           <div className={`space-y-4 p-6 ${adminGlassPanelClass}`}>
@@ -1683,6 +1706,15 @@ export function AdminConsole() {
         )}
         </div>
       </div>
+
+      {selectedPlayer && (
+        <AdminPlayerDetailPanel
+          player={selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
+          onChipsUpdated={() => void load()}
+          onOpenPlayer={(p) => setSelectedPlayer(p)}
+        />
+      )}
 
       {pwdModal && (
         <div

@@ -18,11 +18,22 @@ export function CosmeticAvatar({
   const frame = cosmetics?.frame;
   return (
     <div
-      className={`overflow-hidden rounded-full border-2 bg-blue-950/60 ${sizeClass} ${className}`}
+      className={`overflow-hidden rounded-full bg-blue-950/60 ${sizeClass} ${className}`}
       style={
         frame
-          ? { borderColor: frame.border, boxShadow: frame.glow }
-          : { borderColor: "rgba(191,219,254,0.25)" }
+          ? {
+              borderWidth: frame.borderWidth ?? 2,
+              borderStyle: "solid",
+              borderColor: frame.border,
+              boxShadow: frame.glow,
+              ...(frame.imageUrl
+                ? {
+                    backgroundImage: `url("${frame.imageUrl}")`,
+                    backgroundSize: "cover",
+                  }
+                : {}),
+            }
+          : { borderWidth: 2, borderStyle: "solid", borderColor: "rgba(191,219,254,0.25)" }
       }
     >
       {children}
@@ -40,8 +51,16 @@ export function CosmeticTitle({ cosmetics, className = "text-xs font-semibold" }
   const title = cosmetics?.title;
   if (!title) return null;
   return (
-    <p className={`truncate ${className}`} style={{ color: title.color }}>
-      {t(title.nameKey)}
+    <p
+      className={`truncate ${className}`}
+      style={{
+        color: title.color,
+        textShadow: title.textShadow,
+        fontWeight: title.fontWeight,
+        letterSpacing: title.letterSpacing,
+      }}
+    >
+      {t(title.nameKey, { defaultValue: title.nameKey })}
     </p>
   );
 }
@@ -61,19 +80,19 @@ export function CosmeticBannerCard({
   bannerHeightClass = "min-h-[4.5rem]",
 }: CosmeticBannerCardProps) {
   const banner = cosmetics?.banner;
+  const overlayAlpha = banner?.overlayOpacity ?? 0.72;
   return (
     <div
       className={`relative overflow-hidden rounded-xl border border-white/10 ${bannerHeightClass} ${className}`}
       style={
         banner
-          ? { backgroundImage: banner.gradient, backgroundSize: "cover" }
+          ? { backgroundImage: banner.gradient, backgroundSize: "cover", backgroundPosition: "center" }
           : undefined
       }
     >
       <div
-        className={`absolute inset-0 ${
-          banner ? "bg-slate-950/72 backdrop-blur-[2px]" : "bg-white/[0.045]"
-        }`}
+        className={`absolute inset-0 ${banner ? "backdrop-blur-[2px]" : "bg-white/[0.045]"}`}
+        style={banner ? { backgroundColor: `rgba(2,6,23,${overlayAlpha})` } : undefined}
       />
       <div className="relative z-10 h-full">{children}</div>
     </div>

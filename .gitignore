@@ -6,6 +6,7 @@ target/
 .vite/
 .vite/deps/
 node_modules/
+server/uploads/
 .env
 # Certificats / ACME (docker-compose.prod.yml) — jamais versionner.
 certbot/

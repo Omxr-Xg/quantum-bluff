@@ -2,6 +2,7 @@ import type { PrismaClient } from '../generated/prisma/index.js'
 import { prisma } from '../config/database.js'
 import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
 import { COSMETIC_BY_ID, COSMETIC_CATALOG } from './cosmetics.catalog.js'
+import { getCosmeticById, refreshRuntimeCosmeticsFromDb } from './cosmeticRegistry.js'
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>
 
@@ -47,6 +48,7 @@ export async function ensureCosmeticsSeeded(): Promise<void> {
           },
         })
       }
+      await refreshRuntimeCosmeticsFromDb()
     })().catch((err) => {
       cosmeticsSeedPromise = null
       throw err
@@ -62,11 +64,33 @@ export async function listCosmetics(userId: string) {
     select: { cosmeticId: true, acquiredAt: true },
   })
   const ownedSet = new Set(owned.map((o) => o.cosmeticId))
-  return COSMETIC_CATALOG.map((item) => ({
+  const catalogIds = new Set(COSMETIC_CATALOG.map((c) => c.id))
+  const catalogItems = COSMETIC_CATALOG.map((item) => ({
     ...item,
     owned: ownedSet.has(item.id),
     acquiredAt: owned.find((o) => o.cosmeticId === item.id)?.acquiredAt.toISOString() ?? null,
   }))
+
+  const extraOwned = owned.filter((o) => !catalogIds.has(o.cosmeticId))
+  if (extraOwned.length === 0) return catalogItems
+
+  const extraRows = await prisma.cosmeticItem.findMany({
+    where: { id: { in: extraOwned.map((o) => o.cosmeticId) } },
+  })
+  const extraItems = extraRows.map((row) => ({
+    id: row.id,
+    type: row.type,
+    nameKey: row.nameKey,
+    priceChips: row.priceChips,
+    purchasable: row.purchasable,
+    rarity: row.rarity ?? 'unique',
+    styleJson: row.styleJson ?? '{}',
+    owned: true,
+    acquiredAt:
+      extraOwned.find((o) => o.cosmeticId === row.id)?.acquiredAt.toISOString() ?? null,
+  }))
+
+  return [...catalogItems, ...extraItems]
 }
 
 export async function grantCosmetic(
@@ -75,7 +99,8 @@ export async function grantCosmetic(
   db: Tx = prisma,
 ): Promise<void> {
   await ensureCosmeticsSeeded()
-  if (!COSMETIC_BY_ID.has(cosmeticId)) return
+  const exists = getCosmeticById(cosmeticId) ?? (await db.cosmeticItem.findUnique({ where: { id: cosmeticId } }))
+  if (!exists) return
   try {
     await db.userCosmetic.create({
       data: { userId, cosmeticId },

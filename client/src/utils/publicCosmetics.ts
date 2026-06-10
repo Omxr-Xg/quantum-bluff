@@ -1,9 +1,16 @@
 import type { ShopCosmetic, ShopLoadout } from "../services/api";
 
 export type PublicPlayerCosmetics = {
-  banner: { id: string; gradient: string } | null;
-  frame: { id: string; border: string; glow?: string } | null;
-  title: { id: string; nameKey: string; color: string } | null;
+  banner: { id: string; gradient: string; overlayOpacity?: number } | null;
+  frame: { id: string; border: string; glow?: string; borderWidth?: number; imageUrl?: string } | null;
+  title: {
+    id: string;
+    nameKey: string;
+    color: string;
+    textShadow?: string;
+    fontWeight?: number;
+    letterSpacing?: string;
+  } | null;
 };
 
 const EMPTY_COSMETICS: PublicPlayerCosmetics = {
@@ -11,6 +18,34 @@ const EMPTY_COSMETICS: PublicPlayerCosmetics = {
   frame: null,
   title: null,
 };
+
+type BannerStyleJson = {
+  gradient?: string;
+  backgroundCss?: string;
+  overlayOpacity?: number;
+};
+
+type FrameStyleJson = {
+  border?: string;
+  glow?: string;
+  borderWidth?: number;
+  imageUrl?: string;
+};
+
+type TitleStyleJson = {
+  color?: string;
+  textShadow?: string;
+  fontWeight?: number;
+  letterSpacing?: string;
+};
+
+function parseStyleJson<T>(json: string): T | null {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return null;
+  }
+}
 
 export function resolvePublicCosmeticsFromShop(
   items: ShopCosmetic[] | undefined,
@@ -25,31 +60,43 @@ export function resolvePublicCosmeticsFromShop(
 
   let banner: PublicPlayerCosmetics["banner"] = null;
   if (bannerItem?.type === "BANNER") {
-    try {
-      const style = JSON.parse(bannerItem.styleJson) as { gradient?: string };
-      if (style.gradient) banner = { id: bannerItem.id, gradient: style.gradient };
-    } catch {
-      /* ignore */
+    const style = parseStyleJson<BannerStyleJson>(bannerItem.styleJson);
+    const gradient = style?.backgroundCss ?? style?.gradient;
+    if (gradient) {
+      banner = {
+        id: bannerItem.id,
+        gradient,
+        overlayOpacity: style?.overlayOpacity,
+      };
     }
   }
 
   let frame: PublicPlayerCosmetics["frame"] = null;
   if (frameItem?.type === "AVATAR_FRAME") {
-    try {
-      const style = JSON.parse(frameItem.styleJson) as { border?: string; glow?: string };
-      if (style.border) frame = { id: frameItem.id, border: style.border, glow: style.glow };
-    } catch {
-      /* ignore */
+    const style = parseStyleJson<FrameStyleJson>(frameItem.styleJson);
+    if (style?.border) {
+      frame = {
+        id: frameItem.id,
+        border: style.border,
+        glow: style.glow,
+        borderWidth: style.borderWidth,
+        imageUrl: style.imageUrl,
+      };
     }
   }
 
   let title: PublicPlayerCosmetics["title"] = null;
   if (titleItem?.type === "TITLE") {
-    try {
-      const style = JSON.parse(titleItem.styleJson) as { color?: string };
-      if (style.color) title = { id: titleItem.id, nameKey: titleItem.nameKey, color: style.color };
-    } catch {
-      /* ignore */
+    const style = parseStyleJson<TitleStyleJson>(titleItem.styleJson);
+    if (style?.color) {
+      title = {
+        id: titleItem.id,
+        nameKey: titleItem.nameKey,
+        color: style.color,
+        textShadow: style.textShadow,
+        fontWeight: style.fontWeight,
+        letterSpacing: style.letterSpacing,
+      };
     }
   }
 
