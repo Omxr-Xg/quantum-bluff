@@ -13,6 +13,7 @@ import {
 } from "../utils/userProfile";
 import {
   CRASH_MIN_BET,
+  alignStartedAtFromServerSample,
   clampBet,
   createServerClockSync,
   generateDemoCrashPoint,
@@ -79,6 +80,8 @@ export function Crash() {
   const isPlayerRoundRef = useRef(false);
   const serverClockRef = useRef(createServerClockSync());
   const startedAtMsRef = useRef<number | null>(null);
+  const autoCashoutRef = useRef(autoCashout);
+  const handleCashoutRef = useRef<(() => Promise<void>) | null>(null);
 
   const syncServerClock = useCallback((serverNow?: number) => {
     if (typeof serverNow === "number" && Number.isFinite(serverNow)) {
@@ -86,11 +89,26 @@ export function Crash() {
     }
   }, []);
 
+  const applyServerMultiplierSample = useCallback(
+    (serverNow: number, serverMult: number) => {
+      syncServerClock(serverNow);
+      const alignedStartedAt = alignStartedAtFromServerSample(serverNow, serverMult);
+      startedAtMsRef.current = alignedStartedAt;
+      setStartedAtMs(alignedStartedAt);
+      setMultiplier(serverMult);
+    },
+    [syncServerClock],
+  );
+
   const playerMultiplierNow = useCallback((): number => {
     const started = startedAtMsRef.current;
     if (started == null) return 1;
     return serverClockRef.current.multiplierAtStartedAt(started);
   }, []);
+
+  useEffect(() => {
+    autoCashoutRef.current = autoCashout;
+  }, [autoCashout]);
 
   const syncBalance = useCallback(() => {
     setBalance(getUserBalance());
@@ -113,22 +131,24 @@ export function Crash() {
   const resumeActiveRound = useCallback(async (): Promise<boolean> => {
     const active = await fetchCrashActiveRound();
     if (!active) return false;
-    syncServerClock(active.serverNow);
     setRoundId(active.roundId);
-    setStartedAtMs(active.startedAt);
     setBet(active.bet);
-    setMultiplier(
-      typeof active.serverNow === "number"
-        ? serverClockRef.current.multiplierAtStartedAt(active.startedAt)
-        : active.multiplier,
-    );
+    if (typeof active.serverNow === "number") {
+      applyServerMultiplierSample(active.serverNow, active.multiplier);
+    } else {
+      syncServerClock(active.serverNow);
+      startedAtMsRef.current = active.startedAt;
+      setStartedAtMs(active.startedAt);
+      setMultiplier(active.multiplier);
+    }
     setPhase("running");
+    isPlayerRoundRef.current = true;
     setIsPlayerRound(true);
     setCashedOutAt(null);
     setCashoutProfit(null);
     autoCashoutTriggeredRef.current = false;
     return true;
-  }, [syncServerClock]);
+  }, [applyServerMultiplierSample, syncServerClock]);
 
   useEffect(() => {
     void resumeActiveRound();
@@ -155,6 +175,7 @@ export function Crash() {
     setCashedOutAt(null);
     setCashoutProfit(null);
     setHasBet(false);
+    isPlayerRoundRef.current = false;
     setIsPlayerRound(false);
     setCountdown(5);
     autoCashoutTriggeredRef.current = false;
@@ -163,6 +184,7 @@ export function Crash() {
   const startSpectatorRound = useCallback(() => {
     stopTimers();
     setRoundId(null);
+    isPlayerRoundRef.current = false;
     setIsPlayerRound(false);
     setCashedOutAt(null);
     setCashoutProfit(null);
@@ -198,6 +220,7 @@ export function Crash() {
           roundId?: string;
           startedAt?: number;
           serverNow?: number;
+          multiplier?: number;
           chips?: number;
         };
         if (!res.ok) {
@@ -216,13 +239,13 @@ export function Crash() {
         if (typeof data.chips === "number") updateUserBalance(data.chips);
         syncBalance();
         trackEvent("play_crash");
-        syncServerClock(data.serverNow);
-        const started = data.startedAt ?? Date.now();
+        const serverNow = data.serverNow ?? data.startedAt ?? Date.now();
+        const serverMult = typeof data.multiplier === "number" ? data.multiplier : 1;
         setRoundId(data.roundId ?? actionId);
-        setStartedAtMs(started);
-        setMultiplier(serverClockRef.current.multiplierAtStartedAt(started));
+        applyServerMultiplierSample(serverNow, serverMult);
         setCrashPoint(null);
         setHasBet(false);
+        isPlayerRoundRef.current = true;
         setIsPlayerRound(true);
         setPhase("running");
       } catch (e) {
@@ -233,7 +256,7 @@ export function Crash() {
         setActing(false);
       }
     },
-    [addToast, bet, resumeActiveRound, syncBalance, syncServerClock, t],
+    [addToast, applyServerMultiplierSample, bet, resumeActiveRound, syncBalance, t],
   );
 
   useEffect(() => {
@@ -272,8 +295,12 @@ export function Crash() {
 
         syncServerClock(data.serverNow);
 
-        if (data.status === "running" && typeof data.multiplier === "number") {
-          setMultiplier(data.multiplier);
+        if (
+          data.status === "running" &&
+          typeof data.multiplier === "number" &&
+          typeof data.serverNow === "number"
+        ) {
+          applyServerMultiplierSample(data.serverNow, data.multiplier);
           return;
         }
 
@@ -312,7 +339,7 @@ export function Crash() {
         /* ignore poll errors */
       }
     },
-    [bet, multiplier, resetToReady, stopTimers, syncBalance, syncServerClock],
+    [applyServerMultiplierSample, bet, multiplier, resetToReady, stopTimers, syncBalance],
   );
 
   const redrawCanvas = useCallback(() => {
@@ -337,6 +364,19 @@ export function Crash() {
           : multiplierAtElapsedMs(Date.now() - startedAtMs);
         setMultiplier(m);
 
+        if (
+          isPlayerRoundRef.current &&
+          phase === "running" &&
+          !autoCashoutTriggeredRef.current &&
+          !acting
+        ) {
+          const ac = parseFloat(autoCashoutRef.current);
+          if (!Number.isNaN(ac) && ac >= 1.01 && m >= ac) {
+            autoCashoutTriggeredRef.current = true;
+            void handleCashoutRef.current?.();
+          }
+        }
+
         if (!isPlayerRoundRef.current && phase === "running" && crashPoint != null && m >= crashPoint) {
           stopTimers();
           setPhase("crashed");
@@ -353,11 +393,11 @@ export function Crash() {
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [crashPoint, phase, playerMultiplierNow, redrawCanvas, resetToReady, startedAtMs, stopTimers]);
+  }, [acting, crashPoint, phase, playerMultiplierNow, redrawCanvas, resetToReady, startedAtMs, stopTimers]);
 
   useEffect(() => {
     if (phase !== "running" || !roundId || !isPlayerRound) return;
-    settleTimerRef.current = setInterval(() => void pollSettle(roundId), 280);
+    settleTimerRef.current = setInterval(() => void pollSettle(roundId), 100);
     return () => {
       if (settleTimerRef.current) clearInterval(settleTimerRef.current);
     };
@@ -371,12 +411,11 @@ export function Crash() {
     autoCashoutTriggeredRef.current = true;
     setActing(true);
     stopTimers();
-    const cashoutMult = playerMultiplierNow();
     try {
       const res = await fetch(apiUrl("/api/crash/cashout"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ roundId, multiplier: cashoutMult }),
+        body: JSON.stringify({ roundId }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -401,7 +440,7 @@ export function Crash() {
         }
         throw new Error(data.error ?? code ?? t("common.error"));
       }
-      const mult = data.multiplier ?? cashoutMult;
+      const mult = data.multiplier ?? playerMultiplierNow();
       const profit = data.profit ?? (data.payout ?? 0) - bet;
       setPhase("cashed_out");
       setMultiplier(mult);
@@ -430,8 +469,8 @@ export function Crash() {
     bet,
     isPlayerRound,
     phase,
-    playerMultiplierNow,
     pollSettle,
+    playerMultiplierNow,
     resetToReady,
     roundId,
     stopTimers,
@@ -440,17 +479,7 @@ export function Crash() {
     t,
   ]);
 
-  useEffect(() => {
-    if (phase !== "running" || acting || autoCashoutTriggeredRef.current) return;
-    if (!roundId || !isPlayerRound) return;
-    const ac = parseFloat(autoCashout);
-    if (Number.isNaN(ac) || ac < 1.01) return;
-    const syncedMult = playerMultiplierNow();
-    if (syncedMult >= ac) {
-      autoCashoutTriggeredRef.current = true;
-      void handleCashout();
-    }
-  }, [autoCashout, acting, handleCashout, isPlayerRound, phase, playerMultiplierNow, roundId]);
+  handleCashoutRef.current = () => handleCashout();
 
   const handlePlaceBet = () => {
     if (!canPlaceBet) return;

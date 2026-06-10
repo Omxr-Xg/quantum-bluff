@@ -88,7 +88,6 @@ router.post('/start', authMiddleware, async (req, res) => {
     }
 
     const bet = validation.bet
-    const startedAtMs = Date.now()
     const crashPoint = generateCrashPoint(secureRandomUnit)
 
     await prisma.$transaction(async (tx) => {
@@ -113,6 +112,7 @@ router.post('/start', authMiddleware, async (req, res) => {
       )
     })
 
+    const startedAtMs = Date.now()
     crashRoundStore.createRound({
       roundId: context.roundId,
       userId,
@@ -131,7 +131,8 @@ router.post('/start', authMiddleware, async (req, res) => {
     return res.json({
       roundId: context.roundId,
       startedAt: startedAtMs,
-      serverNow: Date.now(),
+      serverNow: startedAtMs,
+      multiplier: 1,
       bet,
       chips: intChips(updated?.chips ?? chipsBefore - bet),
     })
@@ -154,7 +155,6 @@ router.post('/cashout', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
 
     const roundId = String(req.body?.roundId ?? '').trim()
-    const requestedMult = Number(req.body?.multiplier)
     const round = crashRoundStore.getRound(roundId)
     if (!round || round.userId !== userId) {
       return res.status(404).json({ error: 'ROUND_NOT_FOUND', code: 'ROUND_NOT_FOUND' })
@@ -165,8 +165,7 @@ router.post('/cashout', authMiddleware, async (req, res) => {
 
     const elapsed = elapsedSec(round.startedAtMs)
     const serverMult = multiplierAtElapsedSeconds(elapsed)
-    const effectiveRequested = Number.isFinite(requestedMult) ? requestedMult : serverMult
-    const cashoutCheck = validateCashoutMultiplier(effectiveRequested, elapsed, round.crashPoint)
+    const cashoutCheck = validateCashoutMultiplier(serverMult, elapsed, round.crashPoint)
     if (!cashoutCheck.ok) {
       return res.status(400).json({ error: cashoutCheck.code, code: cashoutCheck.code })
     }

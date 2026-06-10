@@ -44,15 +44,16 @@ function multiplierAtCurveT(t: number, displayMaxMult: number): number {
   return Math.exp(CRASH_GROWTH_RATE * elapsedSec);
 }
 
-/** Progression 0–1 le long de la courbe pour l’animation canvas. */
+/** Progression 0–1 le long de la courbe — dérivée du multiplicateur affiché (pas d’horloge locale). */
 export function crashCurveProgress(
-  elapsedMs: number,
+  _elapsedMs: number,
   currentMult: number,
   crashPoint: number | null,
   crashed: boolean,
 ): number {
   if (crashed) return 1;
-  const elapsedSec = Math.max(0, elapsedMs) / 1000;
+  if (currentMult <= 1) return 0;
+  const elapsedSec = Math.log(currentMult) / CRASH_GROWTH_RATE;
   const targetMult = crashPoint ?? Math.max(currentMult * 1.2, 2.5);
   const totalSec = Math.log(Math.max(targetMult, 1.01)) / CRASH_GROWTH_RATE;
   return Math.min(0.98, elapsedSec / Math.max(totalSec, 0.35));

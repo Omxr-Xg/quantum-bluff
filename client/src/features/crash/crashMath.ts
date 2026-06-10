@@ -12,6 +12,16 @@ export function multiplierAtElapsedMs(elapsedMs: number): number {
   return Math.floor(m * 100) / 100
 }
 
+export function elapsedMsForMultiplier(multiplier: number): number {
+  if (multiplier <= 1) return 0
+  return (Math.log(multiplier) / CRASH_GROWTH_RATE) * 1000
+}
+
+/** Recale `startedAt` pour que l’extrapolation client colle au sample serveur. */
+export function alignStartedAtFromServerSample(serverNowMs: number, serverMultiplier: number): number {
+  return serverNowMs - elapsedMsForMultiplier(serverMultiplier)
+}
+
 /** Horloge alignée sur le serveur (évite un affichage en avance sur le cashout). */
 export function createServerClockSync() {
   let offsetMs = 0
