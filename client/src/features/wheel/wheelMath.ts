@@ -5,6 +5,10 @@ export const WHEEL_BET_STEP = 10
 export const WHEEL_BET_PRESETS = [10, 50, 100, 250, 500] as const
 export const WHEEL_SEGMENT_COUNT = 12
 export const WHEEL_SLICE_DEG = 360 / WHEEL_SEGMENT_COUNT
+/** Segment 0 en haut (12 h) — aligné serveur + conic-gradient historique. */
+export const WHEEL_CANVAS_OFFSET_RAD = -Math.PI / 2
+export const WHEEL_SLICE_RAD = (2 * Math.PI) / WHEEL_SEGMENT_COUNT
+export const WHEEL_POINTER_ANGLE_RAD = -Math.PI / 2
 
 export type WheelSegmentDef = {
   kind: string
@@ -40,6 +44,18 @@ export function wheelSegmentIndexAtPointer(rotationDeg: number): number {
   const clockwiseFromTop = (360 - normalized) % 360
   const index = Math.floor(clockwiseFromTop / WHEEL_SLICE_DEG) % WHEEL_SEGMENT_COUNT
   return index
+}
+
+/** Index sous le pointeur pour la rotation canvas (radians). */
+export function wheelSegmentIndexAtPointerRad(rotationRad: number): number {
+  const pointerRel =
+    (((-rotationRad % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI))
+  return Math.floor(pointerRel / WHEEL_SLICE_RAD) % WHEEL_SEGMENT_COUNT
+}
+
+/** Rotation canvas (rad) qui centre `segmentIndex` sous le pointeur. */
+export function wheelRotationRadForSegmentAtPointer(segmentIndex: number): number {
+  return -segmentIndex * WHEEL_SLICE_RAD - WHEEL_SLICE_RAD / 2
 }
 
 /**

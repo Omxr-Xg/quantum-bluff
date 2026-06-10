@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "lucide-react";
 import { ChipIcon } from "../ChipIcon";
+import { SoloGameBackButton } from "../minigames/SoloGameBackButton";
 import { WHEEL_BET_PRESETS, WHEEL_MAX_BET, WHEEL_SEGMENTS } from "../../features/wheel/wheelMath";
 import { getWheelSegmentVisual, uniquePaytableEntries } from "../../features/wheel/wheelVisuals";
 
@@ -24,7 +24,6 @@ type WheelGameViewProps = {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onBack: () => void;
-  onLobby: () => void;
   onBetChange: (bet: number) => void;
   onSpin: () => void;
   onRelaunch: () => void;
@@ -46,7 +45,6 @@ export function WheelGameView({
   canvasRef,
   containerRef,
   onBack,
-  onLobby,
   onBetChange,
   onSpin,
   onRelaunch,
@@ -60,19 +58,12 @@ export function WheelGameView({
       className="flex min-h-[100dvh] w-full flex-col"
       style={{ background: "linear-gradient(135deg, #020208 0%, #06040f 50%, #020208 100%)" }}
     >
-      <div
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4"
+      <header
+        className="flex w-full items-center justify-between gap-3 px-3 py-3 backdrop-blur-md sm:px-5"
         style={{ borderBottom: "1px solid rgba(200,168,76,0.2)" }}
       >
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-300 sm:px-3"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t("wheel.back")}</span>
-          </button>
+          <SoloGameBackButton onClick={onBack} />
           <div className="min-w-0">
             <div
               className="truncate uppercase"
@@ -89,13 +80,6 @@ export function WheelGameView({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-          <button
-            type="button"
-            onClick={onLobby}
-            className="rounded-lg border border-violet-500/25 bg-violet-500/10 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-200 sm:px-3 sm:text-xs"
-          >
-            {t("wheel.returnToLobby")}
-          </button>
           <div className="text-right">
             <div
               style={{
@@ -123,7 +107,7 @@ export function WheelGameView({
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <div
         className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col items-center justify-center gap-6 px-4 py-6 lg:flex-row"

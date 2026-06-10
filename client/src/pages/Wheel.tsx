@@ -16,6 +16,7 @@ import { runWheelSpinAnimation } from "../features/wheel/wheelSpinAnimation";
 import { getWheelSegmentVisual } from "../features/wheel/wheelVisuals";
 import { WHEEL_SEGMENTS } from "../features/wheel/wheelMath";
 import { WheelGameView, wheelHistoryVisual, type WheelUiPhase } from "../components/wheel/WheelGameView";
+import { SOLO_GAMES_BACK_PATH } from "../utils/soloGameNav";
 import { isSoloActiveConflict } from "../features/soloGames/recoverActiveRound";
 
 const HISTORY_KEY = "qb-wheel-history";
@@ -216,8 +217,7 @@ export function Wheel() {
       history={historyRows}
       canvasRef={canvasRef}
       containerRef={containerRef}
-      onBack={() => navigate("/minigames/quick-solo")}
-      onLobby={() => navigate("/lobby?tab=minigames")}
+      onBack={() => navigate(SOLO_GAMES_BACK_PATH)}
       onBetChange={(v) => setBet(clampBet(v, balance))}
       onSpin={() => void handleSpin()}
       onRelaunch={resetToReady}

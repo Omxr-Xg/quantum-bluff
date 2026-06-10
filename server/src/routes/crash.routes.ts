@@ -41,6 +41,7 @@ router.get('/active', authMiddleware, async (req, res) => {
 
     return res.json({
       active: true,
+      serverNow: Date.now(),
       ...crashRoundPublicView(round),
     })
   } catch (e) {
@@ -62,6 +63,7 @@ router.post('/start', authMiddleware, async (req, res) => {
         error: 'Partie déjà en cours',
         code: 'ACTIVE_CRASH_ROUND',
         roundId: activeId,
+        serverNow: Date.now(),
         ...(round ? crashRoundPublicView(round) : {}),
       })
     }
@@ -129,6 +131,7 @@ router.post('/start', authMiddleware, async (req, res) => {
     return res.json({
       roundId: context.roundId,
       startedAt: startedAtMs,
+      serverNow: Date.now(),
       bet,
       chips: intChips(updated?.chips ?? chipsBefore - bet),
     })
@@ -161,7 +164,9 @@ router.post('/cashout', authMiddleware, async (req, res) => {
     }
 
     const elapsed = elapsedSec(round.startedAtMs)
-    const cashoutCheck = validateCashoutMultiplier(requestedMult, elapsed, round.crashPoint)
+    const serverMult = multiplierAtElapsedSeconds(elapsed)
+    const effectiveRequested = Number.isFinite(requestedMult) ? requestedMult : serverMult
+    const cashoutCheck = validateCashoutMultiplier(effectiveRequested, elapsed, round.crashPoint)
     if (!cashoutCheck.ok) {
       return res.status(400).json({ error: cashoutCheck.code, code: cashoutCheck.code })
     }
@@ -228,6 +233,7 @@ router.post('/cashout', authMiddleware, async (req, res) => {
       payout,
       profit: payout - round.bet,
       crashPoint: round.crashPoint,
+      serverNow: Date.now(),
       chips: intChips(updated?.chips ?? balBefore + payout),
     })
   } catch (e) {
@@ -247,12 +253,15 @@ router.post('/settle', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'ROUND_NOT_FOUND', code: 'ROUND_NOT_FOUND' })
     }
 
+    const serverNow = Date.now()
+
     if (round.status === 'cashed_out') {
       return res.json({
         status: 'cashed_out',
         multiplier: round.cashoutMultiplier,
         payout: round.payout,
         crashPoint: round.crashPoint,
+        serverNow,
       })
     }
 
@@ -261,6 +270,7 @@ router.post('/settle', authMiddleware, async (req, res) => {
         status: 'crashed',
         crashPoint: round.crashPoint,
         lost: round.bet,
+        serverNow,
       })
     }
 
@@ -271,6 +281,7 @@ router.post('/settle', authMiddleware, async (req, res) => {
       return res.json({
         status: 'running',
         multiplier: currentMult,
+        serverNow,
       })
     }
 
@@ -285,6 +296,7 @@ router.post('/settle', authMiddleware, async (req, res) => {
       status: 'crashed',
       crashPoint: round.crashPoint,
       lost: round.bet,
+      serverNow: Date.now(),
       chips: intChips(updated?.chips ?? 0),
     })
   } catch (e) {

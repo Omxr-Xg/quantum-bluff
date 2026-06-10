@@ -2,7 +2,9 @@ import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, typ
 import { useNavigate } from "react-router";
 import { useTranslation, type TFunction } from "react-i18next";
 import { motion, useMotionValue, animate, type MotionValue } from "motion/react";
-import { ArrowLeft, ChevronLeft, ChevronRight, History, Trash2, Undo2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, History, Trash2, Undo2, X } from "lucide-react";
+import { SoloGameBackButton } from "../components/minigames/SoloGameBackButton";
+import { SOLO_GAMES_BACK_PATH } from "../utils/soloGameNav";
 import { useToast } from "../contexts/ToastContext";
 import { updateUserBalance, fetchBalanceFromServer } from "../utils/userProfile";
 import {
@@ -687,9 +689,9 @@ export function Roulette({
   const handleBack = () => {
     if (backToMinigamesHub && onBackToMinigamesHub) {
       onBackToMinigamesHub();
-    } else {
-      navigate("/lobby");
+      return;
     }
+    navigate(SOLO_GAMES_BACK_PATH);
   };
   const { addToast } = useToast();
   const [chips, setChips] = useState<number | null>(() => (tutorialMode ? 2500 : null));
@@ -1254,22 +1256,7 @@ export function Roulette({
             : "border-b border-white/10 bg-slate-950/55 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-xl"
         }`}
       >
-        <button
-          type="button"
-          onClick={handleBack}
-          className={
-            isRetro
-              ? "inline-flex items-center gap-2 rounded-sm border-2 border-amber-800/45 bg-stone-950/70 px-3 py-2 text-sm font-bold uppercase tracking-wide text-amber-100 transition hover:border-amber-600/55 hover:bg-amber-950/50"
-              : "inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-slate-200 shadow-sm transition hover:border-blue-200/25 hover:bg-white/[0.08] hover:text-white"
-          }
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {isRetro
-            ? t("minigames.retroCasinoBack")
-            : backToMinigamesHub
-              ? t("minigames.backToLobbyMinigamesTab")
-              : t("roulette.back")}
-        </button>
+        <SoloGameBackButton onClick={handleBack} />
         <h1
           className={
             isRetro

@@ -1,7 +1,12 @@
-import { WHEEL_SEGMENT_COUNT } from "./wheelMath";
+import {
+  WHEEL_SEGMENT_COUNT,
+  WHEEL_SLICE_RAD,
+  wheelRotationRadForSegmentAtPointer,
+  wheelSegmentIndexAtPointerRad,
+} from "./wheelMath";
 
 const NUM = WHEEL_SEGMENT_COUNT;
-const SLICE = (2 * Math.PI) / NUM;
+const SLICE = WHEEL_SLICE_RAD;
 
 export type WheelSpinAnimationHandle = {
   cancel: () => void;
@@ -20,8 +25,9 @@ export function runWheelSpinAnimation(options: {
 
   const segMidAngle = targetSegmentIndex * SLICE + SLICE / 2;
   const currentNorm = ((startRotationRad % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  // rot = start - totalDelta ; atterrissage : rot ≡ -segMidAngle (mod 2π), segment 0 en haut.
   const shortDelta =
-    (((currentNorm + Math.PI / 2 + segMidAngle) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    (((currentNorm + segMidAngle) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
   const extraSpins = (6 + Math.random() * 4) * 2 * Math.PI;
   const totalDelta = extraSpins + shortDelta;
 
@@ -56,8 +62,7 @@ export function runWheelSpinAnimation(options: {
     const currentVel = v0 * Math.exp(-friction * elapsed);
     const rot = startRotation - traveled;
 
-    const pointerRelAngle = (((-Math.PI / 2 - rot) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const currentSeg = Math.floor(pointerRelAngle / SLICE) % NUM;
+    const currentSeg = wheelSegmentIndexAtPointerRad(rot);
     if (currentSeg !== lastTickSeg && lastTickSeg !== -1) {
       const speedFactor = Math.min(1, currentVel / (v0 * 0.1));
       pointerDeflect = 0.6 + speedFactor * 0.4;
@@ -73,7 +78,11 @@ export function runWheelSpinAnimation(options: {
       return;
     }
 
-    const finalRot = startRotation - totalDelta;
+    const rawFinal = startRotation - totalDelta;
+    const targetBase = wheelRotationRadForSegmentAtPointer(targetSegmentIndex);
+    const fullTurns = Math.round((rawFinal - targetBase) / (2 * Math.PI));
+    const snappedRot = targetBase + fullTurns * 2 * Math.PI;
+
     const settleStart = performance.now();
     const settleDuration = 350;
 
@@ -84,12 +93,12 @@ export function runWheelSpinAnimation(options: {
       const osc = amp * Math.sin(st * Math.PI * 4) * Math.exp(-st * 6);
       pointerDeflect = Math.max(0, 0.8 * (1 - st * 2));
       tickDecayStep(t2);
-      onFrame(finalRot + osc, pointerDeflect);
+      onFrame(snappedRot + osc, pointerDeflect);
       if (st < 1) {
         rafId = requestAnimationFrame(settleAnim);
       } else {
-        onFrame(finalRot, 0);
-        onComplete(finalRot);
+        onFrame(snappedRot, 0);
+        onComplete(snappedRot);
       }
     };
     rafId = requestAnimationFrame(settleAnim);

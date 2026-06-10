@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft } from "lucide-react";
 import { ChipIcon } from "../ChipIcon";
+import { SoloGameBackButton } from "../minigames/SoloGameBackButton";
 import { RocketIcon } from "./RocketIcon";
 import {
   CRASH_BET_PRESETS,
@@ -29,7 +29,6 @@ type CrashGameViewProps = {
   countdown: number;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   onBack: () => void;
-  onLobby: () => void;
   onBetChange: (value: number) => void;
   onAutoCashoutChange: (value: string) => void;
   onPlaceBet: () => void;
@@ -64,7 +63,6 @@ export function CrashGameView({
   countdown,
   canvasRef,
   onBack,
-  onLobby,
   onBetChange,
   onAutoCashoutChange,
   onPlaceBet,
@@ -177,15 +175,9 @@ export function CrashGameView({
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#0a0b14] text-white">
-      <div className="flex items-center justify-between border-b border-white/5 bg-[#0d0e1f] px-4 py-3 sm:px-6">
+      <header className="flex items-center justify-between gap-3 border-b border-white/5 bg-[#0d0e1f] px-3 py-3 backdrop-blur-md sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="mr-1 inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-300 sm:hidden"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-          </button>
+          <SoloGameBackButton onClick={onBack} />
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-[#13142a]">
             <RocketIcon size={26} glowing />
           </div>
@@ -194,21 +186,6 @@ export function CrashGameView({
           </span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/10 sm:inline-flex"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            {t("crash.back")}
-          </button>
-          <button
-            type="button"
-            onClick={onLobby}
-            className="shrink-0 rounded-lg border border-violet-500/25 bg-violet-500/10 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-200 transition hover:bg-violet-500/20 sm:px-3 sm:text-xs"
-          >
-            {t("crash.returnToLobby")}
-          </button>
           <div className="hidden max-w-[320px] items-center gap-2 overflow-hidden lg:flex xl:max-w-[420px]">
             {history.slice(0, 7).map((h, i) => {
               const style = historyPillStyle(h);
@@ -230,7 +207,7 @@ export function CrashGameView({
             <span className="text-sm font-bold tabular-nums">{balance.toLocaleString()}</span>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 flex-1 flex-col">

@@ -16,6 +16,7 @@ export type CrashActiveRound = {
   startedAt: number;
   status: "running";
   multiplier: number;
+  serverNow?: number;
 };
 
 export type MinesActiveRound = {

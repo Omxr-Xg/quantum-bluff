@@ -12,6 +12,23 @@ export function multiplierAtElapsedMs(elapsedMs: number): number {
   return Math.floor(m * 100) / 100
 }
 
+/** Horloge alignée sur le serveur (évite un affichage en avance sur le cashout). */
+export function createServerClockSync() {
+  let offsetMs = 0
+  return {
+    sync(serverNowMs: number) {
+      offsetMs = serverNowMs - Date.now()
+    },
+    nowMs() {
+      return Date.now() + offsetMs
+    },
+    multiplierAtStartedAt(startedAtMs: number) {
+      const elapsedMs = Math.max(0, this.nowMs() - startedAtMs)
+      return multiplierAtElapsedMs(elapsedMs)
+    },
+  }
+}
+
 export function clampBet(value: number, balance: number): number {
   const stepped = Math.round(value / CRASH_BET_STEP) * CRASH_BET_STEP
   return Math.min(CRASH_MAX_BET, balance, Math.max(CRASH_MIN_BET, stepped))

@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
-import { ArrowLeft, Clover, Disc, SquareStack } from "lucide-react";
+import { Clover, Disc, SquareStack } from "lucide-react";
 import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
+import { SoloGameBackButton } from "../components/minigames/SoloGameBackButton";
+import { SOLO_GAMES_BACK_PATH } from "../utils/soloGameNav";
 
 type RetroGameCard = {
   id: "roulette" | "slots" | "lucky-number";
@@ -80,14 +82,10 @@ export function RetroCasinoGames() {
         }}
       />
 
-      <button
-        type="button"
-        onClick={() => navigate("/lobby?tab=minigames")}
-        className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-30 inline-flex items-center gap-2 rounded-sm border-2 border-amber-700/50 bg-[#1a100c]/90 px-3 py-2 text-sm font-bold uppercase tracking-wider text-amber-100 shadow-[inset_0_1px_0_rgba(251,191,36,0.15),0_4px_16px_rgba(0,0,0,0.45)] transition hover:border-amber-500/60 hover:bg-[#241610] sm:left-5"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("minigames.retroCasinoBack")}
-      </button>
+      <SoloGameBackButton
+        onClick={() => navigate(SOLO_GAMES_BACK_PATH)}
+        className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-30 sm:left-5"
+      />
 
       <header className="relative z-20 shrink-0 border-b-2 border-amber-800/35 bg-[#1a100c]/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+3.25rem)] text-center backdrop-blur-sm sm:px-6">
         <p className="text-[10px] font-bold uppercase tracking-[0.38em] text-amber-600/90">{t("minigames.retroCasinoEyebrow")}</p>

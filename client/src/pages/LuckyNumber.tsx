@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, Clover, Minus, Plus, Sparkles } from "lucide-react";
+import { Clover, Minus, Plus, Sparkles } from "lucide-react";
 import { ChipIcon } from "../components/ChipIcon";
+import { SoloGameBackButton } from "../components/minigames/SoloGameBackButton";
+import { SOLO_GAMES_BACK_PATH } from "../utils/soloGameNav";
 import { useToast } from "../contexts/ToastContext";
 import { getAuthItem } from "../utils/authStorage";
 import { apiUrl } from "../utils/apiBase";
@@ -243,14 +245,7 @@ export function LuckyNumber() {
       ) : null}
 
       <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 border-b border-amber-800/30 bg-black/45 px-3 py-3 backdrop-blur-md sm:px-5">
-        <button
-          type="button"
-          onClick={() => navigate("/minigames/retro-casino")}
-          className="inline-flex items-center gap-2 rounded-sm border border-amber-700/40 bg-black/50 px-3 py-2 text-sm font-bold uppercase tracking-wider text-amber-100"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("luckyNumber.back")}
-        </button>
+        <SoloGameBackButton onClick={() => navigate(SOLO_GAMES_BACK_PATH)} />
         <div className="flex items-center gap-2 rounded-sm border border-amber-500/30 bg-black/50 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-100">
           <span>{balance.toLocaleString()}</span>
           <ChipIcon size="sm" />

@@ -1,4 +1,4 @@
-import { WHEEL_SEGMENTS } from "./wheelMath";
+import { WHEEL_CANVAS_OFFSET_RAD, WHEEL_SEGMENTS } from "./wheelMath";
 import { getWheelSegmentVisual } from "./wheelVisuals";
 
 function lighten(hex: string, amt: number): string {
@@ -58,7 +58,7 @@ function drawWheel(
 
   for (let i = 0; i < num; i++) {
     const seg = getWheelSegmentVisual(WHEEL_SEGMENTS[i]!);
-    const startAngle = rotation + i * slice;
+    const startAngle = rotation + i * slice + WHEEL_CANVAS_OFFSET_RAD;
     const endAngle = startAngle + slice;
     const midAngle = startAngle + slice / 2;
 
@@ -108,7 +108,7 @@ function drawWheel(
   }
 
   for (let i = 0; i < num; i++) {
-    const angle = rotation + i * slice;
+    const angle = rotation + i * slice + WHEEL_CANVAS_OFFSET_RAD;
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(cx, cy);

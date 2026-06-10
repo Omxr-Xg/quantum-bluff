@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
-import { ArrowLeft, Bomb, CircleDot, TrendingUp } from "lucide-react";
+import { Bomb, CircleDot, TrendingUp } from "lucide-react";
 import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
+import { SoloGameBackButton } from "../components/minigames/SoloGameBackButton";
+import { SOLO_GAMES_BACK_PATH } from "../utils/soloGameNav";
 
 type QuickGameCard = {
   id: "crash" | "wheel" | "mines";
@@ -65,14 +67,10 @@ export function QuickSoloGames() {
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[#020716]">
-      <button
-        type="button"
-        onClick={() => navigate("/lobby?tab=minigames")}
-        className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-30 inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/70 px-3 py-2 text-sm font-semibold text-slate-100 shadow-lg backdrop-blur-md transition hover:border-white/25 hover:bg-slate-900/80 sm:left-5"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("minigames.quickSoloBack")}
-      </button>
+      <SoloGameBackButton
+        onClick={() => navigate(SOLO_GAMES_BACK_PATH)}
+        className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+0.75rem)] z-30 sm:left-5"
+      />
 
       <DiscreteAdSlot
         placement="games-hub"

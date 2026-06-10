@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "lucide-react";
 import { ChipIcon } from "../ChipIcon";
+import { SoloGameBackButton } from "../minigames/SoloGameBackButton";
 import { SlotReel } from "./SlotReel";
 import type { SlotReels } from "../../features/slot/slotTypes";
 import { SLOT_BET_PRESETS } from "../../features/slot/slotTypes";
@@ -63,7 +63,7 @@ export function SlotGameView({
 
   return (
     <div
-      className="flex w-full flex-col items-center justify-center px-4 py-6 sm:px-4"
+      className="flex min-h-[100dvh] w-full flex-col"
       style={{
         background:
           "radial-gradient(ellipse 120% 80% at 50% 0%, #14080a 0%, #06050a 50%, #020206 100%)",
@@ -71,18 +71,12 @@ export function SlotGameView({
       }}
     >
       {onBack ? (
-        <div className="mb-4 flex w-full max-w-[560px] justify-start">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-2 rounded-lg border border-amber-800/40 bg-black/40 px-3 py-2 text-xs font-bold uppercase tracking-wide text-amber-200/90 transition hover:border-amber-600/50"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            {t("minigames.retroCasinoBack")}
-          </button>
-        </div>
+        <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-black/35 px-3 py-3 backdrop-blur-md sm:px-5">
+          <SoloGameBackButton onClick={onBack} />
+        </header>
       ) : null}
 
+      <div className="flex w-full flex-1 flex-col items-center justify-center px-4 py-6 sm:px-4">
       <div className="relative w-full max-w-[560px]">
         <div
           style={{
@@ -559,6 +553,7 @@ export function SlotGameView({
           </div>
         ) : null}
 
+      </div>
       </div>
     </div>
   );

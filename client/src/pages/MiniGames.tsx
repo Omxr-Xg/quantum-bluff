@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { SlotMachine } from "./SlotMachine";
 import { Roulette } from "./Roulette";
 import { CustomScrollArea } from "../components/CustomScrollArea";
+import { SOLO_GAMES_BACK_PATH } from "../utils/soloGameNav";
 
 export function MiniGames() {
   const navigate = useNavigate();
@@ -17,8 +18,8 @@ export function MiniGames() {
     }
   }, [isValidGame, navigate]);
 
-  const backToRetroCasino = useCallback(() => {
-    navigate("/minigames/retro-casino");
+  const backToSoloGames = useCallback(() => {
+    navigate(SOLO_GAMES_BACK_PATH);
   }, [navigate]);
 
   if (!isValidGame) {
@@ -52,7 +53,7 @@ export function MiniGames() {
               transition={{ duration: 0.25 }}
               className="mx-auto w-full min-w-0"
             >
-              <SlotMachine onBack={() => navigate("/minigames/retro-casino")} />
+              <SlotMachine onBack={backToSoloGames} />
             </motion.div>
           </CustomScrollArea>
         </div>
@@ -66,7 +67,7 @@ export function MiniGames() {
             transition={{ duration: 0.25 }}
             className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
           >
-            <Roulette retroCasino backToMinigamesHub onBackToMinigamesHub={backToRetroCasino} />
+            <Roulette retroCasino backToMinigamesHub onBackToMinigamesHub={backToSoloGames} />
           </motion.div>
         </div>
       )}
