@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
@@ -38,7 +38,6 @@ import {
 } from "../features/tournament/tournamentConstants";
 import lobbyHeaderIcon from "../../app-icon.png";
 import { LobbyShellBackground } from "../components/LobbyShellBackground";
-import { FriendsList } from '../components/FriendsList';
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
@@ -56,11 +55,12 @@ import {
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { LobbyBeloteSection } from "../components/LobbyBeloteSection";
 import { LobbyActivitySection, LobbyFriendRoomBadge } from "../components/LobbyActivityBlocks";
-import { DailyChallenges } from "../components/DailyChallenges";
+import { LobbyListSkeleton, LobbySidebarSkeleton } from "../components/LobbyPanelSkeleton";
 import { SeasonBanner } from "../components/SeasonBanner";
-import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
 import { getAuthItem } from "../utils/authStorage";
 import { FreeRechargeButton } from '../components/FreeRechargeButton';
+
+const LobbySidebar = lazy(() => import("../components/LobbySidebar"));
 
 /* Helpers de formatage de la date de depart d'un tournoi (datetime-local). */
 function pad2(n: number) {
@@ -505,9 +505,12 @@ export function Lobby() {
 
   useEffect(() => {
     if (inVoiceCall) return;
-    void fetchGamesInProgress();
+    const first = window.setTimeout(() => void fetchGamesInProgress(), 40);
     const id = window.setInterval(() => void fetchGamesInProgress(), 5000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
   }, [fetchGamesInProgress, inVoiceCall]);
 
   // Auto-navigate when a join request is accepted
@@ -547,9 +550,12 @@ export function Lobby() {
 
   useEffect(() => {
     if (inVoiceCall) return;
-    void fetchRooms();
+    const first = window.setTimeout(() => void fetchRooms(), 0);
     const id = window.setInterval(() => void fetchRooms(), 5000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
   }, [fetchRooms, inVoiceCall]);
 
   useEffect(() => {
@@ -602,9 +608,12 @@ export function Lobby() {
 
   useEffect(() => {
     if (lobbyMainTab !== "poker") return;
-    void fetchTournamentsBoth();
+    const first = window.setTimeout(() => void fetchTournamentsBoth(), 80);
     const id = window.setInterval(() => void fetchTournamentsBoth(), 10_000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
   }, [fetchTournamentsBoth, lobbyMainTab]);
 
   useEffect(() => {
@@ -1666,7 +1675,7 @@ export function Lobby() {
         </div>
 
         {/* MAIN GRID - IMPROVED GAP */}
-        <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 md:grid-cols-2 md:gap-5 lg:h-[calc(100dvh-7.75rem)] lg:grid-cols-[minmax(0,2.35fr)_minmax(19rem,0.82fr)] lg:items-stretch lg:gap-3 lg:overflow-hidden">
+        <div className="grid grid-cols-1 items-start gap-4 sm:gap-5 md:grid-cols-2 md:gap-5 lg:max-h-[calc(100dvh-7.75rem)] lg:grid-cols-[minmax(0,2.35fr)_minmax(19rem,0.82fr)] lg:items-stretch lg:gap-3 lg:overflow-y-auto">
           {/* Colonne jeux : onglets au-dessus du contenu uniquement (pas au-dessus défis / amis) */}
           <div className="md:col-span-2 lg:col-span-1 space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-3">
             <nav
@@ -1788,7 +1797,7 @@ export function Lobby() {
 
               {/* Grille : multi-joueurs (+ tournois uniquement sur l’onglet poker). */}
               <div
-                className={`grid min-h-0 grid-cols-1 gap-4 sm:gap-5 lg:flex-1 lg:gap-3 lg:overflow-hidden ${
+                className={`grid min-h-0 grid-cols-1 gap-4 sm:gap-5 lg:flex-1 lg:gap-3 lg:overflow-y-auto ${
                   lobbyMainTab === "poker" ? "md:grid-cols-2" : ""
                 }`}
               >
@@ -1988,9 +1997,7 @@ export function Lobby() {
                   <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.tournamentWaiting')}</p>
                     {tournamentsLoading && openTournamentsMemo.length === 0 ? (
-                      <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
-                      </p>
+                      <LobbyListSkeleton rows={2} />
                     ) : openTournamentsMemo.length === 0 && tournamentsError ? (
                       <p className="text-slate-500 text-center py-2 text-sm">{t("lobby.syncing")}</p>
                     ) : openTournamentsMemo.length === 0 ? (
@@ -2027,9 +2034,7 @@ export function Lobby() {
                   <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
                     <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.tournamentInProgress')}</p>
                     {tournamentsLoading && liveTournamentsMemo.length === 0 ? (
-                      <p className="text-gray-500 text-center py-2 flex items-center justify-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}
-                      </p>
+                      <LobbyListSkeleton rows={2} />
                     ) : liveTournamentsMemo.length === 0 ? (
                       <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>
                     ) : (
@@ -2166,17 +2171,13 @@ export function Lobby() {
 
           </div>
 
-          {/* Colonne de droite - Friends (toujours visible mais conditionnel render içinde değil çünkü her tab'da gösteriliyor) */}
+          {/* Colonne droite : défis + amis (chargement différé, non bloquant) */}
           <div
-            className="md:col-span-2 lg:col-span-1 space-y-4 self-start max-lg:pt-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-3 lg:overflow-hidden lg:pt-0 lg:z-10"
+            className="md:col-span-2 lg:col-span-1 space-y-4 self-start max-lg:pt-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:self-stretch lg:space-y-0 lg:gap-3 lg:overflow-y-auto lg:pt-0 lg:z-10"
           >
-            <div ref={tourRefDaily} className="lg:max-h-[50%] lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
-              <DailyChallenges />
-            </div>
-            <div ref={tourRefFriends} className="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-              <FriendsList />
-            </div>
-            <DiscreteAdSlot placement="lobby-sidebar" className="shrink-0 max-lg:mt-1" />
+            <Suspense fallback={<LobbySidebarSkeleton />}>
+              <LobbySidebar tourRefDaily={tourRefDaily} tourRefFriends={tourRefFriends} />
+            </Suspense>
           </div>
 
         </div>

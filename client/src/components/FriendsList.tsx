@@ -20,6 +20,11 @@ import { getPlayerAvatar } from "../utils/avatars";
 import { formatFriendLastSeen } from "../utils/formatLastSeen";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { CosmeticAvatar, CosmeticBannerCard, CosmeticTitle } from "./PlayerCosmetics";
+import {
+  readFriendsLobbyCache,
+  writeFriendsLobbyCache,
+} from "../utils/friendsLobbyCache";
+import { FriendsListSkeleton } from "./LobbyPanelSkeleton";
 
 export function FriendsList() {
   const { t, i18n } = useTranslation();
@@ -40,6 +45,11 @@ export function FriendsList() {
   const [sendRequest, { isLoading: sendingRequest }] = useSendFriendRequestMutation();
   const [sendMessage, { isLoading: sendingMessage }] = useSendFriendMessageMutation();
 
+  const cachedFriends = useMemo(
+    () => (userId ? readFriendsLobbyCache(userId) : null),
+    [userId],
+  );
+
   const {
     data: friends,
     isLoading: loadingFriends,
@@ -49,6 +59,12 @@ export function FriendsList() {
     skip: !userId,
     refetchOnMountOrArgChange: 45,
   });
+
+  const displayFriends = friends ?? cachedFriends;
+
+  useEffect(() => {
+    if (friends && userId) writeFriendsLobbyCache(userId, friends);
+  }, [friends, userId]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -154,12 +170,13 @@ export function FriendsList() {
     }
   };
 
-  const friendsCount = friends?.length || 0;
+  const friendsCount = displayFriends?.length || 0;
+  const showFriendsSkeleton = loadingFriends && !displayFriends?.length;
 
   /** Lobby : connectés d’abord, puis par nom (max 4 affichés). */
   const lobbyFriendsPreview = useMemo(() => {
-    if (!friends?.length) return [];
-    return [...friends]
+    if (!displayFriends?.length) return [];
+    return [...displayFriends]
       .sort((a, b) => {
         const aOnline = Boolean(a.isOnline);
         const bOnline = Boolean(b.isOnline);
@@ -167,7 +184,7 @@ export function FriendsList() {
         return a.username.localeCompare(b.username, undefined, { sensitivity: "base" });
       })
       .slice(0, 4);
-  }, [friends]);
+  }, [displayFriends]);
 
   const selectedFriend = friends?.find((friend) => friend.id === selectedChat);
   const {
@@ -255,16 +272,14 @@ export function FriendsList() {
           <Users className="h-6 w-6 text-amber-100/85 xl:h-7 xl:w-7" />
           {t('lobby.friends')}
         </h2>
-        {fetchingFriends && friends && friends.length > 0 && (
+        {(fetchingFriends || showFriendsSkeleton) && (
           <Loader2 className="h-4 w-4 shrink-0 animate-spin text-slate-500" aria-hidden />
         )}
       </div>
 
       <div className="min-h-0 flex-1 rounded-xl border border-white/10 bg-white/[0.035] p-3">
-        {loadingFriends && !friends?.length ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
-          </div>
+        {showFriendsSkeleton ? (
+          <FriendsListSkeleton />
         ) : friendsCount > 0 ? (
           <div className="max-h-full space-y-2 overflow-y-auto pr-1">
             {lobbyFriendsPreview.map((friend) => {

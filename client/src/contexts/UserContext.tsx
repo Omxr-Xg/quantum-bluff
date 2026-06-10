@@ -3,6 +3,7 @@ import { getUserBalance, updateUserBalance, addToUserBalance, BALANCE_CHANGED_EV
 import { getAuthItem } from "../utils/authStorage";
 import { store } from "../store";
 import { api } from "../services/api";
+import { prefetchLobbyData } from "../utils/lobbyPrefetch";
 
 interface UserContextType {
   userId: string | null;
@@ -50,11 +51,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener(BALANCE_CHANGED_EVENT, onBalanceChanged);
   }, []);
 
-  /** Précharge défis + amis dès la connexion (cache RTK avant d’ouvrir le lobby). */
+  /** Précharge lobby (salles, défis, amis) dès la connexion, avant d’ouvrir /lobby. */
   useEffect(() => {
     if (!userId || !getAuthItem("token")) return;
     store.dispatch(api.util.prefetch("getDailyChallenges", undefined, { force: false }));
     store.dispatch(api.util.prefetch("getFriends", userId, { force: false }));
+    prefetchLobbyData(userId);
   }, [userId]);
 
   const setChipsSynced = (value: number) => {

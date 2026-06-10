@@ -14,6 +14,7 @@ import {
   readDailyChallengesCache,
   writeDailyChallengesCache,
 } from "../utils/dailyChallengesCache";
+import { DailyChallengesSkeleton } from "./LobbyPanelSkeleton";
 
 export function DailyChallenges() {
   const { t } = useTranslation();
@@ -43,7 +44,7 @@ export function DailyChallenges() {
   const weeklyBonus = data?.weeklyBonus ?? null;
   const cycleDay = data?.cycleDay ?? 1;
 
-  const showBlockingLoad = isLoading && !data;
+  const showSkeleton = isLoading && !data;
   const errorKey =
     isError && !data ? "dailyChallenges.errors.loadFailed" : null;
 
@@ -215,26 +216,13 @@ export function DailyChallenges() {
           {t("dailyChallenges.cycleDay", { day: cycleDay })}
         </p>
       </div>
-      {isFetching && data && (
+      {(isFetching || showSkeleton) && (
         <span className="mt-1 text-[10px] text-slate-500" aria-live="polite">
           …
         </span>
       )}
     </div>
   );
-
-  if (showBlockingLoad) {
-    return (
-      <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl xl:p-4">
-        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-          {heading}
-          <p className="text-gray-400 text-sm">{t("dailyChallenges.loading")}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl xl:p-4">
@@ -243,13 +231,16 @@ export function DailyChallenges() {
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {heading}
 
-        {challenges.length === 0 && (
+        {showSkeleton ? <DailyChallengesSkeleton /> : null}
+
+        {!showSkeleton && challenges.length === 0 && (
           <p className="text-gray-400 text-sm">{t("dailyChallenges.empty")}</p>
         )}
-        {errorKey && (
+        {!showSkeleton && errorKey && (
           <p className="text-slate-500 text-xs mt-2">{t("dailyChallenges.retryLater")}</p>
         )}
 
+        {!showSkeleton ? (
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
           {challenges.map((c) => renderChallengeCard(c, "daily"))}
 
@@ -313,6 +304,7 @@ export function DailyChallenges() {
             </div>
           )}
         </div>
+        ) : null}
       </div>
 
       <style>{`

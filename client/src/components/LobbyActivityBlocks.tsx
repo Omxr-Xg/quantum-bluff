@@ -1,6 +1,7 @@
 import type { ReactNode, RefObject } from "react";
 import { Loader2, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { LobbyListSkeleton } from "./LobbyPanelSkeleton";
 
 export const lobbyActivitySectionClass =
   "flex min-h-0 flex-1 flex-col rounded-xl border border-white/12 bg-gradient-to-b from-white/[0.07] to-white/[0.025] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-md sm:p-3.5";
@@ -45,12 +46,12 @@ export function LobbyActivitySection({
     <div ref={tourRef} className={lobbyActivitySectionClass}>
       <p className="mb-2 flex shrink-0 items-center gap-2 text-sm font-bold tracking-tight text-slate-100">
         {title}
+        {loading && hasItems ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" aria-hidden />
+        ) : null}
       </p>
       {loading && !hasItems ? (
-        <p className="flex flex-1 items-center justify-center gap-2 py-6 text-sm text-slate-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {t("common.loading")}
-        </p>
+        <LobbyListSkeleton rows={3} />
       ) : !hasItems && errorMessage ? (
         <div className="flex flex-1 flex-col items-center justify-center py-6 text-center">
           <p className="mb-3 text-sm text-red-400">{errorMessage}</p>
