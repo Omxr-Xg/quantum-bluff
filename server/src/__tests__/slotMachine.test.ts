@@ -1,11 +1,12 @@
 import {
   computeSlotWin,
-  rollThreeReels,
+  rollFourReels,
   spinSlot,
   validateSlotBet,
+  isSlotBonusLine,
   SLOT_MIN_BET,
   SLOT_MAX_BET_CAP,
-  type SlotSymbolId,
+  type SlotReels,
 } from '../logic/slotMachine.js'
 
 /** RNG déterministe : séquence de valeurs 0..max pour pickSymbol (consommé dans l’ordre). */
@@ -20,39 +21,54 @@ function makeSequentialRng(values: number[]): (min: number, max: number) => numb
   }
 }
 
-describe('slotMachine — computeSlotWin', () => {
-  test('3 cerises = mise * 5', () => {
-    const reels: [SlotSymbolId, SlotSymbolId, SlotSymbolId] = ['cherry', 'cherry', 'cherry']
-    expect(computeSlotWin(100, reels)).toBe(500)
+describe('slotMachine — computeSlotWin (4 rouleaux)', () => {
+  test('4 cerises = mise × 12', () => {
+    const reels: SlotReels = ['cherry', 'cherry', 'cherry', 'cherry']
+    expect(computeSlotWin(100, reels)).toBe(1200)
   })
 
-  test('3 diamants = mise * 20', () => {
-    const reels: [SlotSymbolId, SlotSymbolId, SlotSymbolId] = ['diamond', 'diamond', 'diamond']
-    expect(computeSlotWin(10, reels)).toBe(200)
+  test('4 sept = mise × 200', () => {
+    expect(computeSlotWin(10, ['seven', 'seven', 'seven', 'seven'])).toBe(2000)
   })
 
-  test('paire = mise * 1', () => {
-    expect(computeSlotWin(50, ['cherry', 'cherry', 'lemon'])).toBe(50)
-    expect(computeSlotWin(50, ['bell', 'seven', 'bell'])).toBe(50)
+  test('3 identiques au début = mise × 3', () => {
+    expect(computeSlotWin(50, ['cherry', 'cherry', 'cherry', 'bar'])).toBe(150)
   })
 
-  test('aucune paire = 0', () => {
-    expect(computeSlotWin(100, ['cherry', 'lemon', 'bell'])).toBe(0)
+  test('3 identiques à la fin = mise × 3', () => {
+    expect(computeSlotWin(50, ['bar', 'bell', 'bell', 'bell'])).toBe(150)
+  })
+
+  test('paire adjacente = mise × 1.5', () => {
+    expect(computeSlotWin(100, ['cherry', 'cherry', 'bar', 'bell'])).toBe(150)
+    expect(computeSlotWin(100, ['cherry', 'bell', 'bell', 'seven'])).toBe(150)
+  })
+
+  test('aucun alignement = 0', () => {
+    expect(computeSlotWin(100, ['cherry', 'bar', 'bell', 'seven'])).toBe(0)
   })
 })
 
-describe('slotMachine — rollThreeReels + spinSlot (RNG injecté)', () => {
-  test('rollThreeReels utilise le RNG fourni', () => {
-    // Forcer toujours le premier symbole (index 0 dans l’ordre de tirage pondéré → cherry si r=0)
-    const rng = makeSequentialRng([0, 0, 0])
-    const reels = rollThreeReels(rng)
+describe('slotMachine — isSlotBonusLine', () => {
+  test('détecte carré et brelan', () => {
+    expect(isSlotBonusLine(['diamond', 'diamond', 'diamond', 'diamond'])).toBe(true)
+    expect(isSlotBonusLine(['crown', 'crown', 'crown', 'bar'])).toBe(true)
+    expect(isSlotBonusLine(['bar', 'bell', 'bell', 'bell'])).toBe(true)
+    expect(isSlotBonusLine(['cherry', 'bar', 'bell', 'seven'])).toBe(false)
+  })
+})
+
+describe('slotMachine — rollFourReels + spinSlot (RNG injecté)', () => {
+  test('rollFourReels utilise le RNG fourni', () => {
+    const rng = makeSequentialRng([0, 0, 0, 0])
+    const reels = rollFourReels(rng)
     expect(reels.every((s) => s === 'cherry')).toBe(true)
   })
 
   test('spinSlot cohérent avec computeSlotWin', () => {
-    const rng = makeSequentialRng([0, 0, 0])
+    const rng = makeSequentialRng([0, 0, 0, 0])
     const { reels, winAmount } = spinSlot(20, rng)
-    expect(reels).toEqual(['cherry', 'cherry', 'cherry'])
+    expect(reels).toEqual(['cherry', 'cherry', 'cherry', 'cherry'])
     expect(winAmount).toBe(computeSlotWin(20, reels))
   })
 })

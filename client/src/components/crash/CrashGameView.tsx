@@ -25,9 +25,11 @@ type CrashGameViewProps = {
   insufficient: boolean;
   canPlaceBet: boolean;
   hasBet: boolean;
+  isPlayerRound: boolean;
   countdown: number;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   onBack: () => void;
+  onLobby: () => void;
   onBetChange: (value: number) => void;
   onAutoCashoutChange: (value: string) => void;
   onPlaceBet: () => void;
@@ -58,9 +60,11 @@ export function CrashGameView({
   insufficient,
   canPlaceBet,
   hasBet,
+  isPlayerRound,
   countdown,
   canvasRef,
   onBack,
+  onLobby,
   onBetChange,
   onAutoCashoutChange,
   onPlaceBet,
@@ -76,6 +80,21 @@ export function CrashGameView({
   const stars = useMemo(() => STAR_SEEDS, []);
 
   const mainButton = () => {
+    if (phase === "running" && !isPlayerRound) {
+      return (
+        <button
+          type="button"
+          disabled
+          className="w-full rounded-xl py-4 text-lg font-black uppercase tracking-wide text-white/50"
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          {t("crash.spectating")}
+        </button>
+      );
+    }
     if (phase === "running") {
       return (
         <motion.button
@@ -174,8 +193,23 @@ export function CrashGameView({
             {t("crash.brand")}
           </span>
         </div>
-        <div className="flex items-center gap-3 sm:gap-6">
-          <div className="hidden max-w-[420px] items-center gap-2 overflow-hidden sm:flex">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/10 sm:inline-flex"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {t("crash.back")}
+          </button>
+          <button
+            type="button"
+            onClick={onLobby}
+            className="shrink-0 rounded-lg border border-violet-500/25 bg-violet-500/10 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-200 transition hover:bg-violet-500/20 sm:px-3 sm:text-xs"
+          >
+            {t("crash.returnToLobby")}
+          </button>
+          <div className="hidden max-w-[320px] items-center gap-2 overflow-hidden lg:flex xl:max-w-[420px]">
             {history.slice(0, 7).map((h, i) => {
               const style = historyPillStyle(h);
               return (

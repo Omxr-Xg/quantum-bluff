@@ -1,5 +1,5 @@
 /**
- * Machine à sous — logique pure (testable). Tirage via injectable randomInt (défaut: crypto).
+ * Machine à sous — 4 rouleaux, logique pure (testable).
  */
 import { intChips } from '../utils/chips.js'
 import { drawInt } from '../rng/rng.service.js'
@@ -8,30 +8,34 @@ export const SLOT_MIN_BET = 10
 /** Plafond de mise par spin (indépendamment du solde). */
 export const SLOT_MAX_BET_CAP = 1000
 
-export type SlotSymbolId = 'cherry' | 'lemon' | 'bell' | 'seven' | 'diamond'
+export type SlotSymbolId = 'seven' | 'crown' | 'diamond' | 'cherry' | 'bell' | 'bar'
 
-const SYMBOL_ORDER: SlotSymbolId[] = ['cherry', 'lemon', 'bell', 'seven', 'diamond']
+export type SlotReels = [SlotSymbolId, SlotSymbolId, SlotSymbolId, SlotSymbolId]
+
+const SYMBOL_ORDER: SlotSymbolId[] = ['cherry', 'bar', 'bell', 'diamond', 'crown', 'seven']
 
 /** Poids relatifs (plus le chiffre est haut, plus le symbole est fréquent). */
 const SYMBOL_WEIGHT: Record<SlotSymbolId, number> = {
-  cherry: 32,
-  lemon: 24,
+  cherry: 28,
+  bar: 22,
   bell: 18,
-  seven: 14,
-  diamond: 8,
+  diamond: 14,
+  crown: 10,
+  seven: 6,
 }
 
-/** Multiplicateur sur la mise si 3 identiques. */
-const THREE_OF_KIND_MULT: Record<SlotSymbolId, number> = {
-  cherry: 5,
-  lemon: 8,
-  bell: 10,
-  seven: 15,
-  diamond: 20,
+/** Multiplicateur si 4 identiques sur la ligne centrale. */
+const FOUR_OF_KIND_MULT: Record<SlotSymbolId, number> = {
+  seven: 200,
+  crown: 50,
+  diamond: 30,
+  bell: 20,
+  cherry: 12,
+  bar: 8,
 }
 
-/** Bonus si exactement 2 identiques (une paire). */
-const PAIR_MULT = 1
+const THREE_OF_KIND_MULT = 3
+const PAIR_MULT = 1.5
 
 export type RandomIntFn = (minInclusive: number, maxInclusive: number) => number
 
@@ -50,41 +54,52 @@ function pickSymbol(randomInt: RandomIntFn): SlotSymbolId {
   return SYMBOL_ORDER[SYMBOL_ORDER.length - 1]!
 }
 
-export function rollThreeReels(randomInt: RandomIntFn = defaultRandomInt): [SlotSymbolId, SlotSymbolId, SlotSymbolId] {
-  return [pickSymbol(randomInt), pickSymbol(randomInt), pickSymbol(randomInt)]
+export function rollFourReels(randomInt: RandomIntFn = defaultRandomInt): SlotReels {
+  return [pickSymbol(randomInt), pickSymbol(randomInt), pickSymbol(randomInt), pickSymbol(randomInt)]
+}
+
+/** @deprecated Alias historique — préférer rollFourReels. */
+export function rollThreeReels(randomInt: RandomIntFn = defaultRandomInt): SlotReels {
+  return rollFourReels(randomInt)
 }
 
 /**
  * Montant total versé par la machine pour ce spin (à créditer après débit de la mise).
- * Perte : 0. Paire : remboursement de la mise (= bet). Brelan : bet × multiplicateur (somme rendue au joueur, dont la part « gain » au-delà de la mise = winAmount − bet).
  */
-export function computeSlotWin(bet: number, reels: [SlotSymbolId, SlotSymbolId, SlotSymbolId]): number {
+export function computeSlotWin(bet: number, reels: SlotReels): number {
   const b = intChips(bet)
   if (b <= 0) return 0
-  const [r0, r1, r2] = reels
+  const [r0, r1, r2, r3] = reels
+
+  if (r0 === r1 && r1 === r2 && r2 === r3) {
+    return intChips(b * FOUR_OF_KIND_MULT[r0])
+  }
   if (r0 === r1 && r1 === r2) {
-    return intChips(b * THREE_OF_KIND_MULT[r0])
+    return intChips(b * THREE_OF_KIND_MULT)
   }
-  const counts: Record<SlotSymbolId, number> = {
-    cherry: 0,
-    lemon: 0,
-    bell: 0,
-    seven: 0,
-    diamond: 0,
+  if (r1 === r2 && r2 === r3) {
+    return intChips(b * THREE_OF_KIND_MULT)
   }
-  counts[r0]++
-  counts[r1]++
-  counts[r2]++
-  const hasPair = SYMBOL_ORDER.some((id) => counts[id] === 2)
-  if (hasPair) return intChips(b * PAIR_MULT)
+  if (r0 === r1 || r1 === r2 || r2 === r3) {
+    return intChips(b * PAIR_MULT)
+  }
   return 0
 }
 
+/** Brelan ou carré (défis / bonus slot). */
+export function isSlotBonusLine(reels: SlotReels): boolean {
+  const [r0, r1, r2, r3] = reels
+  if (r0 === r1 && r1 === r2 && r2 === r3) return true
+  if (r0 === r1 && r1 === r2) return true
+  if (r1 === r2 && r2 === r3) return true
+  return false
+}
+
 export function spinSlot(bet: number, randomInt: RandomIntFn = defaultRandomInt): {
-  reels: [SlotSymbolId, SlotSymbolId, SlotSymbolId]
+  reels: SlotReels
   winAmount: number
 } {
-  const reels = rollThreeReels(randomInt)
+  const reels = rollFourReels(randomInt)
   const winAmount = computeSlotWin(bet, reels)
   return { reels, winAmount }
 }

@@ -35,6 +35,28 @@ export function multiplierColorClass(mult: number, phase: 'ready' | 'running' | 
 }
 
 /** Points normalisés pour la courbe SVG (y = 1 - e^(-t)). */
+/** Point de crash visuel pour les rounds spectateur (sans mise). */
+export function generateDemoCrashPoint(): number {
+  const r = Math.random();
+  let min: number;
+  let max: number;
+  if (r < 0.7) {
+    min = 1.01;
+    max = 2;
+  } else if (r < 0.9) {
+    min = 2;
+    max = 5;
+  } else if (r < 0.98) {
+    min = 5;
+    max = 10;
+  } else {
+    min = 10;
+    max = 50;
+  }
+  const raw = min + Math.random() * (max - min);
+  return Math.floor(raw * 100) / 100;
+}
+
 export function buildCurvePoints(elapsedMs: number, width: number, height: number, maxPoints = 48): string {
   const maxT = Math.max(3, elapsedMs / 1000)
   const coords: string[] = []

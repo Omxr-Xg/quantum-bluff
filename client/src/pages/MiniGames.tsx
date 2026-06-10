@@ -1,22 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
-import { ArrowLeft } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { ChipIcon } from "../components/ChipIcon";
 import { SlotMachine } from "./SlotMachine";
 import { Roulette } from "./Roulette";
-import { getUserBalance, BALANCE_CHANGED_EVENT } from "../utils/userProfile";
 import { CustomScrollArea } from "../components/CustomScrollArea";
 
 export function MiniGames() {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const game = searchParams.get("game");
   const isValidGame = game === "roulette" || game === "slots";
-
-  const [playerChips, setPlayerChips] = useState(getUserBalance());
 
   useEffect(() => {
     if (!isValidGame) {
@@ -27,12 +20,6 @@ export function MiniGames() {
   const backToRetroCasino = useCallback(() => {
     navigate("/minigames/retro-casino");
   }, [navigate]);
-
-  useEffect(() => {
-    const syncBalance = () => setPlayerChips(getUserBalance());
-    window.addEventListener(BALANCE_CHANGED_EVENT, syncBalance);
-    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, syncBalance);
-  }, []);
 
   if (!isValidGame) {
     return null;
@@ -57,47 +44,15 @@ export function MiniGames() {
       </div>
 
       {game === "slots" && (
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-[#140a08]">
-          <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-            <div className="absolute inset-0 bg-gradient-to-b from-[#1a100c] via-[#140a08] to-[#0c0604]" />
-            <div
-              className="absolute inset-0 opacity-[0.1]"
-              style={{
-                backgroundImage:
-                  "linear-gradient(135deg,rgba(154,52,18,0.2)_25%,transparent_25%,transparent_50%,rgba(154,52,18,0.2)_50%,rgba(154,52,18,0.2)_75%,transparent_75%)",
-                backgroundSize: "20px 20px",
-              }}
-            />
-          </div>
-          <header className="relative z-10 flex shrink-0 items-center justify-between gap-2 border-b-2 border-amber-800/40 bg-[#1a100c]/90 px-3 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] sm:px-4">
-            <button
-              type="button"
-              onClick={() => navigate("/minigames/retro-casino")}
-              className="inline-flex items-center gap-2 rounded-sm border-2 border-amber-800/45 bg-stone-950/70 px-3 py-2 text-sm font-bold uppercase tracking-wide text-amber-100 transition hover:border-amber-600/55 hover:bg-amber-950/50"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t("minigames.retroCasinoBack")}
-            </button>
-            <h1 className="hidden min-w-0 flex-1 items-center justify-center sm:flex">
-              <span
-                className="truncate bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text font-serif text-lg font-black uppercase tracking-[0.2em] text-transparent md:text-xl"
-              >
-                {t("slot.brandTitle")}
-              </span>
-            </h1>
-            <div className="flex min-w-0 shrink-0 items-center justify-end gap-1.5 rounded-sm border-2 border-amber-700/40 bg-stone-950/75 px-3 py-1.5 text-sm font-bold tabular-nums text-amber-200">
-              <span className="truncate">{playerChips.toLocaleString()}</span>
-              <ChipIcon size="sm" className="shrink-0 brightness-110" />
-            </div>
-          </header>
-          <CustomScrollArea className="min-h-0 flex-1" contentClassName="overflow-x-hidden px-2 pb-6 pt-3 sm:px-4">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden bg-[#020206]">
+          <CustomScrollArea className="min-h-0 flex-1" contentClassName="overflow-x-hidden">
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
               className="mx-auto w-full min-w-0"
             >
-              <SlotMachine />
+              <SlotMachine onBack={() => navigate("/minigames/retro-casino")} />
             </motion.div>
           </CustomScrollArea>
         </div>

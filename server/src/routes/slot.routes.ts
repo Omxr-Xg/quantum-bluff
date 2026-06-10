@@ -2,7 +2,13 @@ import express from 'express'
 import type { Server } from 'socket.io'
 import { prisma } from '../config/database.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
-import { spinSlot, validateSlotBet, SLOT_MIN_BET, SLOT_MAX_BET_CAP } from '../logic/slotMachine.js'
+import {
+  spinSlot,
+  validateSlotBet,
+  isSlotBonusLine,
+  SLOT_MIN_BET,
+  SLOT_MAX_BET_CAP,
+} from '../logic/slotMachine.js'
 import { intChips } from '../utils/chips.js'
 import {
   awardXpInTransaction,
@@ -203,8 +209,7 @@ router.post('/spin', authMiddleware, async (req, res) => {
 
       const netPositive = payout > bet
       const netWin = Math.max(0, payout - bet)
-      const isThreeOfKind = reels[0] === reels[1] && reels[1] === reels[2]
-      await markSlotSpin(userId, netWin, isThreeOfKind, tx)
+      await markSlotSpin(userId, netWin, isSlotBonusLine(reels), tx)
       const xpGain = XP_SLOT_SPIN + (netPositive ? XP_SLOT_WIN_BONUS : 0)
       const gamification = await awardXpInTransaction(tx, userId, xpGain)
       assertRoundTransition(roundState, 'SETTLED')
@@ -306,7 +311,8 @@ router.get('/config', (_req, res) => {
   res.json({
     minBet: SLOT_MIN_BET,
     maxBet: SLOT_MAX_BET_CAP,
-    symbols: ['cherry', 'lemon', 'bell', 'seven', 'diamond'],
+    symbols: ['seven', 'crown', 'diamond', 'cherry', 'bell', 'bar'],
+    reels: 4,
   })
 })
 
