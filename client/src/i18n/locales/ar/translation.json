@@ -1071,6 +1071,8 @@
     "resetPasswordSuccess": "تم تغيير كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.",
     "backToLogin": "العودة لتسجيل الدخول",
     "continueWithGoogle": "المتابعة مع Google",
+    "oauthWaking": "جارٍ الاتصال بالخادم…",
+    "oauthWakeFailed": "الخادم يستيقظ. أعد المحاولة بعد بضع ثوانٍ.",
     "oauthOr": "أو",
     "oauthCompleting": "جارٍ تسجيل الدخول…",
     "oauthError": {

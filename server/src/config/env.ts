@@ -345,9 +345,11 @@ export const env = {
     const explicit = getOptionalEnv('GOOGLE_CALLBACK_URL')
     if (explicit) return explicit.replace(/\/$/, '')
     const port = getPositiveIntegerEnv('PORT', 3000)
-    return isProduction
-      ? 'https://api.quantum-bluff.com/auth/google/callback'
-      : `http://localhost:${port}/auth/google/callback`
+    if (!isProduction) return `http://localhost:${port}/auth/google/callback`
+    const client =
+      getOptionalEnv('CLIENT_URL') ?? getOptionalEnv('PUBLIC_APP_URL')
+    if (client) return `${client.replace(/\/$/, '')}/auth/google/callback`
+    return 'https://www.quantum-bluff.com/auth/google/callback'
   })(),
   clientUrl: (() => {
     const direct = getOptionalEnv('CLIENT_URL') ?? getOptionalEnv('PUBLIC_APP_URL')

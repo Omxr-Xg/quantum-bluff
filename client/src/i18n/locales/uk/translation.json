@@ -1067,6 +1067,8 @@
     "resetPasswordSuccess": "Пароль змінено. Увійдіть з новим паролем.",
     "backToLogin": "Назад до входу",
     "continueWithGoogle": "Продовжити з Google",
+    "oauthWaking": "Підключення до сервера…",
+    "oauthWakeFailed": "Сервер прокидається. Спробуйте ще раз за кілька секунд.",
     "oauthOr": "або",
     "oauthCompleting": "Вхід…",
     "oauthError": {

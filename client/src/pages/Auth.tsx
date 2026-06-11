@@ -6,6 +6,7 @@ import { QuantumBluffLogo } from "../assets/logo";
 import { ClientAuthShellBackground } from "../components/ClientAuthShellBackground";
 import { AuthPublicFooter } from "../components/marketing/AuthPublicFooter";
 import { AuthOAuthDivider, GoogleSignInButton } from "../components/GoogleSignInButton";
+import { useWakeApiOnMount } from "../hooks/useWakeApiOnMount";
 import {
   useCheckEmailMutation,
   useLoginMutation,
@@ -60,7 +61,8 @@ const AUTH_QUOTES: readonly { text: string; author: string }[] = [
 export function Auth() {
   /** Guest auth UI in English; global language (e.g. after logout) stays in user preference. */
   const { t } = useTranslation(undefined, { lng: 'en' });
-  
+  useWakeApiOnMount();
+
   // Initialisation du loader
   const { showLoader, hideLoader } = useLoader();
 

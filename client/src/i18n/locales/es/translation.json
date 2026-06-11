@@ -1063,6 +1063,8 @@
     "resetPasswordSuccess": "Contraseña actualizada. Inicia sesión con la nueva contraseña.",
     "backToLogin": "Volver al inicio de sesión",
     "continueWithGoogle": "Continuar con Google",
+    "oauthWaking": "Conectando al servidor…",
+    "oauthWakeFailed": "El servidor está arrancando. Inténtalo de nuevo en unos segundos.",
     "oauthOr": "o",
     "oauthCompleting": "Iniciando sesión…",
     "oauthError": {

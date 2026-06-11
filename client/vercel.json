@@ -5,7 +5,13 @@
       "NODE_OPTIONS": "--max-old-space-size=4096"
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "source": "/auth/:path*",
+      "destination": "https://api.quantum-bluff.com/auth/:path*"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/ads.txt",

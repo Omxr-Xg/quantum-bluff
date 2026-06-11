@@ -8,6 +8,7 @@ import { trackEvent } from "../utils/analytics";
 import { removeAuthItem, setAuthItem } from "../utils/authStorage";
 import { translateRegisterApiError, isoDateUtc } from "../utils/authRegisterErrors";
 import { AuthOAuthDivider, GoogleSignInButton } from "../components/GoogleSignInButton";
+import { useWakeApiOnMount } from "../hooks/useWakeApiOnMount";
 import { socket } from "../services/socket";
 import { fetchBalanceFromServer, updateUserBalance } from "../utils/userProfile";
 import {
@@ -21,6 +22,7 @@ const SECRET_QUESTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 export function Register() {
   const { t } = useTranslation();
+  useWakeApiOnMount();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -1337,6 +1337,8 @@
     "resetPasswordSuccess": "Password updated. Sign in with your new password.",
     "backToLogin": "Back to sign in",
     "continueWithGoogle": "Continue with Google",
+    "oauthWaking": "Connecting to server…",
+    "oauthWakeFailed": "The server is waking up. Please try again in a few seconds.",
     "referralCodeButton": "Have a friend's referral code?",
     "referralCodeLabel": "Referral code",
     "referralCodePlaceholder": "ABCD1234",

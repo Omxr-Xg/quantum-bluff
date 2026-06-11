@@ -1336,6 +1336,8 @@
     "resetPasswordSuccess": "Mot de passe modifié. Connectez-vous avec le nouveau mot de passe.",
     "backToLogin": "Retour à la connexion",
     "continueWithGoogle": "Continuer avec Google",
+    "oauthWaking": "Connexion au serveur…",
+    "oauthWakeFailed": "Le serveur met du temps à démarrer. Réessayez dans quelques secondes.",
     "setPasswordTitle": "Sécurisez votre compte",
     "setPasswordSubtitle": "Créez un mot de passe pour protéger votre compte (suppression, récupération, etc.).",
     "setPasswordHint": "La connexion Google reste disponible. Ce mot de passe sert aux actions sensibles comme la suppression du compte.",
