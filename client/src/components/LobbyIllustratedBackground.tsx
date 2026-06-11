@@ -4,6 +4,7 @@ export const lobbyIllustratedOverlays = {
   pokerTournament: "from-amber-950/95 via-slate-950/92 to-slate-950/96",
   beloteTournament: "from-emerald-950/95 via-slate-950/92 to-slate-950/96",
   dailyChallenges: "from-amber-950/95 via-slate-950/92 to-slate-950/96",
+  blackjackMulti: "from-rose-950/95 via-slate-950/92 to-slate-950/96",
 } as const;
 
 type LobbyIllustratedBackgroundProps = {

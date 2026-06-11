@@ -29,6 +29,10 @@ import {
   GAMIFICATION_CHANGED_EVENT,
 } from "../utils/gamificationStorage";
 import blackjackMultiBg from "../assets/backg/blackjackmulti.webp";
+import {
+  LobbyIllustratedBackground,
+  lobbyIllustratedOverlays,
+} from "./LobbyIllustratedBackground";
 
 type BjVisibility = "PUBLIC" | "PRIVATE";
 
@@ -651,10 +655,15 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
   const createModal = showCreate && (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div
-        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/70 p-6 pt-12 shadow-2xl shadow-black/40 backdrop-blur-xl sm:pt-6"
+        className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 p-6 pt-12 shadow-2xl shadow-black/40 backdrop-blur-xl sm:pt-6"
         role="dialog"
         aria-modal="true"
       >
+        <LobbyIllustratedBackground
+          image={blackjackMultiBg}
+          overlay={lobbyIllustratedOverlays.blackjackMulti}
+        />
+        <div className="relative z-10">
         <button
           type="button"
           onClick={() => setShowCreate(false)}
@@ -750,6 +759,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
             {t("bjMulti.confirmCreate")}
           </button>
         </div>
+        </div>
       </div>
     </div>
   );
@@ -757,14 +767,9 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="relative overflow-hidden rounded-2xl border border-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-6">
-        <div
-          className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
-          style={{ backgroundImage: `url(${blackjackMultiBg})` }}
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-rose-950/95 via-slate-950/92 to-slate-950/96"
-          aria-hidden
+        <LobbyIllustratedBackground
+          image={blackjackMultiBg}
+          overlay={lobbyIllustratedOverlays.blackjackMulti}
         />
         <div className="relative z-10">
         <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
