@@ -25,6 +25,10 @@ import {
   writeFriendsLobbyCache,
 } from "../utils/friendsLobbyCache";
 import { FriendsListSkeleton } from "./LobbyPanelSkeleton";
+import { lobbyActivityListMaxHeight } from "./LobbyActivityBlocks";
+
+const LOBBY_FRIENDS_SCROLL_AFTER = 4;
+const LOBBY_FRIEND_ROW_PX = 78;
 
 export function FriendsList() {
   const { t, i18n } = useTranslation();
@@ -173,18 +177,22 @@ export function FriendsList() {
   const friendsCount = displayFriends?.length || 0;
   const showFriendsSkeleton = loadingFriends && !displayFriends?.length;
 
-  /** Lobby : connectés d’abord, puis par nom (max 4 affichés). */
+  /** Lobby : connectés d’abord, puis par nom. */
   const lobbyFriendsPreview = useMemo(() => {
     if (!displayFriends?.length) return [];
-    return [...displayFriends]
-      .sort((a, b) => {
-        const aOnline = Boolean(a.isOnline);
-        const bOnline = Boolean(b.isOnline);
-        if (aOnline !== bOnline) return aOnline ? -1 : 1;
-        return a.username.localeCompare(b.username, undefined, { sensitivity: "base" });
-      })
-      .slice(0, 4);
+    return [...displayFriends].sort((a, b) => {
+      const aOnline = Boolean(a.isOnline);
+      const bOnline = Boolean(b.isOnline);
+      if (aOnline !== bOnline) return aOnline ? -1 : 1;
+      return a.username.localeCompare(b.username, undefined, { sensitivity: "base" });
+    });
   }, [displayFriends]);
+
+  const friendsScrollStyle = lobbyActivityListMaxHeight(
+    lobbyFriendsPreview.length,
+    LOBBY_FRIENDS_SCROLL_AFTER,
+    LOBBY_FRIEND_ROW_PX,
+  );
 
   const selectedFriend = friends?.find((friend) => friend.id === selectedChat);
   const {
@@ -261,12 +269,12 @@ export function FriendsList() {
           openFriendsPage();
         }
       }}
-      className="relative flex h-full min-h-[15rem] cursor-pointer flex-col overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl transition hover:border-amber-200/28 hover:bg-slate-900/68 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/45 xl:p-5"
+      className="relative flex shrink-0 cursor-pointer flex-col rounded-2xl border border-amber-200/16 bg-slate-900/58 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl transition hover:border-amber-200/28 hover:bg-slate-900/68 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/45 xl:p-5"
       aria-label={t("friends.seeAll")}
     >
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.06] via-blue-950/[0.12] to-transparent" />
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+      <div className="relative z-10 flex flex-col">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xl font-bold text-white xl:text-2xl">
           <Users className="h-6 w-6 text-amber-100/85 xl:h-7 xl:w-7" />
@@ -277,11 +285,14 @@ export function FriendsList() {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 rounded-xl border border-white/10 bg-white/[0.035] p-3">
+      <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
         {showFriendsSkeleton ? (
           <FriendsListSkeleton />
         ) : friendsCount > 0 ? (
-          <div className="max-h-full space-y-2 overflow-y-auto pr-1">
+          <div
+            className="space-y-2 overflow-y-auto overscroll-contain pr-1"
+            style={friendsScrollStyle}
+          >
             {lobbyFriendsPreview.map((friend) => {
               const lastSeenLabel = !friend.isOnline
                 ? formatFriendLastSeen(friend.lastSeenAt, t)
@@ -362,7 +373,7 @@ export function FriendsList() {
             )})}
           </div>
         ) : (
-          <div className="flex h-full min-h-[8rem] items-center justify-center rounded-lg border border-dashed border-white/10 bg-slate-950/25 px-4 text-center text-sm text-slate-400">
+          <div className="rounded-lg border border-dashed border-white/10 bg-slate-950/25 px-4 py-4 text-center text-sm text-slate-400">
             {t('friends.noFriendsYet')}
           </div>
         )}

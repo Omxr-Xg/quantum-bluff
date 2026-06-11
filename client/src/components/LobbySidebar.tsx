@@ -11,10 +11,10 @@ type LobbySidebarProps = {
 export default function LobbySidebar({ tourRefDaily, tourRefFriends }: LobbySidebarProps) {
   return (
     <>
-      <div ref={tourRefDaily} className="lg:max-h-[50%] lg:min-h-0 lg:flex lg:flex-col lg:overflow-y-auto">
+      <div ref={tourRefDaily} className="shrink-0">
         <DailyChallenges />
       </div>
-      <div ref={tourRefFriends} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+      <div ref={tourRefFriends} className="shrink-0">
         <FriendsList />
       </div>
       <DiscreteAdSlot placement="lobby-sidebar" className="shrink-0 max-lg:mt-1" />

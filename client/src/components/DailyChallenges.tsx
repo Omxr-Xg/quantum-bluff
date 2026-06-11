@@ -15,6 +15,10 @@ import {
   writeDailyChallengesCache,
 } from "../utils/dailyChallengesCache";
 import { DailyChallengesSkeleton } from "./LobbyPanelSkeleton";
+import { lobbyActivityListMaxHeight } from "./LobbyActivityBlocks";
+
+const DAILY_CHALLENGE_SCROLL_AFTER = 3;
+const DAILY_CHALLENGE_ROW_PX = 96;
 
 export function DailyChallenges() {
   const { t } = useTranslation();
@@ -47,6 +51,11 @@ export function DailyChallenges() {
   const showSkeleton = isLoading && !data;
   const errorKey =
     isError && !data ? "dailyChallenges.errors.loadFailed" : null;
+  const challengesScrollStyle = lobbyActivityListMaxHeight(
+    challenges.length,
+    DAILY_CHALLENGE_SCROLL_AFTER,
+    DAILY_CHALLENGE_ROW_PX,
+  );
 
   useEffect(() => {
     if (live && userId) writeDailyChallengesCache(userId, live);
@@ -225,10 +234,10 @@ export function DailyChallenges() {
   );
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl xl:p-4">
+    <div className="relative flex shrink-0 flex-col rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl xl:p-4">
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+      <div className="relative z-10 flex flex-col">
         {heading}
 
         {showSkeleton ? <DailyChallengesSkeleton /> : null}
@@ -241,7 +250,10 @@ export function DailyChallenges() {
         )}
 
         {!showSkeleton ? (
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+        <div
+          className="space-y-2 overflow-y-auto overscroll-contain pr-0.5"
+          style={challengesScrollStyle}
+        >
           {challenges.map((c) => renderChallengeCard(c, "daily"))}
 
           {weeklyChallenges.length > 0 && (
