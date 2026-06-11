@@ -40,6 +40,8 @@ import {
 import lobbyHeaderIcon from "../../app-icon.png";
 import { LobbyShellBackground } from "../components/LobbyShellBackground";
 import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "../components/LobbySoloPlayBlock";
+import botPokerBg from "../assets/backg/botpoker.png";
+import blackjackSoloBg from "../assets/backg/blackjacksolo.png";
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
@@ -1871,6 +1873,7 @@ export function Lobby() {
                 buttonLabel={t("lobby.configureAndPlay")}
                 onClick={handlePlayBot}
                 accent={lobbySoloPlayAccents.poker}
+                backgroundImage={botPokerBg}
                 challengeHighlightId="poker-bot"
                 challengeHighlightActive={isHighlighted("poker-bot")}
               />
@@ -2265,6 +2268,7 @@ export function Lobby() {
                 buttonLabel={t("lobby.blackjackPlay")}
                 onClick={() => navigate("/blackjack")}
                 accent={lobbySoloPlayAccents.blackjack}
+                backgroundImage={blackjackSoloBg}
                 challengeHighlightId="blackjack-play"
                 challengeHighlightActive={isHighlighted("blackjack-play")}
               />

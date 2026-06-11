@@ -27,6 +27,7 @@ import { useChallengeHighlight } from "../hooks/useChallengeHighlight";
 import { challengeHighlightClass } from "../utils/challengeHighlight";
 import { LobbyActivitySection, LobbyFriendRoomBadge } from "./LobbyActivityBlocks";
 import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "./LobbySoloPlayBlock";
+import botBeloteBg from "../assets/backg/botbelote.png";
 import { LobbyBeloteTournamentPanel } from "./LobbyBeloteTournamentPanel";
 import {
   BELOTE_BUY_IN_DEFAULT,
@@ -630,6 +631,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         onClick={() => navigate("/belote/bot-configuration")}
         disabled={!userId || creating}
         accent={lobbySoloPlayAccents.belote}
+        backgroundImage={botBeloteBg}
       />
 
       <div className="grid min-h-0 auto-rows-min grid-cols-1 gap-4 md:grid-cols-2 md:items-start">
