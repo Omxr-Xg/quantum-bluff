@@ -1270,7 +1270,167 @@
     "editSection": "Editar perfil",
     "editContent": "Haz clic en 'Editar perfil' para cambiar tu nombre de usuario, email y avatar.",
     "streakSection": "Rachas de victorias",
-    "streakContent": "Sigue tu racha actual y tu mejor racha de victorias consecutivas."
+    "streakContent": "Sigue tu racha actual y tu mejor racha de victorias consecutivas.",
+    "linkAchievements": "Logros",
+    "linkShop": "Tienda",
+    "linkHistory": "Historial y estadísticas"
+  },
+  "referral": {
+    "title": "Invitar amigos",
+    "subtitle": "Tu amigo recibe 2.000 fichas de bonificación al registrarse, tú recibes 1.000 — y se convierten en amigos automáticamente.",
+    "yourCode": "Tu código",
+    "inviteLink": "Enlace de invitación",
+    "copyCode": "Copiar código",
+    "copyLink": "Copiar enlace",
+    "invitesCount": "Invitaciones",
+    "chipsEarned": "Fichas ganadas",
+    "error": "No se pudo cargar la información de referidos",
+    "menuAria": "Opciones de referidos",
+    "historyMenu": "Historial de referidos",
+    "historyTitle": "Historial de referidos",
+    "historySubtitle": "Cada referido completado te da 1.000 fichas.",
+    "historyEmpty": "Aún no hay referidos — comparte tu enlace para empezar.",
+    "historyGain": "+{{chips}} fichas",
+    "historyPending": "Pendiente",
+    "historyTotal": "Ganancias totales por referidos",
+    "chipsLabel": "fichas",
+    "closeHistory": "Cerrar historial"
+  },
+  "achievements": {
+    "title": "Logros",
+    "subtitle": "Desbloquea recompensas jugando y socializando.",
+    "backToProfile": "Volver al perfil",
+    "unlocked": "Desbloqueados",
+    "error": "No se pudieron cargar los logros",
+    "chips": "fichas",
+    "cosmeticReward": "Cosmético",
+    "category": {
+      "LOGIN": "Conexión",
+      "SOCIAL": "Social",
+      "POKER": "Póker",
+      "BELOTE": "Belote",
+      "CASINO": "Casino",
+      "RECORDS": "Récords"
+    },
+    "item": {
+      "login_streak_7": { "name": "Asiduo semanal", "desc": "Conectarse 7 días seguidos" },
+      "login_streak_30": { "name": "Jugador dedicado", "desc": "Conectarse 30 días seguidos" },
+      "first_friend": { "name": "Primer amigo", "desc": "Añade tu primer amigo" },
+      "friends_10": { "name": "Mariposa social", "desc": "Alcanza 10 amigos" },
+      "first_voice_call": { "name": "En línea", "desc": "Realizar una llamada de voz" },
+      "first_jackpot": { "name": "¡Jackpot!", "desc": "Gana un jackpot del casino" },
+      "casino_games_100": { "name": "Habitual del casino", "desc": "Juega 100 partidas de casino" },
+      "belote_wins_10": { "name": "Novato en belote", "desc": "Gana 10 partidas de belote" },
+      "belote_wins_100": { "name": "Maestro de belote", "desc": "Gana 100 partidas de belote" },
+      "belote_king": { "name": "Rey de la belote", "desc": "Domina la mesa de belote" },
+      "poker_first_win": { "name": "Primer bote", "desc": "Gana tu primera partida de póker" },
+      "poker_hands_100": { "name": "Grinder", "desc": "Juega 100 manos de póker" },
+      "poker_hands_1000": { "name": "Veterano", "desc": "Juega 1.000 manos de póker" },
+      "first_bluff": { "name": "Farolero", "desc": "Gana con un farol exitoso" },
+      "poker_win_streak_10": { "name": "En racha", "desc": "Gana 10 manos de póker seguidas" },
+      "millionaire": { "name": "Millonario", "desc": "Posee 1.000.000 fichas" },
+      "blackjack_king": { "name": "Rey del blackjack", "desc": "Consigue una gran victoria en blackjack" }
+    }
+  },
+  "shop": {
+    "title": "Tienda de cosméticos",
+    "subtitle": "Personaliza tu perfil con banners, marcos y títulos.",
+    "backToProfile": "Volver al perfil",
+    "tab": {
+      "BANNER": "Banners",
+      "AVATAR_FRAME": "Marcos",
+      "TITLE": "Títulos"
+    },
+    "buy": "Comprar {{price}}",
+    "equip": "Equipar",
+    "equipped": "Equipado",
+    "notPurchasable": "Desbloqueado con logros",
+    "purchaseError": "Compra fallida",
+    "equipError": "No se pudo equipar el objeto",
+    "rarity": {
+      "common": "Común",
+      "uncommon": "Poco común",
+      "rare": "Raro",
+      "epic": "Épico",
+      "legendary": "Legendario"
+    }
+  },
+  "cosmetic": {
+    "banner": {
+      "generic": "Genérico",
+      "france": "Francia",
+      "tunisia": "Túnez",
+      "ukraine": "Ucrania",
+      "palestine": "Palestina",
+      "turkey": "Turquía",
+      "algeria": "Argelia",
+      "iran": "Irán",
+      "premium": "Premium",
+      "sexy": "Sexy",
+      "bluffeur": "Farolero"
+    },
+    "frame": {
+      "bronze": "Marco bronce",
+      "silver": "Marco plata",
+      "gold": "Marco oro",
+      "diamond": "Marco diamante",
+      "quantum": "Marco Quantum"
+    },
+    "title": {
+      "bluffer": "Farolero",
+      "regular": "Regular",
+      "strategist": "Estratega",
+      "veteran": "Veterano",
+      "expert": "Experto",
+      "elite": "Élite",
+      "master": "Maestro",
+      "champion": "Campeón",
+      "legend": "Leyenda",
+      "millionaire": "Millonario"
+    }
+  },
+  "history": {
+    "title": "Historial y análisis",
+    "backToProfile": "Volver al perfil",
+    "tabHistory": "Historial",
+    "tabAnalytics": "Análisis",
+    "mode": {
+      "all": "Todo",
+      "poker": "Póker",
+      "belote": "Belote",
+      "casino": "Casino",
+      "tournament": "Torneo"
+    },
+    "period": {
+      "7d": "7 días",
+      "30d": "30 días",
+      "90d": "90 días",
+      "all": "Todo"
+    },
+    "empty": "Sin historial",
+    "prevPage": "Anterior",
+    "nextPage": "Siguiente",
+    "page": "Página {{page}}",
+    "chipsTimeline": "Saldo de fichas",
+    "gainsByGame": "Ganancias por tipo de juego",
+    "gainsPercent": "Parte de ganancias (%)",
+    "records": "Récords personales",
+    "gameType": {
+      "poker": "Póker",
+      "belote": "Belote",
+      "casino": "Casino",
+      "tournament": "Torneo",
+      "other": "Otro"
+    },
+    "record": {
+      "biggestWin": "Mayor victoria",
+      "biggestPot": "Mayor bote",
+      "longestWinStreak": "Racha de victorias",
+      "biggestJackpot": "Mayor jackpot",
+      "beloteWins": "Victorias en belote",
+      "pokerWins": "Victorias en póker",
+      "currentChips": "Fichas actuales"
+    }
   },
   "growthNotifications": {
     "title": "Actividad",

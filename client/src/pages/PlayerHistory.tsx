@@ -28,18 +28,6 @@ const filterInactive =
 const HISTORY_MODES: PlayerHistoryMode[] = ["all", "poker", "belote", "casino", "tournament"];
 const PERIODS: AnalyticsPeriod[] = ["7d", "30d", "90d", "all"];
 
-const chipsChartConfig = {
-  balance: { label: "Balance", color: "#38bdf8" },
-};
-
-const gainsChartConfig = {
-  poker: { label: "Poker", color: "#34d399" },
-  belote: { label: "Belote", color: "#a78bfa" },
-  casino: { label: "Casino", color: "#fbbf24" },
-  tournament: { label: "Tournament", color: "#f472b6" },
-  other: { label: "Other", color: "#94a3b8" },
-};
-
 const GAME_COLORS: Record<string, string> = {
   poker: "#34d399",
   belote: "#a78bfa",
@@ -97,6 +85,24 @@ export function PlayerHistory() {
   const pieTotal = useMemo(
     () => gainsPieData.reduce((sum, item) => sum + item.value, 0),
     [gainsPieData],
+  );
+
+  const chipsChartConfig = useMemo(
+    () => ({
+      balance: { label: t("history.record.currentChips"), color: "#38bdf8" },
+    }),
+    [t],
+  );
+
+  const gainsChartConfig = useMemo(
+    () =>
+      Object.fromEntries(
+        (["poker", "belote", "casino", "tournament", "other"] as const).map((key) => [
+          key,
+          { label: t(`history.gameType.${key}`), color: GAME_COLORS[key] },
+        ]),
+      ),
+    [t],
   );
 
   return (

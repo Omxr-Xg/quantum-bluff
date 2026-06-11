@@ -88,7 +88,7 @@
     "tabRoulette": "الروليت",
     "tabBlackjack": "بلاك جاك",
     "tabMinigames": "ألعاب فردية",
-    "tabBelote": "Belote",
+    "tabBelote": "بلوت",
     "beloteComingSoon": "أنشئ غرفة بلوت أو انضم إليها (4 لاعبين).",
     "tabListAria": "أقسام الردهة",
     "rouletteTitle": "الروليت",
@@ -1278,7 +1278,167 @@
     "editSection": "تعديل الملف الشخصي",
     "editContent": "انقر على 'تعديل الملف الشخصي' لتغيير اسم المستخدم والبريد الإلكتروني والصورة.",
     "streakSection": "سلاسل الفوز",
-    "streakContent": "تتبع سلسلة فوزك الحالية وأفضلها."
+    "streakContent": "تتبع سلسلة فوزك الحالية وأفضلها.",
+    "linkAchievements": "الإنجازات",
+    "linkShop": "المتجر",
+    "linkHistory": "السجل والإحصائيات"
+  },
+  "referral": {
+    "title": "دعوة الأصدقاء",
+    "subtitle": "يحصل صديقك على 2,000 رقاقة مكافأة عند التسجيل، وتحصل أنت على 1,000 — وتصبحون أصدقاء تلقائيًا.",
+    "yourCode": "رمزك",
+    "inviteLink": "رابط الدعوة",
+    "copyCode": "نسخ الرمز",
+    "copyLink": "نسخ الرابط",
+    "invitesCount": "الدعوات",
+    "chipsEarned": "الرقائق المكتسبة",
+    "error": "تعذّر تحميل معلومات الإحالة",
+    "menuAria": "خيارات الإحالة",
+    "historyMenu": "سجل الإحالات",
+    "historyTitle": "سجل الإحالات",
+    "historySubtitle": "كل إحالة مكتملة تمنحك 1,000 رقاقة.",
+    "historyEmpty": "لا توجد إحالات بعد — شارك رابطك للبدء.",
+    "historyGain": "+{{chips}} رقائق",
+    "historyPending": "قيد الانتظار",
+    "historyTotal": "إجمالي أرباح الإحالة",
+    "chipsLabel": "رقائق",
+    "closeHistory": "إغلاق السجل"
+  },
+  "achievements": {
+    "title": "الإنجازات",
+    "subtitle": "افتح مكافآت باللعب والتواصل الاجتماعي.",
+    "backToProfile": "العودة إلى الملف الشخصي",
+    "unlocked": "مفتوحة",
+    "error": "تعذّر تحميل الإنجازات",
+    "chips": "رقائق",
+    "cosmeticReward": "مظهر",
+    "category": {
+      "LOGIN": "تسجيل الدخول",
+      "SOCIAL": "اجتماعي",
+      "POKER": "بوكر",
+      "BELOTE": "بلوت",
+      "CASINO": "كازينو",
+      "RECORDS": "أرقام قياسية"
+    },
+    "item": {
+      "login_streak_7": { "name": "منتظم أسبوعي", "desc": "تسجيل الدخول 7 أيام متتالية" },
+      "login_streak_30": { "name": "لاعب ملتزم", "desc": "تسجيل الدخول 30 يومًا متتاليًا" },
+      "first_friend": { "name": "أول صديق", "desc": "أضف صديقك الأول" },
+      "friends_10": { "name": "فراشة اجتماعية", "desc": "الوصول إلى 10 أصدقاء" },
+      "first_voice_call": { "name": "على الخط", "desc": "إجراء مكالمة صوتية" },
+      "first_jackpot": { "name": "جاكبوت!", "desc": "الفوز بجاكبوت الكازينو" },
+      "casino_games_100": { "name": "زبون الكازينو", "desc": "لعب 100 لعبة كازينو" },
+      "belote_wins_10": { "name": "مبتدئ بلوت", "desc": "الفوز بـ 10 ألعاب بلوت" },
+      "belote_wins_100": { "name": "سيد البلوت", "desc": "الفوز بـ 100 لعبة بلوت" },
+      "belote_king": { "name": "ملك البلوت", "desc": "هيمنة على طاولة البلوت" },
+      "poker_first_win": { "name": "أول بوت", "desc": "الفوز بأول لعبة بوكر" },
+      "poker_hands_100": { "name": "مجتهد", "desc": "لعب 100 يد بوكر" },
+      "poker_hands_1000": { "name": "محارب قديم", "desc": "لعب 1,000 يد بوكر" },
+      "first_bluff": { "name": "مخادع", "desc": "الفوز بخدعة ناجحة" },
+      "poker_win_streak_10": { "name": "في حالة سخونة", "desc": "الفوز بـ 10 أيدي بوكر متتالية" },
+      "millionaire": { "name": "مليونير", "desc": "امتلاك 1,000,000 رقاقة" },
+      "blackjack_king": { "name": "ملك البلاك جاك", "desc": "تحقيق فوز كبير في البلاك جاك" }
+    }
+  },
+  "shop": {
+    "title": "متجر المظاهر",
+    "subtitle": "خصّص ملفك الشخصي ببانرات وإطارات وألقاب.",
+    "backToProfile": "العودة إلى الملف الشخصي",
+    "tab": {
+      "BANNER": "البانرات",
+      "AVATAR_FRAME": "الإطارات",
+      "TITLE": "الألقاب"
+    },
+    "buy": "شراء {{price}}",
+    "equip": "تجهيز",
+    "equipped": "مُجهّز",
+    "notPurchasable": "يُفتح عبر الإنجازات",
+    "purchaseError": "فشل الشراء",
+    "equipError": "تعذّر تجهيز العنصر",
+    "rarity": {
+      "common": "شائع",
+      "uncommon": "غير شائع",
+      "rare": "نادر",
+      "epic": "ملحمي",
+      "legendary": "أسطوري"
+    }
+  },
+  "cosmetic": {
+    "banner": {
+      "generic": "عام",
+      "france": "فرنسا",
+      "tunisia": "تونس",
+      "ukraine": "أوكرانيا",
+      "palestine": "فلسطين",
+      "turkey": "تركيا",
+      "algeria": "الجزائر",
+      "iran": "إيران",
+      "premium": "مميز",
+      "sexy": "Sexy",
+      "bluffeur": "مخادع"
+    },
+    "frame": {
+      "bronze": "إطار برونزي",
+      "silver": "إطار فضي",
+      "gold": "إطار ذهبي",
+      "diamond": "إطار ماسي",
+      "quantum": "إطار Quantum"
+    },
+    "title": {
+      "bluffer": "مخادع",
+      "regular": "منتظم",
+      "strategist": "استراتيجي",
+      "veteran": "محارب قديم",
+      "expert": "خبير",
+      "elite": "نخبة",
+      "master": "سيد",
+      "champion": "بطل",
+      "legend": "أسطورة",
+      "millionaire": "مليونير"
+    }
+  },
+  "history": {
+    "title": "السجل والتحليلات",
+    "backToProfile": "العودة إلى الملف الشخصي",
+    "tabHistory": "السجل",
+    "tabAnalytics": "التحليلات",
+    "mode": {
+      "all": "الكل",
+      "poker": "بوكر",
+      "belote": "بلوت",
+      "casino": "كازينو",
+      "tournament": "بطولة"
+    },
+    "period": {
+      "7d": "7 أيام",
+      "30d": "30 يومًا",
+      "90d": "90 يومًا",
+      "all": "الكل"
+    },
+    "empty": "لا يوجد سجل",
+    "prevPage": "السابق",
+    "nextPage": "التالي",
+    "page": "صفحة {{page}}",
+    "chipsTimeline": "رصيد الرقائق",
+    "gainsByGame": "المكاسب حسب نوع اللعبة",
+    "gainsPercent": "نسبة المكاسب (%)",
+    "records": "الأرقام القياسية الشخصية",
+    "gameType": {
+      "poker": "بوكر",
+      "belote": "بلوت",
+      "casino": "كازينو",
+      "tournament": "بطولة",
+      "other": "أخرى"
+    },
+    "record": {
+      "biggestWin": "أكبر فوز",
+      "biggestPot": "أكبر بوت",
+      "longestWinStreak": "سلسلة الفوز",
+      "biggestJackpot": "أكبر جاكبوت",
+      "beloteWins": "انتصارات البلوت",
+      "pokerWins": "انتصارات البوكر",
+      "currentChips": "الرقائق الحالية"
+    }
   },
   "growthNotifications": {
     "title": "النشاط",

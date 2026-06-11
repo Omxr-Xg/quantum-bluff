@@ -41,8 +41,8 @@ const SHOP_BANNER_DEFS = [
   { id: 'banner_ban_algeria', nameKey: 'cosmetic.banner.algeria', file: 'ban7.webp', priceChips: 2_500, rarity: 'rare' },
   { id: 'banner_ban_iran', nameKey: 'cosmetic.banner.iran', file: 'ban8.webp', priceChips: 2_750, rarity: 'rare' },
   { id: 'banner_ban_premium', nameKey: 'cosmetic.banner.premium', file: 'ban9.webp', priceChips: 3_000, rarity: 'rare' },
-  { id: 'banner_ban_sexy', nameKey: 'cosmetic.banner.sexy', file: 'ban10.webp', priceChips: 3_250, rarity: 'epic' },
-  { id: 'banner_ban_bluffeur', nameKey: 'cosmetic.banner.bluffeur', file: 'ban11.webp', priceChips: 3_500, rarity: 'legendary' },
+  { id: 'banner_ban_sexy', nameKey: 'cosmetic.banner.bluffeur', file: 'ban10.webp', priceChips: 3_250, rarity: 'epic' },
+  { id: 'banner_ban_bluffeur', nameKey: 'cosmetic.banner.sexy', file: 'ban11.webp', priceChips: 3_500, rarity: 'legendary' },
 ] as const
 
 export const COSMETIC_CATALOG: CosmeticCatalogEntry[] = [

@@ -88,7 +88,7 @@
     "tabRoulette": "Рулетка",
     "tabBlackjack": "Блекджек",
     "tabMinigames": "Соло-ігри",
-    "tabBelote": "Belote",
+    "tabBelote": "Белот",
     "beloteComingSoon": "Створіть або приєднайтесь до кімнати Belote (4 гравці).",
     "tabListAria": "Розділи лобі",
     "rouletteTitle": "Рулетка",
@@ -837,7 +837,7 @@
     "tabPoker": "Покер",
     "tabCasino": "Казино",
     "metricPokerWins": "Перемоги в покері",
-    "metricBeloteWins": "Перемоги в Belote",
+    "metricBeloteWins": "Перемоги в белоті",
     "colBeloteWins": "Перемоги",
     "metricChips": "Фішки",
     "metricSlotBiggest": "Найкращий спін слота",
@@ -866,7 +866,7 @@
     "noActiveSeason": "Наразі немає активного сезону"
   },
   "belote": {
-    "lobbyTitle": "Belote",
+    "lobbyTitle": "Белот",
     "lobbyIntro": "Створіть публічну або приватну кімнату, зберуться четверо гравців і грайте до цільового рахунку.",
     "createRoom": "Створити кімнату",
     "roomName": "Назва кімнати",
@@ -1274,7 +1274,167 @@
     "editSection": "Редагувати профіль",
     "editContent": "Натисніть 'Редагувати профіль', щоб змінити ім'я, email та аватар.",
     "streakSection": "Серії перемог",
-    "streakContent": "Відстежуйте поточну та найкращу серію перемог."
+    "streakContent": "Відстежуйте поточну та найкращу серію перемог.",
+    "linkAchievements": "Досягнення",
+    "linkShop": "Магазин",
+    "linkHistory": "Історія та статистика"
+  },
+  "referral": {
+    "title": "Запросити друзів",
+    "subtitle": "Ваш друг отримує 2 000 бонусних фішок при реєстрації, ви — 1 000 — і ви автоматично стаєте друзями.",
+    "yourCode": "Ваш код",
+    "inviteLink": "Посилання запрошення",
+    "copyCode": "Копіювати код",
+    "copyLink": "Копіювати посилання",
+    "invitesCount": "Запрошення",
+    "chipsEarned": "Зароблені фішки",
+    "error": "Не вдалося завантажити інформацію про запрошення",
+    "menuAria": "Параметри запрошень",
+    "historyMenu": "Історія запрошень",
+    "historyTitle": "Історія запрошень",
+    "historySubtitle": "Кожне завершене запрошення приносить вам 1 000 фішок.",
+    "historyEmpty": "Поки немає запрошень — поділіться посиланням, щоб почати.",
+    "historyGain": "+{{chips}} фішок",
+    "historyPending": "Очікується",
+    "historyTotal": "Загальний заробіток від запрошень",
+    "chipsLabel": "фішок",
+    "closeHistory": "Закрити історію"
+  },
+  "achievements": {
+    "title": "Досягнення",
+    "subtitle": "Отримуйте нагороди, граючи та спілкуючись.",
+    "backToProfile": "Повернутися до профілю",
+    "unlocked": "Розблоковано",
+    "error": "Не вдалося завантажити досягнення",
+    "chips": "фішок",
+    "cosmeticReward": "Косметика",
+    "category": {
+      "LOGIN": "Вхід",
+      "SOCIAL": "Соціальне",
+      "POKER": "Покер",
+      "BELOTE": "Белот",
+      "CASINO": "Казино",
+      "RECORDS": "Рекорди"
+    },
+    "item": {
+      "login_streak_7": { "name": "Постійний гравець", "desc": "Увійти 7 днів поспіль" },
+      "login_streak_30": { "name": "Відданий гравець", "desc": "Увійти 30 днів поспіль" },
+      "first_friend": { "name": "Перший друг", "desc": "Додайте свого першого друга" },
+      "friends_10": { "name": "Соціальний метелик", "desc": "Досягти 10 друзів" },
+      "first_voice_call": { "name": "На лінії", "desc": "Здійснити голосовий дзвінок" },
+      "first_jackpot": { "name": "Джекпот!", "desc": "Виграти джекпот у казино" },
+      "casino_games_100": { "name": "Звичний у казино", "desc": "Зіграти 100 ігор у казино" },
+      "belote_wins_10": { "name": "Новачок у белоті", "desc": "Виграти 10 партій у белоті" },
+      "belote_wins_100": { "name": "Майстер белоту", "desc": "Виграти 100 партій у белоті" },
+      "belote_king": { "name": "Король белоту", "desc": "Панувати за столом белоту" },
+      "poker_first_win": { "name": "Перший банк", "desc": "Виграти свою першу партію в покері" },
+      "poker_hands_100": { "name": "Грайндер", "desc": "Зіграти 100 роздач у покері" },
+      "poker_hands_1000": { "name": "Ветеран", "desc": "Зіграти 1 000 роздач у покері" },
+      "first_bluff": { "name": "Блефер", "desc": "Виграти успішним блефом" },
+      "poker_win_streak_10": { "name": "У вогні", "desc": "Виграти 10 роздач поспіль у покері" },
+      "millionaire": { "name": "Мільйонер", "desc": "Мати 1 000 000 фішок" },
+      "blackjack_king": { "name": "Король блекджеку", "desc": "Отримати великий виграш у блекджеку" }
+    }
+  },
+  "shop": {
+    "title": "Магазин косметики",
+    "subtitle": "Персоналізуйте профіль банерами, рамками та титулами.",
+    "backToProfile": "Повернутися до профілю",
+    "tab": {
+      "BANNER": "Банери",
+      "AVATAR_FRAME": "Рамки",
+      "TITLE": "Титули"
+    },
+    "buy": "Купити {{price}}",
+    "equip": "Екіпірувати",
+    "equipped": "Екіпіровано",
+    "notPurchasable": "Відкривається через досягнення",
+    "purchaseError": "Покупка не вдалася",
+    "equipError": "Не вдалося екіпірувати предмет",
+    "rarity": {
+      "common": "Звичайний",
+      "uncommon": "Незвичайний",
+      "rare": "Рідкісний",
+      "epic": "Епічний",
+      "legendary": "Легендарний"
+    }
+  },
+  "cosmetic": {
+    "banner": {
+      "generic": "Загальний",
+      "france": "Франція",
+      "tunisia": "Туніс",
+      "ukraine": "Україна",
+      "palestine": "Палестина",
+      "turkey": "Туреччина",
+      "algeria": "Алжир",
+      "iran": "Іран",
+      "premium": "Преміум",
+      "sexy": "Sexy",
+      "bluffeur": "Блефер"
+    },
+    "frame": {
+      "bronze": "Бронзова рамка",
+      "silver": "Срібна рамка",
+      "gold": "Золота рамка",
+      "diamond": "Діамантова рамка",
+      "quantum": "Рамка Quantum"
+    },
+    "title": {
+      "bluffer": "Блефер",
+      "regular": "Постійний",
+      "strategist": "Стратег",
+      "veteran": "Ветеран",
+      "expert": "Експерт",
+      "elite": "Еліта",
+      "master": "Майстер",
+      "champion": "Чемпіон",
+      "legend": "Легенда",
+      "millionaire": "Мільйонер"
+    }
+  },
+  "history": {
+    "title": "Історія та аналітика",
+    "backToProfile": "Повернутися до профілю",
+    "tabHistory": "Історія",
+    "tabAnalytics": "Аналітика",
+    "mode": {
+      "all": "Усе",
+      "poker": "Покер",
+      "belote": "Белот",
+      "casino": "Казино",
+      "tournament": "Турнір"
+    },
+    "period": {
+      "7d": "7 днів",
+      "30d": "30 днів",
+      "90d": "90 днів",
+      "all": "Увесь час"
+    },
+    "empty": "Історії поки немає",
+    "prevPage": "Попередня",
+    "nextPage": "Наступна",
+    "page": "Сторінка {{page}}",
+    "chipsTimeline": "Баланс фішок",
+    "gainsByGame": "Виграші за типом гри",
+    "gainsPercent": "Частка виграшів (%)",
+    "records": "Особисті рекорди",
+    "gameType": {
+      "poker": "Покер",
+      "belote": "Белот",
+      "casino": "Казино",
+      "tournament": "Турнір",
+      "other": "Інше"
+    },
+    "record": {
+      "biggestWin": "Найбільший виграш",
+      "biggestPot": "Найбільший банк",
+      "longestWinStreak": "Серія перемог",
+      "biggestJackpot": "Найбільший джекпот",
+      "beloteWins": "Перемоги в белоті",
+      "pokerWins": "Перемоги в покері",
+      "currentChips": "Поточні фішки"
+    }
   },
   "growthNotifications": {
     "title": "Активність",
@@ -2435,7 +2595,7 @@
       "SLOT": "Слот",
       "BLACKJACK": "Блекджек",
       "CRASH": "Crash",
-      "BELOTE": "Belote",
+      "BELOTE": "Белот",
       "WHEEL": "Колесо фортуни",
       "LUCKY_NUMBER": "Щасливе число",
       "SOCIAL": "Соціальне",

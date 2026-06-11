@@ -1856,7 +1856,7 @@ export function Lobby() {
                   aria-hidden
                 />
                 <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
-                  {t("lobby.tabBelote")}
+                  {t("belote.lobbyTitle")}
                 </span>
               </button>
               <div className="hidden w-px shrink-0 self-stretch bg-slate-600/40 md:block" aria-hidden />
