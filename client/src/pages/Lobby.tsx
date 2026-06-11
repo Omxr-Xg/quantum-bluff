@@ -40,10 +40,10 @@ import {
 import lobbyHeaderIcon from "../../app-icon.png";
 import { LobbyShellBackground } from "../components/LobbyShellBackground";
 import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "../components/LobbySoloPlayBlock";
-import botPokerBg from "../assets/backg/botpoker.png";
-import blackjackSoloBg from "../assets/backg/blackjacksolo.png";
-import nouveauxCasinoBg from "../assets/backg/nouveauxcasino.png";
-import casinoRetroBg from "../assets/backg/casnioretro.png";
+import botPokerBg from "../assets/backg/botpoker.webp";
+import blackjackSoloBg from "../assets/backg/blackjacksolo.webp";
+import nouveauxCasinoBg from "../assets/backg/nouveauxcasino.webp";
+import casinoRetroBg from "../assets/backg/casnioretro.webp";
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';

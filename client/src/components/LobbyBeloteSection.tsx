@@ -27,7 +27,7 @@ import { useChallengeHighlight } from "../hooks/useChallengeHighlight";
 import { challengeHighlightClass } from "../utils/challengeHighlight";
 import { LobbyActivitySection, LobbyFriendRoomBadge } from "./LobbyActivityBlocks";
 import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "./LobbySoloPlayBlock";
-import botBeloteBg from "../assets/backg/botbelote.png";
+import botBeloteBg from "../assets/backg/botbelote.webp";
 import { LobbyBeloteTournamentPanel } from "./LobbyBeloteTournamentPanel";
 import {
   BELOTE_BUY_IN_DEFAULT,
