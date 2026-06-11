@@ -8,13 +8,111 @@ import {
   validateTournamentGameParams,
 } from './tournament.create.validation.js'
 import { isTournamentGameId } from './tournament.constants.js'
-import { tournamentEntryFeeChips } from './tournament.entryFee.js'
+import { tournamentBuyInForRow, tournamentEntryFeeChips } from './tournament.entryFee.js'
+import type { TournamentGameType } from '../generated/prisma/index.js'
+import { activeBeloteGames } from '../shared/activeBeloteGames.js'
+import { isBeloteTournamentGameId } from './belote/beloteTournament.constants.js'
+import {
+  normalizeBeloteTournamentMaxPlayers,
+  validateBeloteTournamentParams,
+} from './belote/beloteTournament.create.validation.js'
 import { xpForFinalRank } from './tournament.reward.service.js'
 
 /** Table marquée « en cours » en base mais partie encore chargée en mémoire (spectate réel). */
 function tournamentTableGameIsLiveInMemory(gameId: string): boolean {
+  if (isBeloteTournamentGameId(gameId)) {
+    return activeBeloteGames.getSync(gameId) !== undefined
+  }
   if (!isTournamentGameId(gameId)) return false
   return activeGames.getSync(gameId) !== undefined
+}
+
+export type TournamentTableAssignment = {
+  tournamentId: string
+  gameId: string
+  roundNumber: number
+  isFinalTable: boolean
+}
+
+/** Table tournoi en cours où l’utilisateur est encore assis (rejoin / polling client). */
+export async function findUserTournamentTableAssignment(
+  userId: string,
+  tournamentId?: string,
+): Promise<TournamentTableAssignment | null> {
+  const players = await prisma.tournamentPlayer.findMany({
+    where: {
+      userId,
+      status: { in: ['ACTIVE', 'WAITING_NEXT_ROUND'] },
+      ...(tournamentId ? { tournamentId } : {}),
+    },
+    select: { tournamentId: true },
+  })
+  if (players.length === 0) return null
+
+  for (const player of players) {
+    const tables = await prisma.tournamentTable.findMany({
+      where: {
+        status: { in: ['IN_PROGRESS', 'RECOVERING'] },
+        round: { tournamentId: player.tournamentId },
+      },
+      select: {
+        gameId: true,
+        isFinalTable: true,
+        round: { select: { roundNumber: true } },
+      },
+      orderBy: [{ round: { roundNumber: 'desc' } }, { createdAt: 'desc' }],
+    })
+
+    for (const table of tables) {
+      if (!tournamentTableGameIsLiveInMemory(table.gameId)) continue
+      if (isBeloteTournamentGameId(table.gameId)) {
+        const belote = activeBeloteGames.getSync(table.gameId)
+        if (!belote) continue
+        const seated = belote.getState().players.some(
+          (p) => p.userId === userId && !p.forfeited,
+        )
+        if (!seated) continue
+      } else {
+        const ctrl = activeGames.getSync(table.gameId)
+        if (!ctrl) continue
+        const snap = ctrl.getSanitizedState()
+        const seated = (snap.players ?? []).some(
+          (p) => p.id === userId && (p.chips ?? 0) > 0,
+        )
+        if (!seated) continue
+      }
+      return {
+        tournamentId: player.tournamentId,
+        gameId: table.gameId,
+        roundNumber: table.round.roundNumber,
+        isFinalTable: table.isFinalTable,
+      }
+    }
+  }
+
+  return null
+}
+
+/** Résout le tournoi lié à une table (même après suppression mémoire de la partie). */
+export async function findTournamentContextByGameId(
+  gameId: string,
+): Promise<TournamentTableAssignment | null> {
+  if (!isTournamentGameId(gameId) && !isBeloteTournamentGameId(gameId)) return null
+  const table = await prisma.tournamentTable.findFirst({
+    where: { gameId },
+    select: {
+      gameId: true,
+      isFinalTable: true,
+      round: { select: { tournamentId: true, roundNumber: true } },
+    },
+  })
+  if (!table) return null
+  return {
+    tournamentId: table.round.tournamentId,
+    gameId: table.gameId,
+    roundNumber: table.round.roundNumber,
+    isFinalTable: table.isFinalTable,
+  }
 }
 
 const NAME_MAX = 80
@@ -70,6 +168,56 @@ export async function createTournament(input: {
   return { id: row.id }
 }
 
+export async function createBeloteTournament(input: {
+  hostId: string
+  name: string
+  visibility: TournamentVisibility
+  joinCode?: string | null
+  maxPlayers: number
+  variant: unknown
+  targetScore: unknown
+  buyIn: unknown
+  startAt: Date
+}): Promise<{ id: string }> {
+  const maxPlayers = normalizeBeloteTournamentMaxPlayers(input.maxPlayers)
+  const belote = validateBeloteTournamentParams({
+    variant: input.variant,
+    targetScore: input.targetScore,
+    buyIn: input.buyIn,
+    startAt: input.startAt,
+  })
+  const trimmedName = input.name.trim().slice(0, NAME_MAX)
+  const name = trimmedName.length > 0 ? trimmedName : `Belote ${defaultTournamentName()}`
+  let codeHash: string | null = null
+  if (input.visibility === 'PRIVATE') {
+    const code = String(input.joinCode ?? '').trim()
+    if (code.length < 4) {
+      throw new Error('Code privé requis (min 4 caractères)')
+    }
+    codeHash = await bcrypt.hash(code, 10)
+  }
+  const row = await prisma.tournament.create({
+    data: {
+      name,
+      hostId: input.hostId,
+      gameType: 'BELOTE',
+      visibility: input.visibility,
+      codeHash,
+      maxPlayers,
+      initialStack: 0,
+      startAt: input.startAt,
+      blindSmall: 1,
+      blindBig: 2,
+      beloteVariant: belote.variant,
+      beloteTargetScore: belote.targetScore,
+      beloteBuyIn: belote.buyIn,
+      status: 'REGISTRATION_OPEN',
+    },
+    select: { id: true },
+  })
+  return { id: row.id }
+}
+
 export async function joinTournament(
   tournamentId: string,
   userId: string,
@@ -99,18 +247,20 @@ export async function joinTournament(
       const ok = await bcrypt.compare(String(joinCode ?? ''), t.codeHash)
       if (!ok) throw new Error('Code incorrect')
     }
-    const fee = tournamentEntryFeeChips(t.initialStack)
+    const fee = tournamentBuyInForRow(t)
     const beforeRow = await tx.user.findUnique({
       where: { id: userId },
       select: { chips: true },
     })
     if (!beforeRow) throw new Error('Utilisateur introuvable')
-    const dec = await tx.user.updateMany({
-      where: { id: userId, chips: { gte: fee } },
-      data: { chips: { decrement: fee } },
-    })
-    if (dec.count === 0) {
-      throw new Error('Jetons insuffisants.')
+    if (fee > 0) {
+      const dec = await tx.user.updateMany({
+        where: { id: userId, chips: { gte: fee } },
+        data: { chips: { decrement: fee } },
+      })
+      if (dec.count === 0) {
+        throw new Error('Jetons insuffisants.')
+      }
     }
     const afterRow = await tx.user.findUnique({
       where: { id: userId },
@@ -147,7 +297,7 @@ export async function leaveTournament(
     if (t.status !== 'REGISTRATION_OPEN') {
       throw new Error('Impossible de quitter après le début')
     }
-    const fee = tournamentEntryFeeChips(t.initialStack)
+    const fee = tournamentBuyInForRow(t)
     const r = await tx.tournamentPlayer.deleteMany({ where: { tournamentId, userId } })
     if (r.count > 0) {
       const beforeRow = await tx.user.findUnique({
@@ -193,7 +343,7 @@ export async function kickTournamentPlayer(tournamentId: string, targetUserId: s
     if (uid === t.hostId) {
       throw new Error("Impossible d'éjecter l'hôte")
     }
-    const fee = tournamentEntryFeeChips(t.initialStack)
+    const fee = tournamentBuyInForRow(t)
     const r = await tx.tournamentPlayer.deleteMany({ where: { tournamentId, userId: uid } })
     if (r.count === 0) throw new Error('Joueur non inscrit à ce tournoi')
     const beforeRow = await tx.user.findUnique({
@@ -221,19 +371,23 @@ export async function kickTournamentPlayer(tournamentId: string, targetUserId: s
   })
 }
 
-export async function listOpenTournaments() {
+export async function listOpenTournaments(gameType: TournamentGameType = 'POKER') {
   return prisma.tournament.findMany({
-    where: { status: 'REGISTRATION_OPEN', visibility: 'PUBLIC' },
+    where: { status: 'REGISTRATION_OPEN', visibility: 'PUBLIC', gameType },
     orderBy: { startAt: 'asc' },
     select: {
       id: true,
       name: true,
       hostId: true,
+      gameType: true,
       maxPlayers: true,
       initialStack: true,
       startAt: true,
       blindSmall: true,
       blindBig: true,
+      beloteVariant: true,
+      beloteTargetScore: true,
+      beloteBuyIn: true,
       _count: { select: { players: true } },
     },
   })
@@ -259,13 +413,16 @@ export type LiveSpectateTournamentSummary = {
 }
 
 /** Tournois publics avec au moins une table en cours (pour le lobby « Spectate »). */
-export async function listPublicTournamentsWithLiveTables(): Promise<LiveSpectateTournamentSummary[]> {
+export async function listPublicTournamentsWithLiveTables(
+  gameType: TournamentGameType = 'POKER',
+): Promise<LiveSpectateTournamentSummary[]> {
   const tables = await prisma.tournamentTable.findMany({
     where: {
       status: { in: ['IN_PROGRESS', 'RECOVERING'] },
       round: {
         tournament: {
           visibility: 'PUBLIC',
+          gameType,
           status: { in: [...TOURNAMENT_ACTIVE_SPECTATE_STATUSES] },
         },
       },
@@ -361,6 +518,16 @@ export async function getTournamentDetail(tournamentId: string, userId?: string 
 
   /* Quand le tournoi est terminé, on expose le prize crédité au vainqueur
    * (lu depuis le ledger pour rester aligné avec l'historique). */
+  let myAssignedTable: TournamentTableAssignment | null = null
+  if (
+    userId &&
+    me &&
+    (me.status === 'ACTIVE' || me.status === 'WAITING_NEXT_ROUND') &&
+    (TOURNAMENT_ACTIVE_SPECTATE_STATUSES as readonly string[]).includes(t.status)
+  ) {
+    myAssignedTable = await findUserTournamentTableAssignment(userId, tournamentId)
+  }
+
   let winnerChipsAwarded: number | null = null
   if (t.status === 'COMPLETED') {
     const winnerRow = await prisma.tournamentRewardLedger.findFirst({
@@ -370,7 +537,7 @@ export async function getTournamentDetail(tournamentId: string, userId?: string 
     winnerChipsAwarded = winnerRow?.chipsAmount ?? null
   }
 
-  return { ...t, me, spectateTables, winnerChipsAwarded }
+  return { ...t, me, spectateTables, myAssignedTable, winnerChipsAwarded }
 }
 
 export type TournamentResultsLeaderboardRow = {

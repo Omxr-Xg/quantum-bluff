@@ -4,9 +4,15 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useTournamentSocket } from "../hooks/useTournamentSocket";
 import { ZipRushMiniGame } from "../components/ZipRushMiniGame";
+import { fetchTournament } from "../services/tournamentApi";
+import {
+  navigateToTournamentTable,
+  type TournamentTableAssignment,
+} from "../tournamentNavigation";
 
 /** Délai Zip uniquement pour le passage vers la table finale (`finalZip=1` depuis Game). */
 const TOURNAMENT_FINAL_ZIP_MS = 5000;
+const ASSIGNMENT_POLL_MS = 3000;
 
 export function TournamentWaiting() {
   const { t } = useTranslation();
@@ -18,9 +24,11 @@ export function TournamentWaiting() {
 
   const enteredAtRef = useRef(Date.now());
   const pendingAssignedNavRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigatedAwayRef = useRef(false);
 
   useLayoutEffect(() => {
     enteredAtRef.current = Date.now();
+    navigatedAwayRef.current = false;
   }, [id, nextGameId, finalZip]);
 
   useEffect(() => {
@@ -32,25 +40,59 @@ export function TournamentWaiting() {
     };
   }, []);
 
+  const goToAssignedTable = useCallback(
+    (
+      assign: Pick<TournamentTableAssignment, "gameId" | "isFinalTable"> & {
+        gameKind?: string;
+      },
+    ) => {
+      if (!id || navigatedAwayRef.current) return;
+      navigatedAwayRef.current = true;
+      if (pendingAssignedNavRef.current) {
+        clearTimeout(pendingAssignedNavRef.current);
+        pendingAssignedNavRef.current = null;
+      }
+      const isBelote =
+        assign.gameKind === "BELOTE" || assign.gameId.startsWith("game_belote_tournament_");
+      if (isBelote) {
+        navigate(
+          `/belote/game?gameId=${encodeURIComponent(assign.gameId)}&tournamentId=${encodeURIComponent(id)}`,
+          { replace: true },
+        );
+        return;
+      }
+      navigateToTournamentTable(
+        navigate,
+        {
+          tournamentId: id,
+          gameId: assign.gameId,
+          isFinalTable: assign.isFinalTable,
+        },
+        { replace: true },
+      );
+    },
+    [id, navigate],
+  );
+
   useEffect(() => {
     if (!id || !nextGameId) return;
     if (finalZip) {
       const h = window.setTimeout(() => {
-        const q = new URLSearchParams();
-        q.set("gameId", nextGameId);
-        q.set("tournamentId", id);
-        navigate(`/game?${q.toString()}`, { replace: true });
+        goToAssignedTable({ gameId: nextGameId, isFinalTable: true });
       }, TOURNAMENT_FINAL_ZIP_MS);
       return () => window.clearTimeout(h);
     }
-    const q = new URLSearchParams();
-    q.set("gameId", nextGameId);
-    q.set("tournamentId", id);
-    navigate(`/game?${q.toString()}`, { replace: true });
-  }, [id, nextGameId, finalZip, navigate]);
+    goToAssignedTable({ gameId: nextGameId, isFinalTable: false });
+  }, [id, nextGameId, finalZip, goToAssignedTable]);
 
   const onTableAssigned = useCallback(
-    (p: { tournamentId: string; gameId: string; roundNumber: number }) => {
+    (p: {
+      tournamentId: string;
+      gameId: string;
+      roundNumber: number;
+      isFinalTable?: boolean;
+      gameKind?: string;
+    }) => {
       if (!id) return;
       if (nextGameId) return;
       if (pendingAssignedNavRef.current) {
@@ -61,18 +103,48 @@ export function TournamentWaiting() {
       const wait = finalZip ? Math.max(0, TOURNAMENT_FINAL_ZIP_MS - elapsed) : 0;
       pendingAssignedNavRef.current = window.setTimeout(() => {
         pendingAssignedNavRef.current = null;
-        navigate(
-          `/game?gameId=${encodeURIComponent(p.gameId)}&tournamentId=${encodeURIComponent(id)}`,
-          { replace: true },
-        );
+        goToAssignedTable({
+          gameId: p.gameId,
+          isFinalTable: p.isFinalTable === true,
+          gameKind: p.gameKind,
+        });
       }, wait);
     },
-    [id, navigate, nextGameId, finalZip],
+    [id, nextGameId, finalZip, goToAssignedTable],
   );
 
   useTournamentSocket(id, {
     onTableAssigned,
   });
+
+  useEffect(() => {
+    if (!id || nextGameId) return;
+    let cancelled = false;
+
+    const pollAssignment = async () => {
+      if (cancelled || navigatedAwayRef.current) return;
+      try {
+        const data = await fetchTournament(id);
+        const assign = data.myAssignedTable as TournamentTableAssignment | null | undefined;
+        if (!assign?.gameId) return;
+        onTableAssigned({
+          tournamentId: id,
+          gameId: assign.gameId,
+          roundNumber: assign.roundNumber,
+          isFinalTable: assign.isFinalTable,
+        });
+      } catch {
+        /* poll silencieux */
+      }
+    };
+
+    void pollAssignment();
+    const iv = window.setInterval(() => void pollAssignment(), ASSIGNMENT_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(iv);
+    };
+  }, [id, nextGameId, onTableAssigned]);
 
   if (!id) return null;
 

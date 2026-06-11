@@ -10,7 +10,11 @@ import {
   startTournamentHost,
 } from "../services/tournamentApi";
 import { useTournamentSocket } from "../hooks/useTournamentSocket";
-import { TOURNAMENT_MIN_PLAYERS } from "../tournamentConstants";
+import {
+  BELOTE_TOURNAMENT_MIN_PLAYERS,
+  TOURNAMENT_MIN_PLAYERS,
+} from "../tournamentConstants";
+import { variantLabelKey } from "../../belote/beloteVariants";
 import { getAuthItem } from "../../../utils/authStorage";
 import { useToast } from "../../../contexts/ToastContext";
 import {
@@ -20,6 +24,10 @@ import {
 import { getPlayerAvatar } from "../../../utils/avatars";
 import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
 import { TournamentWinnerBetsPanel } from "../components/TournamentWinnerBetsPanel";
+import {
+  navigateToTournamentTable,
+  type TournamentTableAssignment,
+} from "../tournamentNavigation";
 
 type PlayerRow = {
   userId: string;
@@ -90,6 +98,11 @@ export function TournamentRoom() {
   const hostId = data?.hostId as string | undefined;
   const me = data?.me as MeRow;
   const status = data?.status as string | undefined;
+  const gameType = (data?.gameType as string | undefined) ?? "POKER";
+  const isBeloteTournament = gameType === "BELOTE";
+  const beloteVariant = data?.beloteVariant as string | undefined;
+  const beloteTargetScore = (data?.beloteTargetScore as number | undefined) ?? 1000;
+  const beloteBuyIn = (data?.beloteBuyIn as number | undefined) ?? 0;
   const visibility = data?.visibility as string | undefined;
   const maxPlayers = (data?.maxPlayers as number) ?? 0;
   const initialStack = (data?.initialStack as number) ?? 0;
@@ -115,6 +128,18 @@ export function TournamentRoom() {
       | { gameId: string; roundNumber: number; playerCount: number }[]
       | undefined) ?? [];
   const isEliminated = me?.status === "ELIMINATED";
+  const myAssignedTable = data?.myAssignedTable as TournamentTableAssignment | null | undefined;
+  const canRejoinTable =
+    inProgress &&
+    !isEliminated &&
+    (me?.status === "ACTIVE" || me?.status === "WAITING_NEXT_ROUND") &&
+    Boolean(myAssignedTable?.gameId);
+
+  useEffect(() => {
+    if (!id || !inProgress || !isMember || isEliminated) return;
+    const iv = window.setInterval(() => void reload(), 5000);
+    return () => window.clearInterval(iv);
+  }, [id, inProgress, isMember, isEliminated, reload]);
 
   const winner = useMemo(
     () => players.find((p) => p.status === "WINNER"),
@@ -133,8 +158,11 @@ export function TournamentRoom() {
   const fillPct =
     maxPlayers > 0 ? Math.min(100, Math.round((playerCount / maxPlayers) * 100)) : 0;
 
-  const canHostStartNow =
-    isHost && registrationOpen && playerCount >= TOURNAMENT_MIN_PLAYERS;
+  const beloteStartReady =
+    playerCount >= BELOTE_TOURNAMENT_MIN_PLAYERS && playerCount % 4 === 0;
+  const canHostStartNow = isBeloteTournament
+    ? isHost && registrationOpen && beloteStartReady
+    : isHost && registrationOpen && playerCount >= TOURNAMENT_MIN_PLAYERS;
 
   const statusText = useMemo(() => {
     if (!status) return t("tournament.room.status_unknown");
@@ -151,6 +179,14 @@ export function TournamentRoom() {
     shouldJoinTournamentRoom,
     onTableAssigned: (p) => {
       if (!id) return;
+      const belote =
+        (p as { gameKind?: string }).gameKind === "BELOTE" || isBeloteTournament;
+      if (belote) {
+        nav(
+          `/belote/game?gameId=${encodeURIComponent(p.gameId)}&tournamentId=${encodeURIComponent(id)}`,
+        );
+        return;
+      }
       nav(
         `/game?gameId=${encodeURIComponent(p.gameId)}&tournamentId=${encodeURIComponent(id)}`,
       );
@@ -246,22 +282,49 @@ export function TournamentRoom() {
               </div>
             </div>
             <div className="mt-5 flex flex-wrap gap-4 text-sm">
-              <div className="rounded-xl bg-black/25 px-4 py-2">
-                <span className="text-xs text-white/40">
-                  {t("tournament.room.blinds")}
-                </span>
-                <div className="font-mono text-base font-semibold tabular-nums text-white">
-                  {blindSmall} / {blindBig}
-                </div>
-              </div>
-              <div className="rounded-xl bg-black/25 px-4 py-2">
-                <span className="text-xs text-white/40">
-                  {t("tournament.room.stack")}
-                </span>
-                <div className="font-mono text-base font-semibold tabular-nums text-emerald-200/90">
-                  {initialStack.toLocaleString()}
-                </div>
-              </div>
+              {isBeloteTournament ? (
+                <>
+                  <div className="rounded-xl bg-black/25 px-4 py-2">
+                    <span className="text-xs text-white/40">{t("belote.gameVariant")}</span>
+                    <div className="text-base font-semibold text-emerald-200/90">
+                      {t(variantLabelKey((beloteVariant as "CONTEE") ?? "CONTEE"))}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-black/25 px-4 py-2">
+                    <span className="text-xs text-white/40">{t("belote.targetScore")}</span>
+                    <div className="font-mono text-base font-semibold tabular-nums text-white">
+                      {beloteTargetScore}
+                    </div>
+                  </div>
+                  {beloteBuyIn > 0 ? (
+                    <div className="rounded-xl bg-black/25 px-4 py-2">
+                      <span className="text-xs text-white/40">{t("belote.buyInLabel")}</span>
+                      <div className="font-mono text-base font-semibold tabular-nums text-amber-200/90">
+                        {beloteBuyIn.toLocaleString()}
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <div className="rounded-xl bg-black/25 px-4 py-2">
+                    <span className="text-xs text-white/40">
+                      {t("tournament.room.blinds")}
+                    </span>
+                    <div className="font-mono text-base font-semibold tabular-nums text-white">
+                      {blindSmall} / {blindBig}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-black/25 px-4 py-2">
+                    <span className="text-xs text-white/40">
+                      {t("tournament.room.stack")}
+                    </span>
+                    <div className="font-mono text-base font-semibold tabular-nums text-emerald-200/90">
+                      {initialStack.toLocaleString()}
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="min-w-[8rem] flex-1 rounded-xl bg-black/25 px-4 py-2">
                 <div className="flex items-center justify-between text-xs text-white/40">
                   <span>{t("tournament.room.registered")}</span>
@@ -355,6 +418,45 @@ export function TournamentRoom() {
               </div>
             )}
 
+            {canRejoinTable && myAssignedTable && id && (
+              <div className="mb-6 rounded-xl border border-emerald-500/35 bg-emerald-950/30 px-4 py-4">
+                <p className="mb-3 text-sm text-emerald-100/90">
+                  {t("tournament.room.rejoinTableHint", "Votre table est prête — reprenez la partie.")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigateToTournamentTable(nav, {
+                      tournamentId: id,
+                      gameId: myAssignedTable.gameId,
+                      isFinalTable: myAssignedTable.isFinalTable,
+                    })
+                  }
+                  className={btnPrimary}
+                >
+                  {t("tournament.room.rejoinTableCta", "Rejoindre ma table")}
+                </button>
+              </div>
+            )}
+
+            {inProgress &&
+              !canRejoinTable &&
+              (me?.status === "WAITING_NEXT_ROUND" || me?.status === "ACTIVE") &&
+              !isEliminated &&
+              id && (
+              <div className="mb-6 rounded-xl border border-violet-500/35 bg-violet-950/30 px-4 py-4">
+                <p className="mb-3 text-sm text-violet-100/90">
+                  {t("tournament.room.waitingNextRoundHint", "En attente du prochain tour — mini-jeu Zip en attendant.")}
+                </p>
+                <Link
+                  to={`/tournaments/${id}/waiting`}
+                  className={`${btnPrimary} inline-flex`}
+                >
+                  {t("tournament.room.waitingRoomCta", "Salle d'attente")}
+                </Link>
+              </div>
+            )}
+
             {inProgress && spectateTables.length > 0 && (
               <div className="mb-6 rounded-xl border border-cyan-500/25 bg-cyan-950/20 px-4 py-4">
                 {isEliminated && (
@@ -369,7 +471,11 @@ export function TournamentRoom() {
                   {spectateTables.map((tab) => (
                     <Link
                       key={tab.gameId}
-                      to={`/game?gameId=${encodeURIComponent(tab.gameId)}&spectate=1&tournamentId=${encodeURIComponent(id)}`}
+                      to={
+                        isBeloteTournament
+                          ? `/belote/game?gameId=${encodeURIComponent(tab.gameId)}&spectate=1&tournamentId=${encodeURIComponent(id)}`
+                          : `/game?gameId=${encodeURIComponent(tab.gameId)}&spectate=1&tournamentId=${encodeURIComponent(id)}`
+                      }
                       className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-500/15 px-4 py-2.5 text-sm font-semibold text-cyan-50 transition hover:border-cyan-300/50 hover:bg-cyan-500/25"
                     >
                       <Eye className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
@@ -564,11 +670,16 @@ export function TournamentRoom() {
                     className={btnHost}
                     disabled={!canHostStartNow}
                     title={
-                      playerCount < TOURNAMENT_MIN_PLAYERS
-                        ? t("tournament.room.startMinHint", {
-                            min: TOURNAMENT_MIN_PLAYERS,
-                            current: playerCount,
-                          })
+                      !canHostStartNow
+                        ? isBeloteTournament
+                          ? t("belote.tournament.startMultipleOf4Hint", {
+                              min: BELOTE_TOURNAMENT_MIN_PLAYERS,
+                              current: playerCount,
+                            })
+                          : t("tournament.room.startMinHint", {
+                              min: TOURNAMENT_MIN_PLAYERS,
+                              current: playerCount,
+                            })
                         : undefined
                     }
                     onClick={async () => {

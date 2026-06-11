@@ -3,6 +3,7 @@ import type { Server } from 'socket.io'
 import { authMiddleware } from '../middleware/auth.middleware.js'
 import {
   createTournament,
+  createBeloteTournament,
   getTournamentDetail,
   getTournamentResults,
   joinTournament,
@@ -32,17 +33,31 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Non authentifié' })
     const body = req.body as Record<string, unknown>
     const visibility = body.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC'
-    const id = await createTournament({
-      hostId: userId,
-      name: String(body.name ?? ''),
-      visibility,
-      joinCode: body.joinCode != null ? String(body.joinCode) : null,
-      maxPlayers: Number(body.maxPlayers ?? 8),
-      initialStack: Number(body.initialStack ?? 2000),
-      startAt: new Date(String(body.startAt ?? Date.now())),
-      blindSmall: Number(body.blindSmall ?? 10),
-      blindBig: Number(body.blindBig ?? 20),
-    })
+    const gameType = body.gameType === 'BELOTE' ? 'BELOTE' : 'POKER'
+    const id =
+      gameType === 'BELOTE'
+        ? await createBeloteTournament({
+            hostId: userId,
+            name: String(body.name ?? ''),
+            visibility,
+            joinCode: body.joinCode != null ? String(body.joinCode) : null,
+            maxPlayers: Number(body.maxPlayers ?? 8),
+            variant: body.variant,
+            targetScore: body.targetScore,
+            buyIn: body.buyIn,
+            startAt: new Date(String(body.startAt ?? Date.now())),
+          })
+        : await createTournament({
+            hostId: userId,
+            name: String(body.name ?? ''),
+            visibility,
+            joinCode: body.joinCode != null ? String(body.joinCode) : null,
+            maxPlayers: Number(body.maxPlayers ?? 8),
+            initialStack: Number(body.initialStack ?? 2000),
+            startAt: new Date(String(body.startAt ?? Date.now())),
+            blindSmall: Number(body.blindSmall ?? 10),
+            blindBig: Number(body.blindBig ?? 20),
+          })
     const io = req.app.get('io') as Server | undefined
     if (io && visibility === 'PUBLIC') {
       emitTournamentLobbyListUpdated(io)
@@ -53,13 +68,15 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 })
 
-router.get('/', authMiddleware, async (_req, res) => {
-  const rows = await listOpenTournaments()
+router.get('/', authMiddleware, async (req, res) => {
+  const gameType = req.query.gameType === 'BELOTE' ? 'BELOTE' : 'POKER'
+  const rows = await listOpenTournaments(gameType)
   res.json(rows)
 })
 
-router.get('/live-spectate', authMiddleware, async (_req, res) => {
-  const rows = await listPublicTournamentsWithLiveTables()
+router.get('/live-spectate', authMiddleware, async (req, res) => {
+  const gameType = req.query.gameType === 'BELOTE' ? 'BELOTE' : 'POKER'
+  const rows = await listPublicTournamentsWithLiveTables(gameType)
   res.json(rows)
 })
 

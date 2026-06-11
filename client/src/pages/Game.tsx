@@ -78,6 +78,13 @@ import type { PublicPlayerCosmetics } from "../utils/publicCosmetics";
 import { resolvePublicCosmeticsFromShop } from "../utils/publicCosmetics";
 import { useGetShopCosmeticsQuery, useGetShopLoadoutQuery } from "../services/api";
 import { getAuthItem } from "../utils/authStorage";
+import {
+  fetchTournamentContextByGameId,
+  navigateToTournamentTable,
+  tournamentGamePath,
+  tournamentHubPath,
+  tournamentWaitingPath,
+} from "../features/tournament/tournamentNavigation";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import {
   shouldBotTauntAfterAction,
@@ -337,6 +344,32 @@ export function Game() {
   const pokerVoice = useTableVoiceChat(gameIdParam, userId, socket, pokerVoiceEnabled);
   const voice = useVoice();
 
+  const redirectAfterTournamentTable = useCallback(
+    (opts?: { replace?: boolean; state?: unknown }) => {
+      voice.leaveChannel();
+      const tidFromUrl = searchParams.get("tournamentId");
+      if (tidFromUrl) {
+        navigate(tournamentHubPath(tidFromUrl), { replace: opts?.replace, state: opts?.state });
+        return;
+      }
+      if (!gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) {
+        navigate("/lobby", { replace: opts?.replace, state: opts?.state });
+        return;
+      }
+      void fetchTournamentContextByGameId(gameIdParam).then((ctx) => {
+        if (ctx?.tournamentId) {
+          navigate(tournamentHubPath(ctx.tournamentId), {
+            replace: opts?.replace,
+            state: opts?.state,
+          });
+        } else {
+          navigate("/lobby", { replace: opts?.replace, state: opts?.state });
+        }
+      });
+    },
+    [navigate, voice, gameIdParam, searchParams],
+  );
+
   const exitToLobby = useCallback(
     (opts?: { replace?: boolean; state?: unknown }) => {
       if (
@@ -345,10 +378,14 @@ export function Game() {
       ) {
         socket.emit("PRACTICE_LEAVE", { gameId: gameIdParam });
       }
+      if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) {
+        redirectAfterTournamentTable(opts);
+        return;
+      }
       voice.leaveChannel();
       navigate("/lobby", { replace: opts?.replace, state: opts?.state });
     },
-    [navigate, voice, gameIdParam, socket],
+    [navigate, voice, gameIdParam, socket, redirectAfterTournamentTable],
   );
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hiddenBetNextHandId, setHiddenBetNextHandId] = useState<string | null>(null);
@@ -547,6 +584,8 @@ export function Game() {
   const tournamentScheduledNavEpochRef = useRef(0);
   /** Table quittée par `TOURNAMENT_TABLE_ASSIGNED` avant réception de `GAME_ENDED` (même `gameId`). */
   const pendingTournamentEndedGameIdRef = useRef<string | null>(null);
+  /** Table tournoi terminée (GAME_ENDED) — bloque les rejoin socket / resync HTTP. */
+  const tournamentTableEndedRef = useRef(false);
   const multiBustGameIdRef = useRef<string | null>(null);
   const multiBustPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gameOverReasonRef = useRef(gameOverReason);
@@ -1908,9 +1947,11 @@ export function Game() {
         });
         if (cancelled) return;
         if (res.status === 404) {
-          const tid = searchParams.get("tournamentId");
-          if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) && tid) {
-            navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+          if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) {
+            redirectAfterTournamentTable({
+              replace: true,
+              state: { message: "Partie terminée (adversaire parti ou partie supprimée)." },
+            });
             return;
           }
           exitToLobby({ state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
@@ -1934,7 +1975,7 @@ export function Game() {
 
     void loadGameState();
     return () => { cancelled = true; };
-  }, [gameIdParam, userId, navigate, isSpectating, searchParams, exitToLobby]);
+  }, [gameIdParam, userId, navigate, isSpectating, searchParams, exitToLobby, redirectAfterTournamentTable]);
 
   useEffect(() => {
   if (!socket || !gameIdParam) return;
@@ -1992,9 +2033,11 @@ export function Game() {
           window.setTimeout(() => emitTournamentJoinRef.current?.(), delay);
           return;
         }
-        const tid = searchParams.get("tournamentId");
-        if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX) && tid) {
-          navigate(`/tournaments/${encodeURIComponent(tid)}`, { replace: true });
+        if (gameIdParam?.startsWith(TOURNAMENT_GAME_ID_PREFIX)) {
+          redirectAfterTournamentTable({
+            replace: true,
+            state: { message: "Partie terminée (adversaire parti ou partie supprimée)." },
+          });
           return;
         }
         exitToLobby({ state: { message: "Partie terminée (adversaire parti ou partie supprimée)." } });
@@ -2011,7 +2054,7 @@ export function Game() {
       socket.off("GAME_CHAT", onChatMessage);
       socket.off("ERROR", onError);
     };
-  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating, searchParams, exitToLobby]);
+  }, [socket, gameIdParam, userId, navigate, addToast, t, isSpectating, searchParams, exitToLobby, redirectAfterTournamentTable]);
 
   useEffect(() => {
     /* Toujours annuler le timer de fin de table : sans ça, un passage demi-finale → finale
@@ -2020,6 +2063,7 @@ export function Game() {
      * Important : ne jamais `return` avant de définir le cleanup — sinon pas de cleanup au démontage
      * quand `gameIdParam` reste en `game_tournament_*` (Zip puis finale : timer orphelin). */
     pendingTournamentEndedGameIdRef.current = null;
+    tournamentTableEndedRef.current = false;
     if (tournamentTransitionTimerRef.current) {
       clearTimeout(tournamentTransitionTimerRef.current);
       tournamentTransitionTimerRef.current = null;
@@ -2062,24 +2106,24 @@ export function Game() {
       const tid = payload.tournamentId ?? tidFromUrl;
       const gid = String(payload.gameId);
       if (tid) {
-        if (payload.isFinalTable === true) {
-          const w = new URLSearchParams();
-          w.set("nextGameId", gid);
-          w.set("finalZip", "1");
-          navigate(`/tournaments/${encodeURIComponent(tid)}/waiting?${w.toString()}`, {
-            replace: true,
-          });
-        } else {
-          const q = new URLSearchParams();
-          q.set("gameId", gid);
-          q.set("tournamentId", tid);
-          navigate(`/game?${q.toString()}`, { replace: true });
-        }
+        navigateToTournamentTable(
+          navigate,
+          {
+            tournamentId: tid,
+            gameId: gid,
+            isFinalTable: payload.isFinalTable === true,
+          },
+          { replace: true },
+        );
         return;
       }
-      const q = new URLSearchParams();
-      q.set("gameId", gid);
-      navigate(`/game?${q.toString()}`, { replace: true });
+      void fetchTournamentContextByGameId(gid).then((ctx) => {
+        if (ctx) {
+          navigateToTournamentTable(navigate, ctx, { replace: true });
+          return;
+        }
+        navigate(`/game?gameId=${encodeURIComponent(gid)}`, { replace: true });
+      });
     };
     socket.on("TOURNAMENT_TABLE_ASSIGNED", onTournamentTableAssigned);
     return () => {
@@ -2583,6 +2627,7 @@ export function Game() {
           endedGid === String(gameIdParam) ||
           endedGid === String(pendingTournamentEndedGameIdRef.current);
         if (!matchesTable) return;
+        tournamentTableEndedRef.current = true;
         pendingTournamentEndedGameIdRef.current = null;
         const tid = String(data.tournamentId);
         const winner =
@@ -2648,23 +2693,21 @@ export function Game() {
             if (tournamentScheduledNavEpochRef.current !== navTicketW) return;
             tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
-            navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, {
-              replace: true,
-            });
+            navigate(tournamentWaitingPath(tid), { replace: true });
           }, 5000);
           return;
         }
 
         if (advance === "next_round_spawned") {
-          /* Table suivante : assignation directe sauf finale (Zip + finalZip) ; secours → salle d’attente sans délai Zip forcé. */
+          /* Table suivante : `TOURNAMENT_TABLE_ASSIGNED` sur user:{id} ; secours → salle d’attente. */
           setTournamentTableTransition({ variant: "won_next_table", tournamentId: tid });
           const navTicketN = tournamentScheduledNavEpochRef.current;
           tournamentTransitionTimerRef.current = setTimeout(() => {
             if (tournamentScheduledNavEpochRef.current !== navTicketN) return;
             tournamentTransitionTimerRef.current = null;
             setTournamentTableTransition(null);
-            navigate(`/tournaments/${encodeURIComponent(tid)}/waiting`, { replace: true });
-          }, 12000);
+            navigate(tournamentWaitingPath(tid), { replace: true });
+          }, 4000);
           return;
         }
 
@@ -2730,6 +2773,19 @@ export function Game() {
       if (!data || String(data.userId) !== String(userId)) return;
       if (!gameIdParam || String(data.gameId) !== String(gameIdParam)) return;
       if (isBotMode || isSpectating) return;
+      if (gameIdParam.startsWith(TOURNAMENT_GAME_ID_PREFIX)) {
+        const tid = searchParams.get("tournamentId");
+        if (tid) {
+          navigate(tournamentHubPath(tid), { replace: true });
+          return;
+        }
+        void fetchTournamentContextByGameId(gameIdParam).then((ctx) => {
+          if (ctx?.tournamentId) {
+            navigate(tournamentHubPath(ctx.tournamentId), { replace: true });
+          }
+        });
+        return;
+      }
       multiBustGameIdRef.current = String(gameIdParam);
       setShowMultiBustPrompt(false);
       clearMultiBustPromptTimer();
@@ -3739,6 +3795,8 @@ export function Game() {
   // Safety net for non-bot multiplayer games: if HAND_COMPLETE lingers, re-join the socket room.
   useEffect(() => {
     if (!gameIdParam || isBotMode || gameOverReason) return;
+    if (gameIdParam.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
+    if (tournamentTableEndedRef.current) return;
     if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
     const doRejoin = () => {
       if (!socket || !socket.connected || !userId) return;
@@ -3771,6 +3829,7 @@ export function Game() {
   useEffect(() => {
     if (!gameIdParam || isBotMode || gameOverReason) return;
     if (!gameIdParam.startsWith(TOURNAMENT_GAME_ID_PREFIX)) return;
+    if (tournamentTableEndedRef.current) return;
     if (serverHandRuntimePhase !== "HAND_COMPLETE") return;
     const token = getAuthItem("token");
     if (!userId || !token || isSpectating) return;

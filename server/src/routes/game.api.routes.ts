@@ -144,6 +144,22 @@ router.post('/bot/start', authMiddleware, gameActionLimiter, async (req, res) =>
   }
 })
 
+// GET /api/game/:gameId/tournament-context - Tournoi lié à une table (rejoin après fin de table)
+router.get('/:gameId/tournament-context', gameReadLimiter, async (req, res) => {
+  try {
+    const { gameId } = req.params
+    const { findTournamentContextByGameId } = await import(
+      '../tournament/tournament.service.js'
+    )
+    const ctx = await findTournamentContextByGameId(gameId)
+    if (!ctx) return res.status(404).json({ error: 'Contexte tournoi introuvable' })
+    return res.json(ctx)
+  } catch (error) {
+    console.error('Erreur tournament-context:', error)
+    return res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
 // GET /api/game/:gameId/room-info - Infos salle/host pour rematch (partie multi)
 router.get('/:gameId/room-info', gameReadLimiter, async (req, res) => {
   try {

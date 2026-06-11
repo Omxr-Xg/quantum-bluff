@@ -25,14 +25,18 @@ export async function readApiError(r: Response): Promise<string> {
   return trimmed;
 }
 
-export async function fetchTournaments() {
-  const r = await apiFetch(API(), { headers: authHeaders(), maxRetries: 0 });
+export type TournamentGameType = "POKER" | "BELOTE";
+
+export async function fetchTournaments(gameType: TournamentGameType = "POKER") {
+  const q = new URLSearchParams({ gameType });
+  const r = await apiFetch(`${API()}?${q}`, { headers: authHeaders(), maxRetries: 0 });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }
 
-export async function fetchLiveSpectateTournaments() {
-  const r = await apiFetch(`${API()}/live-spectate`, { headers: authHeaders(), maxRetries: 0 });
+export async function fetchLiveSpectateTournaments(gameType: TournamentGameType = "POKER") {
+  const q = new URLSearchParams({ gameType });
+  const r = await apiFetch(`${API()}/live-spectate?${q}`, { headers: authHeaders(), maxRetries: 0 });
   if (!r.ok) throw new Error(await readApiError(r));
   return r.json();
 }

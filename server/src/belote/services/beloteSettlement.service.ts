@@ -60,6 +60,24 @@ export async function settleBeloteGame(
   const gameId = table.gameId
   const roomId = table.roomId
 
+  const { isBeloteTournamentGameId } = await import(
+    '../../tournament/belote/beloteTournament.constants.js'
+  )
+  if (isBeloteTournamentGameId(gameId)) {
+    const winningTeam = table.winningTeam()
+    if (!winningTeam) return
+    stopBeloteTimersForGame(gameId)
+    if (io) {
+      const { notifyBeloteTournamentTableFinished } = await import(
+        '../../tournament/belote/beloteTournament.runtime.service.js'
+      )
+      await notifyBeloteTournamentTableFinished(io, table, winningTeam)
+    } else {
+      activeBeloteGames.delete(gameId)
+    }
+    return
+  }
+
   const already = await prisma.beloteGameResult.findUnique({
     where: { gameId },
     select: { id: true },

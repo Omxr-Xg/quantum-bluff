@@ -220,7 +220,7 @@ async function assignFinalRanksAndWinnerStatus(
   })
 }
 
-async function finalizeTournament(
+export async function finalizeTournament(
   io: Server,
   tournamentId: string,
   winnerUserId: string,
@@ -361,6 +361,22 @@ async function spawnRoundTables(
   }
 }
 
+async function advanceStateWhenRoundAlreadyCompleted(
+  tournamentId: string,
+  completedRoundNumber: number,
+): Promise<TournamentTableFinishAdvance> {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { status: true, currentRoundNumber: true },
+  })
+  if (!tournament) return 'pending_other_tables'
+  if (tournament.status === 'COMPLETED') return 'tournament_complete'
+  if (tournament.currentRoundNumber > completedRoundNumber) {
+    return 'next_round_spawned'
+  }
+  return 'pending_other_tables'
+}
+
 export async function tryAdvanceRoundAfterTableComplete(
   io: Server,
   roundId: string,
@@ -379,10 +395,23 @@ export async function tryAdvanceRoundAfterTableComplete(
   })
   if (!round) return 'pending_other_tables'
 
-  await prisma.tournamentRound.update({
-    where: { id: roundId },
+  if (round.status === 'COMPLETED') {
+    return advanceStateWhenRoundAlreadyCompleted(
+      round.tournamentId,
+      round.roundNumber,
+    )
+  }
+
+  const claimed = await prisma.tournamentRound.updateMany({
+    where: { id: roundId, status: 'IN_PROGRESS' },
     data: { status: 'COMPLETED', completedAt: new Date() },
   })
+  if (claimed.count === 0) {
+    return advanceStateWhenRoundAlreadyCompleted(
+      round.tournamentId,
+      round.roundNumber,
+    )
+  }
 
   const tables = await prisma.tournamentTable.findMany({
     where: { roundId },
@@ -485,6 +514,64 @@ export async function startTournamentFromDb(
   })
   if (!tournament) return
   if (tournament.status !== 'REGISTRATION_OPEN' && tournament.status !== 'STARTING') {
+    return
+  }
+
+  if (tournament.gameType === 'BELOTE') {
+    const { startBeloteTournamentFromDb } = await import(
+      './belote/beloteTournament.runtime.service.js'
+    )
+    const playerIds = tournament.players.map((p) => p.userId)
+    const { BELOTE_TOURNAMENT_MIN_PLAYERS } = await import(
+      './belote/beloteTournament.create.validation.js'
+    )
+    if (playerIds.length < BELOTE_TOURNAMENT_MIN_PLAYERS || playerIds.length % 4 !== 0) {
+      if (source === 'host') {
+        throw new Error(
+          `Belote : ${BELOTE_TOURNAMENT_MIN_PLAYERS} à 16 joueurs, multiple de 4 (${playerIds.length} inscrits)`,
+        )
+      }
+      const { tournamentBuyInForRow } = await import('./tournament.entryFee.js')
+      const fee = tournamentBuyInForRow(tournament)
+      await prisma.$transaction(async (tx) => {
+        for (const p of tournament.players) {
+          if (fee <= 0) continue
+          const beforeRow = await tx.user.findUnique({
+            where: { id: p.userId },
+            select: { chips: true },
+          })
+          const balanceBefore = beforeRow?.chips ?? 0
+          await tx.user.update({
+            where: { id: p.userId },
+            data: { chips: { increment: fee } },
+          })
+          const afterRow = await tx.user.findUnique({
+            where: { id: p.userId },
+            select: { chips: true },
+          })
+          await createWalletLedgerMovement(tx, {
+            userId: p.userId,
+            reason: 'TOURNAMENT_CANCEL_REFUND',
+            balanceBefore,
+            balanceAfter: afterRow?.chips ?? balanceBefore + fee,
+            gameType: 'tournament',
+            roundId: tournamentId,
+          })
+        }
+        await tx.tournament.update({
+          where: { id: tournamentId },
+          data: { status: 'CANCELLED' },
+        })
+        await refundPendingTournamentBetsForCancellation(tx, tournamentId)
+      })
+      io.to(`tournament:${tournamentId}`).emit('TOURNAMENT_CANCELLED', {
+        tournamentId,
+        reason: 'INSUFFICIENT_PLAYERS',
+      })
+      emitTournamentLiveSpectateChanged(io, tournamentId)
+      return
+    }
+    await startBeloteTournamentFromDb(tournamentId, io)
     return
   }
 

@@ -968,7 +968,16 @@
     "invite": "دعوة",
     "invited": "تمت الدعوة",
     "noFriendsToInvite": "لا يوجد أصدقاء للدعوة (أو موجودون بالفعل على الطاولة). أضف أصدقاء من تبويب الأصدقاء.",
-    "inviteSent": "تم إرسال الدعوة"
+    "inviteSent": "تم إرسال الدعوة",
+    "tournament": {
+      "blockTitle": "بطولات البيلوت",
+      "create": "إنشاء بطولة",
+      "modalTitle": "بطولة بيلوت جديدة",
+      "namePlaceholder": "بطولة الجمعة",
+      "quickName": "بطولة بيلوت {{date}}",
+      "maxPlayers": "اللاعبون",
+      "startMultipleOf4Hint": "يلزم {{min}} لاعبين على الأقل، بموائد من 4 (حالياً {{current}})."
+    }
   },
   "gamification": {
     "levelShort": "المستوى {{level}}",

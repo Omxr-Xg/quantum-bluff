@@ -1329,11 +1329,20 @@ enum TournamentRewardLedgerKind {
   XP_PLACEMENT
 }
 
+enum TournamentGameType {
+  POKER
+  BELOTE
+}
+
 model Tournament {
   id                        String               @id @default(uuid())
   name                      String
   hostId                    String
   host                      User                 @relation("TournamentHost", fields: [hostId], references: [id], onDelete: Cascade)
+  gameType                  TournamentGameType   @default(POKER)
+  beloteVariant             BeloteGameVariant?
+  beloteTargetScore         Int?
+  beloteBuyIn               Int?
   visibility                TournamentVisibility @default(PUBLIC)
   /// Hash bcrypt du code (PRIVATE uniquement)
   codeHash                  String?
@@ -1365,6 +1374,7 @@ model Tournament {
 
   @@index([status, startAt])
   @@index([hostId])
+  @@index([gameType, status, startAt])
   @@map("tournaments")
 }
 
@@ -1407,13 +1417,15 @@ model TournamentRound {
 }
 
 model TournamentTable {
-  id           String                @id @default(uuid())
-  roundId      String
-  gameId       String                @unique
-  status       TournamentTableStatus @default(PENDING)
-  winnerUserId String?
-  playerCount  Int                   @default(0)
-  isFinalTable Boolean               @default(false)
+  id                String                @id @default(uuid())
+  roundId           String
+  gameId            String                @unique
+  status            TournamentTableStatus @default(PENDING)
+  winnerUserId      String?
+  /// Belote : les 2 joueurs de l’équipe gagnante (JSON string[]).
+  advancingUserIds  Json?
+  playerCount       Int                   @default(0)
+  isFinalTable      Boolean               @default(false)
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
 

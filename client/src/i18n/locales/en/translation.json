@@ -1227,7 +1227,16 @@
     "invite": "Invite",
     "invited": "Invited",
     "noFriendsToInvite": "No friends to invite (or already at the table). Add friends in the Friends tab.",
-    "inviteSent": "Invitation sent"
+    "inviteSent": "Invitation sent",
+    "tournament": {
+      "blockTitle": "Belote tournaments",
+      "create": "Create tournament",
+      "modalTitle": "New Belote tournament",
+      "namePlaceholder": "Friday tournament",
+      "quickName": "Belote tournament {{date}}",
+      "maxPlayers": "Players",
+      "startMultipleOf4Hint": "At least {{min}} players required, in tables of 4 (currently {{current}})."
+    }
   },
   "gamification": {
     "levelShort": "Level {{level}}",
@@ -2747,6 +2756,10 @@
       "kickedToast": "You were removed from this tournament by the host.",
       "startNow": "Start now",
       "waitingRoom": "Waiting room",
+      "rejoinTableHint": "Your table is ready — jump back in.",
+      "rejoinTableCta": "Rejoin my table",
+      "waitingNextRoundHint": "Waiting for the next round — play Zip while you wait.",
+      "waitingRoomCta": "Waiting room",
       "spectateTitle": "Watch tables",
       "spectateEliminatedHint": "You’re out — follow the rest of the tournament as a spectator.",
       "spectateTableLabel": "Round {{round}} · {{count}} players",

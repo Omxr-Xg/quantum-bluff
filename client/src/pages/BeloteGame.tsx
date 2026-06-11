@@ -23,6 +23,8 @@ export function BeloteGame() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const gameId = searchParams.get("gameId");
+  const tournamentId = searchParams.get("tournamentId");
+  const isTournamentGame = Boolean(gameId?.startsWith("game_belote_tournament_"));
   const isSpectating = searchParams.get("spectate") === "1";
   const { userId } = useUser();
   const { socket } = useSocket();
@@ -73,8 +75,44 @@ export function BeloteGame() {
     if (gameId && socket) {
       socket.emit("LEAVE_BELOTE_GAME", { gameId });
     }
+    if (tournamentId) {
+      navigate(`/tournaments/${encodeURIComponent(tournamentId)}`);
+      return;
+    }
     navigate("/lobby?tab=belote");
-  }, [gameId, socket, navigate]);
+  }, [gameId, socket, navigate, tournamentId]);
+
+  useEffect(() => {
+    if (!socket || !tournamentId || !gameId) return;
+    const onAssigned = (p: { tournamentId?: string; gameId?: string; gameKind?: string }) => {
+      if (p.tournamentId !== tournamentId || !p.gameId || p.gameId === gameId) return;
+      navigate(
+        `/belote/game?gameId=${encodeURIComponent(p.gameId)}&tournamentId=${encodeURIComponent(tournamentId)}`,
+        { replace: true },
+      );
+    };
+    const onTournamentEnd = (p: {
+      gameId?: string;
+      tournamentId?: string;
+      tournamentAdvance?: string;
+    }) => {
+      if (p.gameId !== gameId || p.tournamentId !== tournamentId) return;
+      const tid = encodeURIComponent(tournamentId);
+      window.setTimeout(() => {
+        if (p.tournamentAdvance === "tournament_complete") {
+          navigate(`/tournaments/${tid}/results`, { replace: true });
+          return;
+        }
+        navigate(`/tournaments/${tid}/waiting`, { replace: true });
+      }, 2200);
+    };
+    socket.on("TOURNAMENT_TABLE_ASSIGNED", onAssigned);
+    socket.on("BELOTE_TOURNAMENT_TABLE_COMPLETE", onTournamentEnd);
+    return () => {
+      socket.off("TOURNAMENT_TABLE_ASSIGNED", onAssigned);
+      socket.off("BELOTE_TOURNAMENT_TABLE_COMPLETE", onTournamentEnd);
+    };
+  }, [socket, tournamentId, gameId, navigate]);
 
   const confirmQuit = useCallback(() => {
     setShowQuitConfirm(false);
@@ -139,7 +177,7 @@ export function BeloteGame() {
           potTotal={ended.potTotal}
           payoutPerWinner={ended.payoutPerWinner}
           chipsWon={mySettlement?.chipsAwarded}
-          onLobby={() => navigate("/lobby?tab=belote")}
+          onLobby={leaveToLobby}
         />
       ) : null}
 

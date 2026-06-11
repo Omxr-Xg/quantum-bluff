@@ -960,7 +960,16 @@
     "invite": "Invitar",
     "invited": "Invitado",
     "noFriendsToInvite": "Ningún amigo para invitar (o ya en la mesa). Añade amigos en la pestaña Amigos.",
-    "inviteSent": "Invitación enviada"
+    "inviteSent": "Invitación enviada",
+    "tournament": {
+      "blockTitle": "Torneos de Belote",
+      "create": "Crear torneo",
+      "modalTitle": "Nuevo torneo de Belote",
+      "namePlaceholder": "Torneo del viernes",
+      "quickName": "Torneo Belote {{date}}",
+      "maxPlayers": "Jugadores",
+      "startMultipleOf4Hint": "Se necesitan al menos {{min}} jugadores, en mesas de 4 (actualmente {{current}})."
+    }
   },
   "gamification": {
     "levelShort": "Nivel {{level}}",

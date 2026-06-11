@@ -27,6 +27,7 @@ import { useChallengeHighlight } from "../hooks/useChallengeHighlight";
 import { challengeHighlightClass } from "../utils/challengeHighlight";
 import { LobbyActivitySection, LobbyFriendRoomBadge } from "./LobbyActivityBlocks";
 import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "./LobbySoloPlayBlock";
+import { LobbyBeloteTournamentPanel } from "./LobbyBeloteTournamentPanel";
 import {
   BELOTE_BUY_IN_DEFAULT,
   BELOTE_BUY_IN_PRESETS,
@@ -631,6 +632,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         accent={lobbySoloPlayAccents.belote}
       />
 
+      <div className="grid min-h-0 auto-rows-min grid-cols-1 gap-4 md:grid-cols-2 md:items-start">
       <div className="flex min-h-0 flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
       <h2 className="mb-3 flex items-center gap-3 text-xl font-bold text-white xl:text-2xl">
         <Server className={`h-7 w-7 xl:h-8 xl:w-8 ${beloteAccent.serverIcon}`} />
@@ -809,6 +811,9 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
 
       {passwordJoinModal}
       {createModal}
+      </div>
+
+      <LobbyBeloteTournamentPanel active={active} />
       </div>
     </div>
   );

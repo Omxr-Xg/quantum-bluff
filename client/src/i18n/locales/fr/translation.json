@@ -1226,7 +1226,16 @@
     "invite": "Inviter",
     "invited": "Invité",
     "noFriendsToInvite": "Aucun ami à inviter (ou déjà à la table). Ajoutez des amis dans l’onglet Amis.",
-    "inviteSent": "Invitation envoyée"
+    "inviteSent": "Invitation envoyée",
+    "tournament": {
+      "blockTitle": "Tournois Belote",
+      "create": "Créer un tournoi",
+      "modalTitle": "Nouveau tournoi Belote",
+      "namePlaceholder": "Tournoi du vendredi",
+      "quickName": "Tournoi Belote {{date}}",
+      "maxPlayers": "Joueurs",
+      "startMultipleOf4Hint": "Il faut au moins {{min}} joueurs inscrits, par table de 4 (actuellement {{current}})."
+    }
   },
   "gamification": {
     "levelShort": "Niveau {{level}}",
@@ -2745,6 +2754,10 @@
       "kickedToast": "Tu as été retiré de ce tournoi par l’hôte.",
       "startNow": "Démarrer maintenant",
       "waitingRoom": "Salle d’attente",
+      "rejoinTableHint": "Votre table est prête — reprenez la partie.",
+      "rejoinTableCta": "Rejoindre ma table",
+      "waitingNextRoundHint": "En attente du prochain tour — mini-jeu Zip en attendant.",
+      "waitingRoomCta": "Salle d’attente",
       "spectateTitle": "Regarder les tables",
       "spectateEliminatedHint": "Tu es éliminé — suis la suite du tournoi en spectateur.",
       "spectateTableLabel": "Manche {{round}} · {{count}} joueurs",

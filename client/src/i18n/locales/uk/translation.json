@@ -964,7 +964,16 @@
     "invite": "Запросити",
     "invited": "Запрошено",
     "noFriendsToInvite": "Немає друзів для запрошення (або вони вже за столом). Додайте друзів у вкладці Друзі.",
-    "inviteSent": "Запрошення надіслано"
+    "inviteSent": "Запрошення надіслано",
+    "tournament": {
+      "blockTitle": "Турніри Belote",
+      "create": "Створити турнір",
+      "modalTitle": "Новий турнір Belote",
+      "namePlaceholder": "П'ятничний турнір",
+      "quickName": "Турнір Belote {{date}}",
+      "maxPlayers": "Гравці",
+      "startMultipleOf4Hint": "Потрібно щонайменше {{min}} гравців, столами по 4 (зараз {{current}})."
+    }
   },
   "gamification": {
     "levelShort": "Рівень {{level}}",

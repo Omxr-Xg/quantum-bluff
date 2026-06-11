@@ -379,6 +379,23 @@ export class GameGateway {
           });
           if (!isHost && !tp && tournament.visibility !== "PUBLIC") return;
           socket.join(`tournament:${tournamentId}`);
+          const { findUserTournamentTableAssignment } = await import(
+            "../tournament/tournament.service.js"
+          );
+          const assign = await findUserTournamentTableAssignment(
+            socket.userId,
+            tournamentId,
+          );
+          if (assign) {
+            const isBelote = assign.gameId.startsWith("game_belote_tournament_");
+            socket.emit("TOURNAMENT_TABLE_ASSIGNED", {
+              tournamentId: assign.tournamentId,
+              gameId: assign.gameId,
+              roundNumber: assign.roundNumber,
+              isFinalTable: assign.isFinalTable,
+              ...(isBelote ? { gameKind: "BELOTE" as const } : {}),
+            });
+          }
         },
       );
 

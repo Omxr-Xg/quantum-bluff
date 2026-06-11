@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from '../generated/prisma/index.js'
 import { createWalletLedgerMovement } from '../casino/services/walletLedger.service.js'
 import { levelFromExperience } from '../logic/gamification.js'
 import { rootLogger } from '../observability/logger.js'
-import { tournamentEntryFeeChips } from './tournament.entryFee.js'
+import { tournamentBuyInForRow } from './tournament.entryFee.js'
 
 export const XP_TOURNAMENT_1ST = 500
 export const XP_TOURNAMENT_2ND = 400
@@ -126,7 +126,7 @@ export async function grantTournamentRewardsIfMissing(prisma: PrismaClient, tour
     },
   })
   if (!t || t.status !== 'COMPLETED') return
-  const fee = tournamentEntryFeeChips(t.initialStack)
+  const fee = tournamentBuyInForRow(t)
   const participantCount = t.players.length
   const prize = participantCount * fee
   const winner =

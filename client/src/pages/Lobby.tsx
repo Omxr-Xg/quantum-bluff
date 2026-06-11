@@ -594,8 +594,8 @@ export function Lobby() {
   const fetchTournamentsBoth = useCallback(async () => {
     try {
       const [openResult, liveResult] = await Promise.allSettled([
-        fetchTournaments(),
-        fetchLiveSpectateTournaments(),
+        fetchTournaments("POKER"),
+        fetchLiveSpectateTournaments("POKER"),
       ]);
 
       if (openResult.status === "rejected") {
