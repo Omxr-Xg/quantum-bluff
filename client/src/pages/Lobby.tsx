@@ -2207,12 +2207,12 @@ export function Lobby() {
               <div ref={tourRefMinigames} className="flex w-full flex-col gap-5">
                 <div className="relative flex w-full flex-col overflow-hidden rounded-2xl border border-cyan-400/15 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
                   <div
-                    className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
                     style={{ backgroundImage: `url(${nouveauxCasinoBg})` }}
                     aria-hidden
                   />
                   <div
-                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-950/88 via-slate-950/72 to-slate-950/90"
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-950/95 via-slate-950/92 to-slate-950/96"
                     aria-hidden
                   />
                   <div className="relative z-10">
@@ -2240,12 +2240,12 @@ export function Lobby() {
                 </div>
                 <div className="relative flex w-full flex-col overflow-hidden rounded-2xl border-2 border-amber-700/25 p-5 shadow-[inset_0_1px_0_rgba(251,191,36,0.08),0_22px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl md:p-6">
                   <div
-                    className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
                     style={{ backgroundImage: `url(${casinoRetroBg})` }}
                     aria-hidden
                   />
                   <div
-                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-950/88 via-stone-950/72 to-red-950/88"
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-950/95 via-stone-950/92 to-red-950/96"
                     aria-hidden
                   />
                   <div className="relative z-10">
