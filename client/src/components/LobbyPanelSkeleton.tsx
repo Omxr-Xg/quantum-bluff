@@ -39,15 +39,16 @@ export function DailyChallengesSkeleton() {
 export function FriendsListSkeleton() {
   return (
     <div className="space-y-2" aria-hidden>
-      {Array.from({ length: 3 }, (_, i) => (
+      {Array.from({ length: 2 }, (_, i) => (
         <div
           key={i}
-          className="flex animate-pulse items-center gap-3 rounded-lg border border-white/8 bg-white/[0.04] p-2"
+          className="flex h-[4.75rem] shrink-0 animate-pulse items-center gap-3 rounded-xl border border-white/8 bg-white/[0.04] px-3"
         >
           <div className="h-9 w-9 shrink-0 rounded-full bg-white/10" />
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="h-3 w-24 rounded bg-white/10" />
             <div className="h-2 w-16 rounded bg-white/[0.07]" />
+            <div className="h-2 w-20 rounded bg-white/[0.06]" />
           </div>
         </div>
       ))}

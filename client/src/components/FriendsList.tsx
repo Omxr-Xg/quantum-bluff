@@ -27,8 +27,10 @@ import {
 import { FriendsListSkeleton } from "./LobbyPanelSkeleton";
 import { lobbyActivityListMaxHeight } from "./LobbyActivityBlocks";
 
-const LOBBY_FRIENDS_SCROLL_AFTER = 4;
-const LOBBY_FRIEND_ROW_PX = 78;
+const LOBBY_FRIENDS_SCROLL_AFTER = 3;
+/** Hauteur fixe d’une carte ami (alignée sur `LOBBY_FRIEND_CARD_CLASS`). */
+const LOBBY_FRIEND_ROW_PX = 76;
+const LOBBY_FRIEND_CARD_CLASS = "h-[4.75rem]";
 
 export function FriendsList() {
   const { t, i18n } = useTranslation();
@@ -301,17 +303,17 @@ export function FriendsList() {
               <CosmeticBannerCard
                 key={friend.id}
                 cosmetics={friend.cosmetics}
-                bannerHeightClass="min-h-0"
-                className={`${
+                bannerHeightClass={LOBBY_FRIEND_CARD_CLASS}
+                className={`shrink-0 ${
                   friend.isOnline
                     ? "border-emerald-400/30 shadow-[inset_0_1px_0_rgba(52,211,153,0.12)]"
                     : ""
                 }`}
               >
-                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-                  <div className="flex shrink-0 flex-col items-center gap-0.5">
-                    <div className="relative h-10 w-10">
-                      <CosmeticAvatar cosmetics={friend.cosmetics} sizeClass="h-10 w-10">
+                <div className="flex h-full items-center justify-between gap-3 px-3">
+                  <div className="flex w-[3.25rem] shrink-0 flex-col items-center justify-center gap-0.5">
+                    <div className="relative h-9 w-9 shrink-0">
+                      <CosmeticAvatar cosmetics={friend.cosmetics} sizeClass="h-9 w-9">
                         <div className="flex h-full w-full items-center justify-center bg-blue-950/60">
                           {getPlayerAvatar(friend.username, friend.id, userId, friend.avatarUrl) ? (
                             <ImageWithFallback
@@ -325,25 +327,29 @@ export function FriendsList() {
                         </div>
                       </CosmeticAvatar>
                       <span
-                        className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${
+                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-900 ${
                           friend.isOnline ? "bg-emerald-400" : "bg-slate-500"
                         }`}
                         aria-label={friend.isOnline ? t("friends.online") : t("friends.offline")}
                       />
                     </div>
-                    {lastSeenLabel ? (
-                      <span
-                        className="max-w-[5.25rem] truncate text-center text-[9px] leading-tight text-slate-500"
-                        title={lastSeenLabel}
-                      >
-                        {lastSeenLabel}
-                      </span>
-                    ) : null}
+                    <span
+                      className={`h-3 max-w-full truncate text-center text-[9px] leading-3 ${
+                        lastSeenLabel ? "text-slate-500" : "invisible"
+                      }`}
+                      title={lastSeenLabel ?? undefined}
+                    >
+                      {lastSeenLabel ?? "\u00a0"}
+                    </span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-white">{friend.username}</p>
-                    <CosmeticTitle cosmetics={friend.cosmetics} className="text-[10px] font-semibold" />
-                    <p className="truncate text-xs italic text-gray-400">{friend.currentActivity || "Salon poker"}</p>
+                  <div className="min-w-0 flex-1 self-center overflow-hidden">
+                    <p className="truncate text-sm font-medium leading-tight text-white">{friend.username}</p>
+                    <div className="min-h-[0.875rem] truncate">
+                      <CosmeticTitle cosmetics={friend.cosmetics} className="text-[10px] font-semibold leading-tight" />
+                    </div>
+                    <p className="truncate text-[11px] italic leading-tight text-gray-400">
+                      {friend.currentActivity || "Salon poker"}
+                    </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <button
