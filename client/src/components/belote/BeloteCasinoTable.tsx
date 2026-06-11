@@ -5,6 +5,7 @@ import { useTableTheme } from "../../contexts/TableThemeContext";
 import { BeloteSeatAvatar } from "./BeloteSeatAvatar";
 import tableNappeImage from "../../assets/nappe/NA1.webp";
 import { BelotePlayingCard } from "./BelotePlayingCard";
+import { useBeloteTableCardSize } from "../../hooks/useBeloteResponsiveCards";
 import { BELOTE_SUIT_LABEL } from "../../features/belote/beloteCardUtils";
 import type { BeloteSanitizedState } from "../../features/belote/useBeloteSocket";
 
@@ -42,6 +43,7 @@ export function BeloteCasinoTable({
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
+  const tableCardSize = useBeloteTableCardSize();
   const { feltGradient, feltBorder, feltBackgroundUrl } = useTableTheme();
 
   const speakingSet = useMemo(() => new Set(speakingUserIds), [speakingUserIds]);
@@ -150,7 +152,7 @@ export function BeloteCasinoTable({
                   <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-200/80">
                     {t("belote.turnedCard")}
                   </span>
-                  <BelotePlayingCard card={state.deal.turnedCard} size="md" />
+                  <BelotePlayingCard card={state.deal.turnedCard} size={tableCardSize} />
                 </div>
               ) : null}
               {trickOnTable.length === 0 ? (
@@ -178,7 +180,7 @@ export function BeloteCasinoTable({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         transition={{ delay: i * DEAL_STAGGER_SEC, duration: 0.22 }}
                       >
-                        <BelotePlayingCard card={tr.card} size="md" />
+                        <BelotePlayingCard card={tr.card} size={tableCardSize} />
                       </motion.div>
                     ))}
                   </div>

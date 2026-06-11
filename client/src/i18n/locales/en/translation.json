@@ -1124,6 +1124,10 @@
     "joinCodeLabel": "Access code (private room)",
     "joinCodeRequired": "Access code or invitation required.",
     "defaultRoomName": "Belote game",
+    "botRoomDefaultName": "Game with bots",
+    "playWithBots": "Play with bots",
+    "playBotsHint": "Pick mode and score, then start a table with 3 AIs.",
+    "startingBotGame": "Setting up the table…",
     "noRooms": "No open rooms right now.",
     "join": "Join",
     "points": "pts",
@@ -1823,6 +1827,15 @@
     "blockedMemberEnteredBody": "{{name}} is now in this room. Do you want to stay anyway?",
     "blockedMemberStay": "Stay anyway",
     "blockedMemberLeave": "Leave room"
+  },
+  "beloteBotConfig": {
+    "title": "Game with bots",
+    "subtitle": "Set up belote then play with 3 AIs at your table.",
+    "playersTitle": "Table lineup",
+    "playersHint": "You + 3 bots = 4 players (table filled automatically).",
+    "freeHint": "Free practice — no entry fee, no chips at stake.",
+    "customTarget": "Custom target score",
+    "startButton": "Start game"
   },
   "botConfig": {
     "home": "Home",

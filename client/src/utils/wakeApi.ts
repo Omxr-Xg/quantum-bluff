@@ -1,4 +1,4 @@
-import { apiFetch, apiUrl } from "./apiBase";
+import { apiFetch, apiUrl, getApiBaseUrl } from "./apiBase";
 
 /** Réveille l’API Render (cold start) avant OAuth ou actions critiques. */
 export async function wakeApiServer(maxRetries = 5): Promise<boolean> {
@@ -15,19 +15,31 @@ export async function wakeApiServer(maxRetries = 5): Promise<boolean> {
   }
 }
 
-/** Sur le site web prod, OAuth passe par la même origine (proxy Vercel → API). */
-export function shouldUseSameOriginOAuth(): boolean {
-  if (typeof window === "undefined") return false;
-  const { hostname, protocol } = window.location;
-  if (protocol !== "https:" && protocol !== "http:") return false;
-  return /(^|\.)quantum-bluff\.com$/i.test(hostname);
+/** Origine du backend pour démarrer OAuth (toujours l’API, jamais le domaine du SPA). */
+export function resolveOAuthBackendOrigin(): string {
+  const base = getApiBaseUrl();
+  if (base && /^https?:\/\//i.test(base)) {
+    try {
+      return new URL(base).origin;
+    } catch {
+      /* fall through */
+    }
+  }
+  // En dev, /auth/google sur le port Vite charge le SPA → « No routes matched ».
+  if (import.meta.env.DEV) return "http://localhost:3000";
+  if (typeof window !== "undefined") {
+    const { hostname } = window.location;
+    if (/(^|\.)quantum-bluff\.com$/i.test(hostname)) {
+      return "https://api.quantum-bluff.com";
+    }
+    return window.location.origin;
+  }
+  return "https://api.quantum-bluff.com";
 }
 
 export function buildGoogleOAuthStartUrl(ref?: string | null): string {
   const path = "/auth/google";
-  const base = shouldUseSameOriginOAuth()
-    ? new URL(path, window.location.origin)
-    : new URL(apiUrl(path));
-  if (ref) base.searchParams.set("ref", ref);
-  return base.toString();
+  const url = new URL(path, resolveOAuthBackendOrigin());
+  if (ref) url.searchParams.set("ref", ref);
+  return url.toString();
 }

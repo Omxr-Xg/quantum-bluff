@@ -5,8 +5,9 @@ import type { BeloteCard } from "../../features/belote/useBeloteSocket";
 
 type CardSize = "xs" | "sm" | "md" | "board" | "lg";
 
-/** Belote : cartes ~25 % plus grandes que le sizing poker par défaut. */
-const BELOTE_CARD_SCALE_CLASS = "origin-center scale-[1.25]";
+/** Belote : légèrement plus grandes sur grand écran ; proportionnelles sur mobile. */
+const BELOTE_CARD_SCALE_CLASS =
+  "origin-center scale-[0.82] max-[380px]:scale-[0.72] sm:scale-95 md:scale-100 lg:scale-110 xl:scale-[1.2]";
 
 export function BelotePlayingCard({
   card,

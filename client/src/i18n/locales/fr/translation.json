@@ -1123,6 +1123,10 @@
     "joinCodeLabel": "Code d'accès (salle privée)",
     "joinCodeRequired": "Code d'accès ou invitation requis.",
     "defaultRoomName": "Partie Belote",
+    "botRoomDefaultName": "Partie avec des bots",
+    "playWithBots": "Jouer avec des bots",
+    "playBotsHint": "Gratuit — choisissez le mode et le score, puis jouez avec 3 IA.",
+    "startingBotGame": "Préparation de la table…",
     "noRooms": "Aucune salle ouverte pour le moment.",
     "join": "Rejoindre",
     "points": "pts",
@@ -1815,6 +1819,15 @@
     "blockedMemberEnteredBody": "{{name}} est maintenant dans cette salle. Veux-tu rester quand même ?",
     "blockedMemberStay": "Rester quand même",
     "blockedMemberLeave": "Quitter la salle"
+  },
+  "beloteBotConfig": {
+    "title": "Partie avec des bots",
+    "subtitle": "Configurez la belote puis jouez avec 3 IA à vos côtés.",
+    "playersTitle": "Composition de la table",
+    "playersHint": "Vous + 3 bots = 4 joueurs (table complète automatiquement).",
+    "freeHint": "Entraînement gratuit — aucune mise d'entrée, pas de jetons en jeu.",
+    "customTarget": "Score cible personnalisé",
+    "startButton": "Lancer la partie"
   },
   "botConfig": {
     "home": "Accueil",

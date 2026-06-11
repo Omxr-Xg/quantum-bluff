@@ -909,6 +909,10 @@
     "joinCodeLabel": "رمز الدخول (غرفة خاصة)",
     "joinCodeRequired": "رمز الدخول أو دعوة مطلوبة.",
     "defaultRoomName": "لعبة بلوت",
+    "botRoomDefaultName": "لعبة مع البوتات",
+    "playWithBots": "اللعب مع البوتات",
+    "playBotsHint": "اختر النمط والنقاط، ثم ابدأ طاولة مع 3 ذكاء اصطناعي.",
+    "startingBotGame": "جاري تجهيز الطاولة…",
     "noRooms": "لا توجد غرف مفتوحة.",
     "join": "انضمام",
     "points": "نقطة",
@@ -1383,6 +1387,15 @@
     "noJoinRequests": "لا توجد طلبات معلقة",
     "minStakeRequiredBefore": "الحد الأدنى للرهان:",
     "minStakeRequiredAfter": "رقائق"
+  },
+  "beloteBotConfig": {
+    "title": "لعبة مع البوتات",
+    "subtitle": "اضبط البلوت ثم العب مع 3 ذكاء اصطناعي على طاولتك.",
+    "playersTitle": "تكوين الطاولة",
+    "playersHint": "أنت + 3 بوتات = 4 لاعبين (طاولة مكتملة تلقائياً).",
+    "freeHint": "تدريب مجاني — بدون رسوم دخول ولا رقاقات على المحك.",
+    "customTarget": "نقاط الهدف المخصصة",
+    "startButton": "بدء اللعبة"
   },
   "botConfig": {
     "home": "الرئيسية",

@@ -905,6 +905,10 @@
     "joinCodeLabel": "Код доступу (приватна кімната)",
     "joinCodeRequired": "Потрібен код доступу або запрошення.",
     "defaultRoomName": "Гра Belote",
+    "botRoomDefaultName": "Гра з ботами",
+    "playWithBots": "Грати з ботами",
+    "playBotsHint": "Оберіть режим і очки, потім стіл з 3 ШІ.",
+    "startingBotGame": "Підготовка столу…",
     "noRooms": "Немає відкритих кімнат.",
     "join": "Приєднатися",
     "points": "оч.",
@@ -1379,6 +1383,15 @@
     "noJoinRequests": "Немає очікуючих запитів",
     "minStakeRequiredBefore": "Мінімальна ставка:",
     "minStakeRequiredAfter": "фішок"
+  },
+  "beloteBotConfig": {
+    "title": "Гра з ботами",
+    "subtitle": "Налаштуйте белот і грайте з 3 ШІ за столом.",
+    "playersTitle": "Склад столу",
+    "playersHint": "Ви + 3 боти = 4 гравці (стіл заповнюється автоматично).",
+    "freeHint": "Безкоштовне тренування — без внеску та без фішок у грі.",
+    "customTarget": "Власний цільовий рахунок",
+    "startButton": "Почати гру"
   },
   "botConfig": {
     "home": "Головна",

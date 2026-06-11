@@ -77,7 +77,8 @@ router.post('/create', authMiddleware, async (req, res) => {
     let targetScore = Number(req.body?.targetScore)
     if (!Number.isFinite(targetScore)) targetScore = DEFAULT_CONTEE_TARGET_SCORE
     targetScore = Math.min(2000, Math.max(500, Math.floor(targetScore)))
-    const buyIn = normalizeBeloteBuyIn(req.body?.buyIn)
+    const botPractice = req.body?.botPractice === true
+    const buyIn = botPractice ? 0 : normalizeBeloteBuyIn(req.body?.buyIn)
     const variant = normalizeBeloteVariant(req.body?.variant)
 
     let passwordHash: string | undefined
@@ -356,6 +357,14 @@ router.post('/:id/start', authMiddleware, async (req, res) => {
     const humanSeats = seats.filter((s) => s.participantType === 'HUMAN')
     if (!humanSeats.every((s) => s.isReady)) {
       return res.status(400).json({ error: 'Tous les joueurs humains doivent être prêts' })
+    }
+    if (room.buyIn === 0) {
+      const botSeats = seats.filter((s) => s.participantType === 'BOT')
+      if (humanSeats.length !== 1 || botSeats.length !== 3) {
+        return res.status(400).json({
+          error: 'Partie gratuite réservée à une table 1 joueur + 3 bots',
+        })
+      }
     }
 
     const gameId = newBeloteGameId()

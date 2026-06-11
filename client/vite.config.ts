@@ -76,6 +76,7 @@ export default defineConfig(({ mode }) => {
         pathname.startsWith('/node_modules') ||
         pathname.startsWith('/src') ||
         pathname.startsWith('/api') ||
+        pathname.startsWith('/auth') ||
         pathname.startsWith('/socket.io')
       ) {
         next();
@@ -139,7 +140,8 @@ export default defineConfig(({ mode }) => {
       globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
       navigateFallback: `${basePath}index.html`,
       // Ne pas renvoyer index.html pour ads.txt (vérification AdSense).
-      navigateFallbackDenylist: [/^\/ads\.txt$/],
+      // OAuth /auth/* doit atteindre le réseau (proxy Vercel → API), pas index.html du SW.
+      navigateFallbackDenylist: [/^\/ads\.txt$/, /^\/auth\//],
       mode: 'development',
       // 5 Mo : le bundle JS principal dépasse 3 Mo (admin, marketing, jeux) ;
       // les gros avatars restent hors globPatterns (chargés à la volée).

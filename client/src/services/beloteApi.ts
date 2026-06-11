@@ -32,7 +32,11 @@ export async function fillBeloteBots(roomId: string, difficulty = "NORMAL") {
     headers: authHeaders(),
     body: JSON.stringify({ difficulty }),
   });
-  return res.json();
+  const data = (await res.json()) as { error?: string; room?: BeloteRoomListItem };
+  if (!res.ok) {
+    throw new Error(data.error ?? "fill bots failed");
+  }
+  return data;
 }
 
 export async function removeBeloteBot(roomId: string, botId: string) {

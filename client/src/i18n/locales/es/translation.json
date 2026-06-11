@@ -901,6 +901,10 @@
     "joinCodeLabel": "Código de acceso (sala privada)",
     "joinCodeRequired": "Se requiere código de acceso o invitación.",
     "defaultRoomName": "Partida Belote",
+    "botRoomDefaultName": "Partida con bots",
+    "playWithBots": "Jugar con bots",
+    "playBotsHint": "Elige modo y puntuación, luego lanza una mesa con 3 IA.",
+    "startingBotGame": "Preparando la mesa…",
     "noRooms": "No hay salas abiertas.",
     "join": "Unirse",
     "points": "pts",
@@ -1374,6 +1378,15 @@
     "noJoinRequests": "Sin solicitudes pendientes",
     "minStakeRequiredBefore": "Apuesta mínima requerida:",
     "minStakeRequiredAfter": "fichas"
+  },
+  "beloteBotConfig": {
+    "title": "Partida con bots",
+    "subtitle": "Configura la belote y juega con 3 IA en tu mesa.",
+    "playersTitle": "Composición de la mesa",
+    "playersHint": "Tú + 3 bots = 4 jugadores (mesa completa automática).",
+    "freeHint": "Entrenamiento gratis — sin entrada ni fichas en juego.",
+    "customTarget": "Puntuación objetivo personalizada",
+    "startButton": "Empezar partida"
   },
   "botConfig": {
     "home": "Inicio",

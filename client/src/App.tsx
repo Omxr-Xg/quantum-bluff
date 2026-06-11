@@ -28,6 +28,7 @@ import { BlackjackMultiLobby } from "./pages/BlackjackMultiLobby";
 import { BlackjackMultiTable } from "./pages/BlackjackMultiTable";
 import { BeloteWaitingRoom } from "./pages/BeloteWaitingRoom";
 import { BeloteGame } from "./pages/BeloteGame";
+import { BeloteBotConfiguration } from "./pages/BeloteBotConfiguration";
 import { Leaderboard } from "./pages/Leaderboard";
 import { Achievements } from "./pages/Achievements";
 import { Shop } from "./pages/Shop";
@@ -35,6 +36,7 @@ import { PlayerHistory } from "./pages/PlayerHistory";
 import { Notifications } from "./pages/Notifications";
 import { Register } from "./pages/Register";
 import { OAuthSuccessPage } from "./pages/OAuthSuccessPage";
+import { OAuthGoogleStartRedirect } from "./pages/OAuthGoogleStartRedirect";
 import { SetPasswordPage } from "./pages/SetPasswordPage";
 import { GameDeal } from "./pages/GameDeal";
 import { GameExample } from "./pages/GameExample";
@@ -151,6 +153,7 @@ function App() {
             <Route path="/online-slots" element={<SeoGameLandingPage game="slots" />} />
             <Route path="/online-crash-game" element={<SeoGameLandingPage game="crash" />} />
             <Route path="/online-mines-game" element={<SeoGameLandingPage game="mines" />} />
+            <Route path="/auth/google" element={<OAuthGoogleStartRedirect />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/register" element={<Register />} />
             <Route path="/oauth-success" element={<OAuthSuccessPage />} />
@@ -184,6 +187,7 @@ function App() {
             <Route path="/blackjack/table/:gameId" element={<ProtectedRoute><BlackjackMultiTable /></ProtectedRoute>} />
             <Route path="/waiting-room" element={<ProtectedRoute><WaitingRoom /></ProtectedRoute>} />
             <Route path="/belote/waiting-room" element={<ProtectedRoute><BeloteWaitingRoom /></ProtectedRoute>} />
+            <Route path="/belote/bot-configuration" element={<ProtectedRoute><BeloteBotConfiguration /></ProtectedRoute>} />
             <Route path="/belote/game" element={<ProtectedRoute><BeloteGame /></ProtectedRoute>} />
 
             <Route path="/tournaments/:id/results" element={<ProtectedRoute><TournamentResults /></ProtectedRoute>} />

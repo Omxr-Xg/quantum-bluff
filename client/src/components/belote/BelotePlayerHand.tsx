@@ -29,7 +29,7 @@ export function BelotePlayerHand({
   onCardClick?: (card: BeloteCard) => void;
   disabled?: boolean;
   mode?: "play" | "trump" | "view";
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   trump?: string | null;
 }) {
   const sorted = useMemo(() => sortHand(hand, trump), [hand, trump]);
@@ -44,9 +44,11 @@ export function BelotePlayerHand({
   const overlap =
     size === "lg"
       ? "-ml-5 sm:-ml-6"
-      : size === "sm"
-        ? "-ml-2.5 max-md:-ml-2 sm:-ml-3"
-        : "-ml-4 max-md:-ml-3 sm:-ml-5";
+      : size === "xs"
+        ? "-ml-1.5 max-[380px]:-ml-1 sm:-ml-2"
+        : size === "sm"
+          ? "-ml-2.5 max-md:-ml-2 sm:-ml-3"
+          : "-ml-4 max-md:-ml-3 sm:-ml-5";
 
   if (hand.length === 0) return null;
 

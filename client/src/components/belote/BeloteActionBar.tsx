@@ -6,6 +6,7 @@ import { BeloteSuitPicker } from "./BeloteSuitPicker";
 import type { BeloteSanitizedState } from "../../features/belote/useBeloteSocket";
 import type { BeloteCard } from "../../features/belote/useBeloteSocket";
 import { BELOTE_SUITS } from "../../features/belote/beloteCardUtils";
+import { useBeloteHandCardSize } from "../../hooks/useBeloteResponsiveCards";
 
 const BID_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 250] as const;
 
@@ -42,6 +43,7 @@ export function BeloteActionBar({
   const myPos = me?.position ?? -1;
   const myTeam = me?.team;
   const hand = me?.hand ?? [];
+  const handCardSize = useBeloteHandCardSize(hand.length);
 
   const isMyTurn =
     state.phase === "PLAYING" && state.deal.currentPlayerPosition === myPos;
@@ -106,7 +108,7 @@ export function BeloteActionBar({
           <BelotePlayerHand
             hand={hand}
             mode="trump"
-            size="md"
+            size={handCardSize}
             trump={state.deal.trump}
             disabled={pickingDisabled}
             onCardClick={onCardTrumpPick}
@@ -121,7 +123,7 @@ export function BeloteActionBar({
           <BelotePlayerHand
             hand={hand}
             mode={isMyTurn ? "play" : "view"}
-            size="md"
+            size={handCardSize}
             trump={state.deal.trump}
             legalCards={isMyTurn ? state.myLegalPlays : undefined}
             disabled={disabled || !isMyTurn}
@@ -136,7 +138,7 @@ export function BeloteActionBar({
         <BelotePlayerHand
           hand={hand}
           mode="view"
-          size="md"
+          size={handCardSize}
           trump={state.deal.trump}
         />
       </div>

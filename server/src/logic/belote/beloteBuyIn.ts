@@ -43,6 +43,8 @@ export async function chargeBeloteBuyIns(
   seats: Array<{ userId: string; username: string }>,
   buyIn: number,
 ): Promise<void> {
+  if (buyIn <= 0) return
+
   const insufficient: string[] = []
 
   for (const seat of seats) {

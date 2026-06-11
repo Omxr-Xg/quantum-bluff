@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  Bot,
   ChevronDown,
   ChevronUp,
   Eye,
@@ -89,6 +90,7 @@ export type BeloteGameInProgressItem = {
 
 const beloteAccent = {
   serverIcon: "text-emerald-200",
+  botIcon: "text-emerald-200",
   primaryBtn:
     "border-emerald-300/15 bg-emerald-950/75 hover:border-emerald-200/25 hover:bg-emerald-900/80",
   joinBtn: "bg-emerald-900 hover:bg-emerald-800",
@@ -618,7 +620,24 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
       : null;
 
   return (
-    <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-3.5">
+        <h2 className="mb-1 flex items-center gap-2 text-base font-bold text-white sm:text-lg">
+          <Bot className={`h-5 w-5 shrink-0 sm:h-6 sm:w-6 ${beloteAccent.botIcon}`} />
+          {t("belote.playWithBots")}
+        </h2>
+        <p className="mb-2 text-xs text-slate-400">{t("belote.playBotsHint")}</p>
+        <button
+          type="button"
+          disabled={!userId || creating}
+          onClick={() => navigate("/belote/bot-configuration")}
+          className={`w-full rounded-xl border py-2 text-sm font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:opacity-60 sm:py-2.5 sm:text-base md:py-3 ${beloteAccent.primaryBtn}`}
+        >
+          {t("lobby.configureAndPlay")}
+        </button>
+      </div>
+
+      <div className="flex min-h-0 flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
       <h2 className="mb-3 flex items-center gap-3 text-xl font-bold text-white xl:text-2xl">
         <Server className={`h-7 w-7 xl:h-8 xl:w-8 ${beloteAccent.serverIcon}`} />
         {t("lobby.multiplayerServers")}
@@ -796,6 +815,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
 
       {passwordJoinModal}
       {createModal}
+      </div>
     </div>
   );
 }
