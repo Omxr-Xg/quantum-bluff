@@ -42,6 +42,7 @@ import { LobbyShellBackground } from "../components/LobbyShellBackground";
 import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "../components/LobbySoloPlayBlock";
 import botPokerBg from "../assets/backg/botpoker.png";
 import blackjackSoloBg from "../assets/backg/blackjacksolo.png";
+import nouveauxCasinoBg from "../assets/backg/nouveauxcasino.png";
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
@@ -2203,27 +2204,38 @@ export function Lobby() {
           {lobbyMainTab === "minigames" && (
             <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pr-0.5 scrollbar-hide sm:pr-1">
               <div ref={tourRefMinigames} className="flex w-full flex-col gap-5">
-                <div className="flex w-full flex-col rounded-2xl border border-cyan-400/15 bg-gradient-to-br from-cyan-950/35 via-slate-950/40 to-blue-950/30 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
-                  <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
-                    <Sparkles className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
-                    {t("minigames.newCasinoTitle")}
-                  </h2>
-                  <p className="mb-4 text-sm leading-relaxed text-gray-400">
-                    {t("minigames.newCasinoBlurb")}
-                  </p>
-                  <button
-                    type="button"
-                    data-challenge-highlight="minigames-quick"
-                    onClick={navigateQuickSoloHub}
-                    className={challengeHighlightClass(
-                      isHighlighted("minigames-quick"),
-                      "relative w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80",
-                    )}
-                    aria-label={t("minigames.newCasinoEnter")}
-                  >
-                    <ChallengeHighlightBadge show={isHighlighted("minigames-quick")} />
-                    {t("minigames.newCasinoEnter")}
-                  </button>
+                <div className="relative flex w-full flex-col overflow-hidden rounded-2xl border border-cyan-400/15 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl md:p-6">
+                  <div
+                    className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${nouveauxCasinoBg})` }}
+                    aria-hidden
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-950/88 via-slate-950/72 to-slate-950/90"
+                    aria-hidden
+                  />
+                  <div className="relative z-10">
+                    <h2 className="mb-3 flex items-center gap-3 text-2xl font-bold text-white">
+                      <Sparkles className="h-8 w-8 shrink-0 text-cyan-300" strokeWidth={2.2} aria-hidden />
+                      {t("minigames.newCasinoTitle")}
+                    </h2>
+                    <p className="mb-4 text-sm leading-relaxed text-slate-300">
+                      {t("minigames.newCasinoBlurb")}
+                    </p>
+                    <button
+                      type="button"
+                      data-challenge-highlight="minigames-quick"
+                      onClick={navigateQuickSoloHub}
+                      className={challengeHighlightClass(
+                        isHighlighted("minigames-quick"),
+                        "relative w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80",
+                      )}
+                      aria-label={t("minigames.newCasinoEnter")}
+                    >
+                      <ChallengeHighlightBadge show={isHighlighted("minigames-quick")} />
+                      {t("minigames.newCasinoEnter")}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex w-full flex-col rounded-2xl border-2 border-amber-700/25 bg-gradient-to-br from-amber-950/40 via-stone-950/45 to-red-950/35 p-5 shadow-[inset_0_1px_0_rgba(251,191,36,0.08),0_22px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl md:p-6">
                   <h2
