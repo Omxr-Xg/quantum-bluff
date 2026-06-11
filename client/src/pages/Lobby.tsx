@@ -43,6 +43,7 @@ import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "../components/LobbySol
 import botPokerBg from "../assets/backg/botpoker.png";
 import blackjackSoloBg from "../assets/backg/blackjacksolo.png";
 import nouveauxCasinoBg from "../assets/backg/nouveauxcasino.png";
+import casinoRetroBg from "../assets/backg/casnioretro.png";
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
@@ -2237,30 +2238,41 @@ export function Lobby() {
                     </button>
                   </div>
                 </div>
-                <div className="flex w-full flex-col rounded-2xl border-2 border-amber-700/25 bg-gradient-to-br from-amber-950/40 via-stone-950/45 to-red-950/35 p-5 shadow-[inset_0_1px_0_rgba(251,191,36,0.08),0_22px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl md:p-6">
-                  <h2
-                    className="mb-3 flex items-center gap-3 text-2xl font-bold uppercase tracking-wide text-amber-100"
-                    style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
-                  >
-                    <Crown className="h-8 w-8 shrink-0 text-amber-400" strokeWidth={2.2} aria-hidden />
-                    {t("minigames.retroCasinoTitle")}
-                  </h2>
-                  <p className="mb-4 text-sm leading-relaxed text-amber-100/65">
-                    {t("minigames.retroCasinoBlurb")}
-                  </p>
-                  <button
-                    type="button"
-                    data-challenge-highlight="minigames-retro"
-                    onClick={navigateRetroCasinoHub}
-                    className={challengeHighlightClass(
-                      isHighlighted("minigames-retro"),
-                      "relative w-full rounded-sm border-2 border-amber-600/35 bg-gradient-to-r from-amber-950/80 via-stone-950/70 to-red-950/75 py-3 text-base font-black uppercase tracking-[0.14em] text-amber-100 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] transition hover:border-amber-500/50 hover:from-amber-900/80 hover:to-red-900/75",
-                    )}
-                    aria-label={t("minigames.retroCasinoEnter")}
-                  >
-                    <ChallengeHighlightBadge show={isHighlighted("minigames-retro")} />
-                    {t("minigames.retroCasinoEnter")}
-                  </button>
+                <div className="relative flex w-full flex-col overflow-hidden rounded-2xl border-2 border-amber-700/25 p-5 shadow-[inset_0_1px_0_rgba(251,191,36,0.08),0_22px_60px_rgba(0,0,0,0.32)] backdrop-blur-xl md:p-6">
+                  <div
+                    className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${casinoRetroBg})` }}
+                    aria-hidden
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-950/88 via-stone-950/72 to-red-950/88"
+                    aria-hidden
+                  />
+                  <div className="relative z-10">
+                    <h2
+                      className="mb-3 flex items-center gap-3 text-2xl font-bold uppercase tracking-wide text-amber-100"
+                      style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+                    >
+                      <Crown className="h-8 w-8 shrink-0 text-amber-400" strokeWidth={2.2} aria-hidden />
+                      {t("minigames.retroCasinoTitle")}
+                    </h2>
+                    <p className="mb-4 text-sm leading-relaxed text-amber-100/80">
+                      {t("minigames.retroCasinoBlurb")}
+                    </p>
+                    <button
+                      type="button"
+                      data-challenge-highlight="minigames-retro"
+                      onClick={navigateRetroCasinoHub}
+                      className={challengeHighlightClass(
+                        isHighlighted("minigames-retro"),
+                        "relative w-full rounded-sm border-2 border-amber-600/35 bg-gradient-to-r from-amber-950/80 via-stone-950/70 to-red-950/75 py-3 text-base font-black uppercase tracking-[0.14em] text-amber-100 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] transition hover:border-amber-500/50 hover:from-amber-900/80 hover:to-red-900/75",
+                      )}
+                      aria-label={t("minigames.retroCasinoEnter")}
+                    >
+                      <ChallengeHighlightBadge show={isHighlighted("minigames-retro")} />
+                      {t("minigames.retroCasinoEnter")}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
