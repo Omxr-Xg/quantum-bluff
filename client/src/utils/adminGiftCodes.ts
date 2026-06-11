@@ -1,5 +1,5 @@
 import { apiUrl } from "./apiBase";
-import { getAuthItem } from "./authStorage";
+import { adminAuthHeaders } from "./adminAuth";
 
 export type AdminGiftCodeRow = {
   id: string;
@@ -23,14 +23,6 @@ export type AdminGiftCodeCreatePayload = {
   expiresAt: string | null;
   maxUses: number;
 };
-
-function adminAuthHeaders(): HeadersInit {
-  const token = getAuthItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 /** Essaie plusieurs chemins API (VM peut n’avoir qu’un sous-ensemble des routes). */
 async function fetchAdminGiftCodesApi(

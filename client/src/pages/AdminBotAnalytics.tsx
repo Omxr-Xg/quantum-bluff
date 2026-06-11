@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { apiUrl } from "../utils/apiBase";
-import { getAuthItem } from "../utils/authStorage";
+import { getAdminAuthToken } from "../utils/adminAuth";
 
 type BotMetrics = {
   botId: string;
@@ -31,7 +31,7 @@ export function AdminBotAnalytics() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const token = getAuthItem("token");
+  const token = getAdminAuthToken();
 
   const load = useCallback(async () => {
     setLoading(true);

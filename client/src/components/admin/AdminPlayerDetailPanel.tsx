@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Coins, Loader2, Plus, RefreshCw, Sparkles, User, Users, X } from "lucide-react";
 import { apiUrl } from "../../utils/apiBase";
-import { getAuthItem } from "../../utils/authStorage";
+import { adminAuthHeaders } from "../../utils/adminAuth";
 import { adminGlassCardClass, adminGlassPanelClass } from "../AdminShellBackground";
 
 const adminInputClass =
@@ -80,13 +80,7 @@ type AdminCosmeticRow = {
 
 type DetailTab = "overview" | "history" | "friends" | "cosmetics" | "ledger";
 
-function authHeaders(): HeadersInit {
-  const token = getAuthItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
+const authHeaders = adminAuthHeaders;
 
 type AdminPlayerDetailPanelProps = {
   player: PlayerSummary;

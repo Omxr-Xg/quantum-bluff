@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
 import { clearAuthStorage } from "../utils/userProfile";
-import { getAuthItem } from "../utils/authStorage";
+import { adminAuthHeaders, clearAdminAuthSession } from "../utils/adminAuth";
 import {
   createAdminGiftCode,
   listAdminGiftCodes,
@@ -83,13 +83,7 @@ function openPlayerSpectate(pathAndQuery: string): void {
   window.open(playerAppHref(pathAndQuery), "_blank", "noopener,noreferrer");
 }
 
-function authHeaders(): HeadersInit {
-  const token = getAuthItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
+const authHeaders = adminAuthHeaders;
 
 type PokerRow = {
   gameId: string;
@@ -633,7 +627,7 @@ export function AdminConsole() {
   };
 
   const logout = () => {
-    clearAuthStorage();
+    clearAdminAuthSession();
     navigate("/auth/admin", { replace: true });
   };
 

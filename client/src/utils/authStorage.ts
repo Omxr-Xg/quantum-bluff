@@ -3,10 +3,13 @@ import { hasCapacitorBridgeObject, shouldPersistAuth } from "./platform";
 
 const AUTH_KEYS = [
   "token",
+  "adminToken",
   "role",
   "userId",
+  "adminUserId",
   "userid",
   "username",
+  "adminUsername",
   "quantum_bluff_username",
   "quantum_bluff_email",
   "quantum_bluff_avatar",

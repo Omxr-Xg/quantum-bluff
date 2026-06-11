@@ -18,12 +18,16 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 function readFromStorage() {
+  const isAdmin = getAuthItem("role") === "admin";
+  if (isAdmin) {
+    return { userId: null, username: null, isAdmin: true };
+  }
   const rawUserId = getAuthItem("userId") ?? getAuthItem("userid");
   const rawUsername = getAuthItem("username");
   return {
     userId: rawUserId && rawUserId !== "undefined" && rawUserId !== "null" ? rawUserId : null,
     username: rawUsername && rawUsername !== "undefined" && rawUsername !== "null" ? rawUsername : null,
-    isAdmin: getAuthItem("role") === "admin",
+    isAdmin: false,
   };
 }
 
@@ -53,11 +57,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   /** Précharge lobby (salles, défis, amis) dès la connexion, avant d’ouvrir /lobby. */
   useEffect(() => {
-    if (!userId || !getAuthItem("token")) return;
+    if (isAdmin || !userId || !getAuthItem("token")) return;
     store.dispatch(api.util.prefetch("getDailyChallenges", undefined, { force: false }));
     store.dispatch(api.util.prefetch("getFriends", userId, { force: false }));
     prefetchLobbyData(userId);
-  }, [userId]);
+  }, [userId, isAdmin]);
 
   const setChipsSynced = (value: number) => {
     updateUserBalance(value);

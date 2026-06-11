@@ -50,6 +50,7 @@ async function prefetchTournaments(): Promise<void> {
 
 /** Précharge salles / parties / tournois en arrière-plan (sessionStorage). */
 export function prefetchLobbyData(userId: string | null): void {
+  if (getAuthItem("role") === "admin") return;
   if (!userId || !getAuthItem("token")) return;
 
   const run = () => {

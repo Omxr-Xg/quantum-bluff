@@ -18,7 +18,11 @@ import {
 import { QuantumBluffLogo } from "../assets/logo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { apiUrl } from "../utils/apiBase";
-import { getAuthItem, setAuthItem } from "../utils/authStorage";
+import {
+  isAdminAuthSession,
+  migrateLegacyAdminTokenInPlayerSlot,
+  setAdminAuthSession,
+} from "../utils/adminAuth";
 
 export function AdminAuth() {
   const { t } = useTranslation();
@@ -31,8 +35,8 @@ export function AdminAuth() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = getAuthItem("token");
-    if (token && getAuthItem("role") === "admin") {
+    migrateLegacyAdminTokenInPlayerSlot();
+    if (isAdminAuthSession()) {
       navigate("/admin/console", { replace: true });
     }
   }, [navigate]);
@@ -66,10 +70,7 @@ export function AdminAuth() {
         setError(t("adminConsole.loginError"));
         return;
       }
-      setAuthItem("token", token);
-      setAuthItem("role", "admin");
-      setAuthItem("userId", user.id);
-      setAuthItem("username", user.username);
+      setAdminAuthSession({ token, userId: user.id, username: user.username });
       window.dispatchEvent(new Event("auth-changed"));
       navigate("/admin/console", { replace: true });
     } catch {

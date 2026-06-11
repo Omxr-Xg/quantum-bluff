@@ -104,8 +104,8 @@ interface TableThemeContextType {
 const TableThemeContext = createContext<TableThemeContextType | undefined>(undefined);
 
 export function TableThemeProvider({ children }: { children: ReactNode }) {
-  const { userId } = useUser();
-  const { data: shopData } = useGetTableThemeShopQuery(undefined, { skip: !userId });
+  const { userId, isAdmin } = useUser();
+  const { data: shopData } = useGetTableThemeShopQuery(undefined, { skip: !userId || isAdmin });
 
   const [tableTheme, setTableThemeState] = useState<TableThemeId | "custom">(() => {
     if (typeof window === "undefined") return "default";

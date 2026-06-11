@@ -330,9 +330,11 @@ const baseQuery = fetchBaseQuery({
     return `${origin}/api`
   })(),
   prepareHeaders: (headers) => {
-    const token = getAuthItem('token')
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`)
+    if (getAuthItem('role') !== 'admin') {
+      const token = getAuthItem('token')
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`)
+      }
     }
     headers.set('x-idempotency-key', crypto.randomUUID())
     

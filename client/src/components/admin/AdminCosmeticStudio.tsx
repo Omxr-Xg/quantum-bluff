@@ -11,7 +11,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { apiUrl } from "../../utils/apiBase";
-import { getAuthItem } from "../../utils/authStorage";
+import { adminAuthHeaders } from "../../utils/adminAuth";
 import { adminGlassPanelClass } from "../AdminShellBackground";
 import {
   applyTemplate,
@@ -48,13 +48,7 @@ type AdminCosmeticRow = {
   isCatalog: boolean;
 };
 
-function authHeaders(): HeadersInit {
-  const token = getAuthItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
+const authHeaders = adminAuthHeaders;
 
 function slugify(raw: string): string {
   return raw

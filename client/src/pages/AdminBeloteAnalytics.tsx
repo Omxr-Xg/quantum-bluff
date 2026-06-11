@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { RefreshCw } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
-import { getAuthItem } from "../utils/authStorage";
+import { getAdminAuthToken } from "../utils/adminAuth";
 
 type DecisionStat = {
   decisionSource: string;
@@ -37,7 +37,7 @@ export function AdminBeloteAnalytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const token = getAuthItem("token");
+  const token = getAdminAuthToken();
 
   const load = useCallback(async () => {
     setLoading(true);

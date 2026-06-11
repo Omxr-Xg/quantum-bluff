@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Loader2, Newspaper, Plus, Save, Trash2 } from "lucide-react";
 import { apiUrl } from "../../utils/apiBase";
-import { getAuthItem } from "../../utils/authStorage";
+import { adminAuthHeaders } from "../../utils/adminAuth";
 import { adminGlassPanelClass } from "../AdminShellBackground";
 
 const adminInputClass =
@@ -20,13 +20,7 @@ type AdminNewsRow = {
   updatedAt: string;
 };
 
-function authHeaders(): HeadersInit {
-  const token = getAuthItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
+const authHeaders = adminAuthHeaders;
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

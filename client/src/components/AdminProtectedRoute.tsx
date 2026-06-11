@@ -1,6 +1,10 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { getAuthItem } from "../utils/authStorage";
+import {
+  getAdminAuthToken,
+  isAdminAuthSession,
+  migrateLegacyAdminTokenInPlayerSlot,
+} from "../utils/adminAuth";
 
 interface Props {
   children: ReactNode;
@@ -9,14 +13,13 @@ interface Props {
 /** Accès réservé au jeton émis par POST /api/auth/admin/login. */
 export function AdminProtectedRoute({ children }: Props) {
   const location = useLocation();
-  const token = getAuthItem("token");
 
-  if (!token) {
+  useEffect(() => {
+    migrateLegacyAdminTokenInPlayerSlot();
+  }, []);
+
+  if (!getAdminAuthToken() || !isAdminAuthSession()) {
     return <Navigate to="/auth/admin" state={{ from: location.pathname }} replace />;
-  }
-
-  if (getAuthItem("role") !== "admin") {
-    return <Navigate to="/auth/admin" replace />;
   }
 
   return <>{children}</>;

@@ -23,8 +23,10 @@ import { LoaderProvider } from './contexts/LoaderContext' // Adapte le chemin si
 import App from './App'
 import './index.css'
 import { scheduleMigrateLegacyAuthOnStartup } from './utils/authStorage'
+import { migrateLegacyAdminTokenInPlayerSlot } from './utils/adminAuth'
 
 scheduleMigrateLegacyAuthOnStartup()
+migrateLegacyAdminTokenInPlayerSlot()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
