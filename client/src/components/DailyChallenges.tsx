@@ -24,6 +24,7 @@ import {
 import { sortChallengesByCompletionProximity } from "../utils/dailyChallengeNav";
 import { DailyChallengesSkeleton } from "./LobbyPanelSkeleton";
 import { DailyChallengesPanel } from "./DailyChallengesPanel";
+import dailyChallengesBg from "../assets/backg/dailychallenges.webp";
 
 const LOBBY_PREVIEW_COUNT = 3;
 
@@ -193,11 +194,19 @@ export function DailyChallenges() {
             openPanel();
           }
         }}
-        className="relative flex shrink-0 cursor-pointer flex-col rounded-2xl border border-amber-200/16 bg-slate-900/58 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl transition hover:border-amber-200/28 xl:p-4"
+        className="relative flex shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-amber-200/16 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl transition hover:border-amber-200/28 xl:p-4"
         aria-label={t("dailyChallenges.openPanel")}
       >
-        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.07] via-blue-950/[0.12] to-transparent" />
+        <div
+          className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
+          style={{ backgroundImage: `url(${dailyChallengesBg})` }}
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-950/95 via-slate-950/92 to-slate-950/96"
+          aria-hidden
+        />
+        <div className="pointer-events-none absolute inset-x-6 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-200/45 to-transparent" />
         <div className="relative z-10 flex flex-col">
           <div className="mb-2 flex items-start justify-between gap-2">
             <div>

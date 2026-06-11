@@ -27,6 +27,7 @@ import {
 import { formatFetchError } from "../utils/fetchErrors";
 import { shouldShowPollError } from "../utils/resilientPoll";
 import { LobbyActivitySection, lobbyTournamentSectionClass } from "./LobbyActivityBlocks";
+import beloteTournamentBg from "../assets/backg/belotetournois.webp";
 
 type OpenItem = {
   id: string;
@@ -56,7 +57,7 @@ export type LobbyBeloteTournamentPanelProps = {
 };
 
 const beloteTournamentSectionClass =
-  "flex min-h-0 min-w-0 flex-col rounded-2xl border border-emerald-400/15 bg-emerald-950/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-5";
+  "relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-emerald-400/15 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
 
 export function LobbyBeloteTournamentPanel({ active }: LobbyBeloteTournamentPanelProps) {
   const { t } = useTranslation();
@@ -193,6 +194,16 @@ export function LobbyBeloteTournamentPanel({ active }: LobbyBeloteTournamentPane
   return (
     <>
       <div className={beloteTournamentSectionClass}>
+        <div
+          className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
+          style={{ backgroundImage: `url(${beloteTournamentBg})` }}
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-950/95 via-slate-950/92 to-slate-950/96"
+          aria-hidden
+        />
+        <div className="relative z-10 flex min-h-0 flex-col">
         <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
           <Trophy className="h-6 w-6 shrink-0 text-emerald-300 xl:h-7 xl:w-7" />
           {t("belote.tournament.blockTitle", "Tournois Belote")}
@@ -305,6 +316,7 @@ export function LobbyBeloteTournamentPanel({ active }: LobbyBeloteTournamentPane
               );
             })}
           </LobbyActivitySection>
+        </div>
         </div>
       </div>
 

@@ -28,6 +28,7 @@ import {
   refreshGamificationFromServer,
   GAMIFICATION_CHANGED_EVENT,
 } from "../utils/gamificationStorage";
+import blackjackMultiBg from "../assets/backg/blackjackmulti.webp";
 
 type BjVisibility = "PUBLIC" | "PRIVATE";
 
@@ -755,9 +756,19 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
 
   return (
     <div className={`space-y-4 ${className}`}>
-      <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-        <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-          <Users className="h-8 w-8 text-rose-300" aria-hidden />
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-6">
+        <div
+          className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
+          style={{ backgroundImage: `url(${blackjackMultiBg})` }}
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-rose-950/95 via-slate-950/92 to-slate-950/96"
+          aria-hidden
+        />
+        <div className="relative z-10">
+        <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
+          <Users className="h-6 w-6 text-rose-300 xl:h-7 xl:w-7" aria-hidden />
           {t("bjMulti.lobbyTitle")}
         </h2>
         <p className="mb-4 max-w-2xl text-sm leading-relaxed text-slate-300/90">{t("bjMulti.lobbySubtitle")}</p>
@@ -840,6 +851,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
               })}
             </ul>
           )}
+        </div>
         </div>
       </div>
 

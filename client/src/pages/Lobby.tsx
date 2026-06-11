@@ -44,6 +44,8 @@ import botPokerBg from "../assets/backg/botpoker.webp";
 import blackjackSoloBg from "../assets/backg/blackjacksolo.webp";
 import nouveauxCasinoBg from "../assets/backg/nouveauxcasino.webp";
 import casinoRetroBg from "../assets/backg/casnioretro.webp";
+import pokerServerBg from "../assets/backg/pokerserver.webp";
+import pokerTournamentBg from "../assets/backg/pokertournois.webp";
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
@@ -69,7 +71,6 @@ import {
 import {
   LobbyActivitySection,
   LobbyFriendRoomBadge,
-  lobbyTournamentSectionClass,
 } from "../components/LobbyActivityBlocks";
 import { LobbySidebarSkeleton } from "../components/LobbyPanelSkeleton";
 import { SeasonBanner } from "../components/SeasonBanner";
@@ -1883,12 +1884,25 @@ export function Lobby() {
               {/* Grille : multi-joueurs (+ tournois uniquement sur l’onglet poker). */}
               <div
                 className={`grid min-h-0 auto-rows-min grid-cols-1 gap-4 sm:gap-5 lg:gap-3 ${
-                  lobbyMainTab === "poker" ? "md:grid-cols-2 md:items-start" : ""
+                  lobbyMainTab === "poker" ? "md:grid-cols-2 md:items-stretch" : ""
                 }`}
               >
 
               {/* Section Serveur Multi-joueurs */}
-              <div ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined} className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+              <div
+                ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined}
+                className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl"
+              >
+                <div
+                  className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
+                  style={{ backgroundImage: `url(${pokerServerBg})` }}
+                  aria-hidden
+                />
+                <div
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-950/95 via-slate-950/92 to-slate-950/96"
+                  aria-hidden
+                />
+                <div className="relative z-10 flex min-h-0 flex-1 flex-col">
                 <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
                   <Server className={`h-6 w-6 xl:h-7 xl:w-7 ${cardGameAccent.serverIcon}`} />
                   {t('lobby.multiplayerServers')}
@@ -2073,16 +2087,27 @@ export function Lobby() {
                   </LobbyActivitySection>
                   </div>
                 </div>
+                </div>
               </div>
 
               {lobbyMainTab === "poker" && (
-              <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-amber-400/15 bg-amber-950/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="mb-3 flex shrink-0 items-center gap-3 text-xl font-bold text-white xl:text-2xl">
-                  <Trophy className="w-7 h-7 text-amber-200 xl:h-8 xl:w-8" />
+              <div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-amber-400/15 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+                <div
+                  className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
+                  style={{ backgroundImage: `url(${pokerTournamentBg})` }}
+                  aria-hidden
+                />
+                <div
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-950/95 via-slate-950/92 to-slate-950/96"
+                  aria-hidden
+                />
+                <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+                <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
+                  <Trophy className="h-6 w-6 text-amber-200 xl:h-7 xl:w-7" />
                   {t('lobby.tournamentBlockTitle')}
                 </h2>
 
-                <div className="flex min-h-0 flex-col gap-3">
+                <div className="flex min-h-0 flex-col gap-2">
                   <button
                     onClick={openTournamentModal}
                     className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300/25 bg-amber-900/70 py-2.5 font-bold text-white shadow-lg shadow-black/20 transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-3"
@@ -2098,10 +2123,7 @@ export function Lobby() {
                     hasItems={openTournamentsMemo.length > 0}
                     itemCount={openTournamentsMemo.length}
                     scrollAfter={5}
-                    rowHeightPx={80}
-                    listGapPx={6}
-                    listClassName="space-y-1.5 overflow-y-auto overscroll-contain pr-1"
-                    sectionClassName={lobbyTournamentSectionClass}
+                    rowHeightPx={92}
                     emptyMessage={t("lobby.noTournamentsAvailable")}
                     errorMessage={
                       openTournamentsMemo.length === 0 && tournamentsError ? t("lobby.syncing") : null
@@ -2110,25 +2132,27 @@ export function Lobby() {
                     {openTournamentsMemo.map((tour) => (
                       <li
                         key={tour.id}
-                        className="flex min-h-[5rem] flex-col justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                        className="min-h-[5.75rem] rounded-xl border border-white/12 bg-white/[0.06] px-3.5 py-4 shadow-sm backdrop-blur-md transition hover:border-white/20"
                       >
-                        <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-2">
-                          <p className="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug text-white sm:text-base">
-                            {tour.name}
-                          </p>
+                        <div className="flex h-full w-full min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+                          <div className="min-w-0 flex-1">
+                            <p className="min-w-0 truncate text-[15px] font-semibold text-white sm:text-base">
+                              {tour.name}
+                            </p>
+                            <p className="mt-1.5 text-sm text-slate-400">
+                              {t("lobby.playersCount", { count: tour._count.players, max: tour.maxPlayers })}
+                              {" · "}
+                              {t("lobby.tournamentBlinds", { small: tour.blindSmall, big: tour.blindBig })}
+                            </p>
+                          </div>
                           <button
                             onClick={() => navigate(`/tournaments/${tour.id}`)}
-                            className="shrink-0 rounded-lg bg-amber-700 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600 sm:px-3 sm:text-sm"
+                            className="shrink-0 rounded-lg bg-amber-700 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
                             aria-label={t("lobby.join")}
                           >
                             {t("lobby.join")}
                           </button>
                         </div>
-                        <p className="text-sm text-gray-400">
-                          {t("lobby.playersCount", { count: tour._count.players, max: tour.maxPlayers })}
-                          {" · "}
-                          {t("lobby.tournamentBlinds", { small: tour.blindSmall, big: tour.blindBig })}
-                        </p>
                       </li>
                     ))}
                   </LobbyActivitySection>
@@ -2139,10 +2163,7 @@ export function Lobby() {
                     hasItems={liveTournamentsMemo.length > 0}
                     itemCount={liveTournamentsMemo.length}
                     scrollAfter={3}
-                    rowHeightPx={90}
-                    listGapPx={6}
-                    listClassName="space-y-1.5 overflow-y-auto overscroll-contain pr-1"
-                    sectionClassName={lobbyTournamentSectionClass}
+                    rowHeightPx={104}
                     emptyMessage={t("lobby.noTournamentsAvailable")}
                   >
                     {liveTournamentsMemo.map((tour) => {
@@ -2150,16 +2171,21 @@ export function Lobby() {
                       return (
                         <li
                           key={tour.tournamentId}
-                          className="flex min-h-[5.5rem] flex-col justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                          className="min-h-[5.75rem] rounded-xl border border-white/12 bg-white/[0.06] px-3.5 py-4 shadow-sm backdrop-blur-md transition hover:border-white/20"
                         >
-                          <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-2">
-                            <p className="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug text-white sm:text-base">
-                              {tour.name}
-                            </p>
-                            <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
+                          <div className="flex h-full w-full min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+                            <div className="min-w-0 flex-1">
+                              <p className="min-w-0 truncate text-[15px] font-semibold text-white sm:text-base">
+                                {tour.name}
+                              </p>
+                              <p className="mt-1.5 text-sm text-slate-400">
+                                {t("lobby.tournamentTables", { count: tour.tables.length })}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
                               <button
                                 onClick={() => navigate(`/tournaments/${tour.tournamentId}`)}
-                                className="shrink-0 rounded-lg bg-amber-700 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600 sm:px-3 sm:text-sm"
+                                className="rounded-lg bg-amber-700 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
                                 aria-label={t("lobby.join")}
                               >
                                 {t("lobby.join")}
@@ -2171,22 +2197,20 @@ export function Lobby() {
                                       `/game?gameId=${encodeURIComponent(firstTable.gameId)}&spectate=1&tournamentId=${encodeURIComponent(tour.tournamentId)}`,
                                     )
                                   }
-                                  className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-700/80 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-600/90 sm:px-3 sm:text-sm"
+                                  className="flex items-center gap-1.5 rounded-lg bg-slate-700/85 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-600/90"
                                   aria-label={t("lobby.spectate")}
                                 >
-                                  <Eye className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                                  <Eye className="h-3.5 w-3.5 shrink-0" />
                                   <span className="whitespace-nowrap">{t("lobby.spectate")}</span>
                                 </button>
                               ) : null}
                             </div>
                           </div>
-                          <p className="text-sm text-gray-400">
-                            {t("lobby.tournamentTables", { count: tour.tables.length })}
-                          </p>
                         </li>
                       );
                     })}
                   </LobbyActivitySection>
+                </div>
                 </div>
               </div>
               )}

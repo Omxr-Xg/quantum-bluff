@@ -28,6 +28,7 @@ import { challengeHighlightClass } from "../utils/challengeHighlight";
 import { LobbyActivitySection, LobbyFriendRoomBadge } from "./LobbyActivityBlocks";
 import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "./LobbySoloPlayBlock";
 import botBeloteBg from "../assets/backg/botbelote.webp";
+import beloteServerBg from "../assets/backg/beloteserver.webp";
 import { LobbyBeloteTournamentPanel } from "./LobbyBeloteTournamentPanel";
 import {
   BELOTE_BUY_IN_DEFAULT,
@@ -634,10 +635,20 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         backgroundImage={botBeloteBg}
       />
 
-      <div className="grid min-h-0 auto-rows-min grid-cols-1 gap-4 md:grid-cols-2 md:items-start">
-      <div className="flex min-h-0 flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-      <h2 className="mb-3 flex items-center gap-3 text-xl font-bold text-white xl:text-2xl">
-        <Server className={`h-7 w-7 xl:h-8 xl:w-8 ${beloteAccent.serverIcon}`} />
+      <div className="grid min-h-0 auto-rows-min grid-cols-1 gap-4 sm:gap-5 lg:gap-3 md:grid-cols-2 md:items-start">
+      <div className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+        <div
+          className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
+          style={{ backgroundImage: `url(${beloteServerBg})` }}
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-950/95 via-slate-950/92 to-slate-950/96"
+          aria-hidden
+        />
+        <div className="relative z-10 flex min-h-0 flex-col">
+      <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
+        <Server className={`h-6 w-6 xl:h-7 xl:w-7 ${beloteAccent.serverIcon}`} />
         {t("lobby.multiplayerServers")}
       </h2>
 
@@ -810,13 +821,14 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         </LobbyActivitySection>
         </div>
       </div>
-
-      {passwordJoinModal}
-      {createModal}
+        </div>
       </div>
 
       <LobbyBeloteTournamentPanel active={active} />
       </div>
+
+      {passwordJoinModal}
+      {createModal}
     </div>
   );
 }

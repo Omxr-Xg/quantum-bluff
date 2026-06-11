@@ -26,6 +26,7 @@ import {
 } from "../utils/friendsLobbyCache";
 import { FriendsListSkeleton } from "./LobbyPanelSkeleton";
 import { lobbyActivityListMaxHeight } from "./LobbyActivityBlocks";
+import friendsBg from "../assets/backg/friends.webp";
 
 const LOBBY_FRIENDS_SCROLL_AFTER = 3;
 /** Hauteur fixe d’une carte ami (alignée sur `LOBBY_FRIEND_CARD_CLASS`). */
@@ -271,11 +272,19 @@ export function FriendsList() {
           openFriendsPage();
         }
       }}
-      className="relative flex shrink-0 cursor-pointer flex-col rounded-2xl border border-amber-200/16 bg-slate-900/58 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl transition hover:border-amber-200/28 hover:bg-slate-900/68 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/45 xl:p-5"
+      className="relative flex shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-amber-200/16 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl transition hover:border-amber-200/28 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/45 xl:p-5"
       aria-label={t("friends.seeAll")}
     >
-      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-200/[0.06] via-blue-950/[0.12] to-transparent" />
+      <div
+        className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
+        style={{ backgroundImage: `url(${friendsBg})` }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-950/95 via-slate-950/92 to-slate-950/96"
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute inset-x-6 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-200/40 to-transparent" />
       <div className="relative z-10 flex flex-col">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xl font-bold text-white xl:text-2xl">
