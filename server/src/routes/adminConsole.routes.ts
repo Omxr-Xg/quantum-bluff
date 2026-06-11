@@ -329,6 +329,11 @@ const uploadAssetBody = z.object({
   dataUrl: z.string().min(32).max(1_200_000),
 })
 
+/** data URL base64 : chaîne plus longue que le fichier binaire (~4/3). */
+const newsUploadBody = z.object({
+  dataUrl: z.string().min(32).max(2_800_000),
+})
+
 router.post('/cosmetics/upload-asset', async (req, res) => {
   const parsed = uploadAssetBody.safeParse(req.body)
   if (!parsed.success) {
@@ -1182,9 +1187,11 @@ router.delete('/news/:id', async (req, res) => {
 })
 
 router.post('/news/upload-image', async (req, res) => {
-  const parsed = uploadAssetBody.safeParse(req.body)
+  const parsed = newsUploadBody.safeParse(req.body)
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Image invalide' })
+    return res.status(400).json({
+      error: 'Image invalide (fichier trop lourd ou format non supporté — JPEG, PNG, GIF, WebP)',
+    })
   }
   try {
     const saved = await saveNewsAssetFromDataUrl(parsed.data.dataUrl)

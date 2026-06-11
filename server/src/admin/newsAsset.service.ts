@@ -3,8 +3,13 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const MAX_BYTES = 1_200_000
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+const MAX_BYTES = 1_800_000
+function normalizeImageMime(mime: string): string | null {
+  const m = mime.toLowerCase()
+  if (m === 'image/jpg' || m === 'image/pjpeg') return 'image/jpeg'
+  if (m === 'image/jpeg' || m === 'image/png' || m === 'image/gif' || m === 'image/webp') return m
+  return null
+}
 
 const uploadsRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../uploads/news-assets')
 
@@ -26,8 +31,8 @@ function extForMime(mime: string): string {
 function parseDataUrl(dataUrl: string): { buffer: Buffer; mime: string } | null {
   const m = /^data:([\w/+.-]+);base64,(.*)$/i.exec(dataUrl.trim())
   if (!m) return null
-  const mime = m[1]!.toLowerCase()
-  if (!ALLOWED_MIME.has(mime)) return null
+  const mime = normalizeImageMime(m[1]!)
+  if (!mime) return null
   try {
     const buffer = Buffer.from(m[2]!, 'base64')
     if (buffer.length === 0 || buffer.length > MAX_BYTES) return null
@@ -48,7 +53,7 @@ export class NewsAssetError extends Error {
 export async function saveNewsAssetFromDataUrl(dataUrl: string): Promise<{ url: string; filename: string }> {
   const parsed = parseDataUrl(dataUrl)
   if (!parsed) {
-    throw new NewsAssetError(400, 'Image invalide (JPEG, PNG, GIF, WebP — max 1,2 Mo)')
+    throw new NewsAssetError(400, 'Image invalide (JPEG, PNG, GIF, WebP — max 1,8 Mo)')
   }
   await mkdir(uploadsRoot, { recursive: true })
   const filename = `${randomUUID()}.${extForMime(parsed.mime)}`

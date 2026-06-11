@@ -43,6 +43,7 @@ export type NewsArticle = {
   readMinutes: number;
   tags: string[];
   body: string[];
+  imageUrls?: string[];
 };
 
 export type SiteContent = {

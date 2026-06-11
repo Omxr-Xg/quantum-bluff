@@ -6,6 +6,11 @@ import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
 import { getSiteContent, type NewsArticle } from "../../content/marketing/siteContent";
 import { apiUrl } from "../../utils/apiBase";
 
+function resolveNewsThumb(url: string): string {
+  if (url.startsWith("/api/")) return apiUrl(url);
+  return url;
+}
+
 export function NewsIndexPage() {
   const { i18n } = useTranslation();
   const news = getSiteContent(i18n.language).news;
@@ -47,8 +52,19 @@ export function NewsIndexPage() {
           {articles.map((article) => (
             <article
               key={article.slug}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-cyan-400/25 hover:bg-white/[0.06]"
+              className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-cyan-400/25 hover:bg-white/[0.06]"
             >
+              {article.imageUrls?.[0] ? (
+                <Link to={`/news/${article.slug}`} className="block border-b border-white/10 bg-black/20">
+                  <img
+                    src={resolveNewsThumb(article.imageUrls[0])}
+                    alt=""
+                    className="max-h-48 w-full object-cover"
+                    loading="lazy"
+                  />
+                </Link>
+              ) : null}
+              <div className="p-5">
               <div className="mb-2 flex flex-wrap gap-2">
                 {article.tags.map((tag) => (
                   <span
@@ -77,6 +93,7 @@ export function NewsIndexPage() {
                   <Clock className="h-3.5 w-3.5" />
                   {article.readMinutes} min
                 </span>
+              </div>
               </div>
             </article>
           ))}
