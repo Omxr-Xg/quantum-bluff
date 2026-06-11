@@ -9,16 +9,20 @@ export const lobbyActivitySectionClass =
 export const lobbyActivityListClass =
   "space-y-2 overflow-y-auto overscroll-contain pr-1";
 
-const LIST_GAP_PX = 8;
+const DEFAULT_LIST_GAP_PX = 8;
+
+export const lobbyTournamentSectionClass =
+  "flex shrink-0 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md";
 
 export function lobbyActivityListMaxHeight(
   itemCount: number,
   scrollAfter: number,
   rowHeightPx: number,
+  gapPx = DEFAULT_LIST_GAP_PX,
 ): CSSProperties | undefined {
   if (itemCount <= 0) return undefined;
   const visible = Math.min(itemCount, scrollAfter);
-  const gaps = Math.max(0, visible - 1) * LIST_GAP_PX;
+  const gaps = Math.max(0, visible - 1) * gapPx;
   return { maxHeight: `${visible * rowHeightPx + gaps}px` };
 }
 
@@ -45,6 +49,9 @@ type LobbyActivitySectionProps = {
   emptyMessage: string;
   errorMessage?: string | null;
   onRetry?: () => void;
+  sectionClassName?: string;
+  listClassName?: string;
+  listGapPx?: number;
   children: ReactNode;
 };
 
@@ -59,13 +66,16 @@ export function LobbyActivitySection({
   emptyMessage,
   errorMessage,
   onRetry,
+  sectionClassName,
+  listClassName = lobbyActivityListClass,
+  listGapPx = DEFAULT_LIST_GAP_PX,
   children,
 }: LobbyActivitySectionProps) {
   const { t } = useTranslation();
-  const listStyle = lobbyActivityListMaxHeight(itemCount, scrollAfter, rowHeightPx);
+  const listStyle = lobbyActivityListMaxHeight(itemCount, scrollAfter, rowHeightPx, listGapPx);
 
   return (
-    <div ref={tourRef} className={lobbyActivitySectionClass}>
+    <div ref={tourRef} className={sectionClassName ?? lobbyActivitySectionClass}>
       <p className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-bold tracking-tight text-slate-100">
         {title}
         {loading && hasItems ? (
@@ -90,7 +100,7 @@ export function LobbyActivitySection({
       ) : !hasItems ? (
         <p className="py-1.5 text-sm text-slate-500">{emptyMessage}</p>
       ) : (
-        <ul className={lobbyActivityListClass} style={listStyle}>
+        <ul className={listClassName} style={listStyle}>
           {children}
         </ul>
       )}

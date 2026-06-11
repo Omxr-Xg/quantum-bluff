@@ -54,8 +54,12 @@ import {
 } from "../utils/userProfile";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { LobbyBeloteSection } from "../components/LobbyBeloteSection";
-import { LobbyActivitySection, LobbyFriendRoomBadge } from "../components/LobbyActivityBlocks";
-import { LobbyListSkeleton, LobbySidebarSkeleton } from "../components/LobbyPanelSkeleton";
+import {
+  LobbyActivitySection,
+  LobbyFriendRoomBadge,
+  lobbyTournamentSectionClass,
+} from "../components/LobbyActivityBlocks";
+import { LobbySidebarSkeleton } from "../components/LobbyPanelSkeleton";
 import { SeasonBanner } from "../components/SeasonBanner";
 import { getAuthItem } from "../utils/authStorage";
 import { FreeRechargeButton } from '../components/FreeRechargeButton';
@@ -1983,13 +1987,13 @@ export function Lobby() {
               </div>
 
               {lobbyMainTab === "poker" && (
-              <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-amber-400/15 bg-amber-950/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:min-h-0 lg:flex-1">
+              <div className="flex min-w-0 flex-col rounded-2xl border border-amber-400/15 bg-amber-950/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
                   <Trophy className="w-7 h-7 text-amber-200 xl:h-8 xl:w-8" />
                   {t('lobby.tournamentBlockTitle')}
                 </h2>
 
-                <div className="flex min-h-0 flex-1 flex-col gap-3">
+                <div className="flex flex-col gap-3">
                   <button
                     onClick={openTournamentModal}
                     className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300/25 bg-amber-900/70 py-2.5 font-bold text-white shadow-lg shadow-black/20 transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-3"
@@ -1999,94 +2003,101 @@ export function Lobby() {
                     {t('tournament.arena.create')}
                   </button>
 
-                  {/* Tournois en attente d'inscription */}
-                  <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
-                    <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.tournamentWaiting')}</p>
-                    {tournamentsLoading && openTournamentsMemo.length === 0 ? (
-                      <LobbyListSkeleton rows={2} />
-                    ) : openTournamentsMemo.length === 0 && tournamentsError ? (
-                      <p className="text-slate-500 text-center py-2 text-sm">{t("lobby.syncing")}</p>
-                    ) : openTournamentsMemo.length === 0 ? (
-                      <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>
-                    ) : (
-                      <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-                        {openTournamentsMemo.map((tour) => (
-                          <li
-                            key={tour.id}
-                            className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/[0.055] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                  <LobbyActivitySection
+                    title={t("lobby.tournamentWaiting")}
+                    loading={tournamentsLoading}
+                    hasItems={openTournamentsMemo.length > 0}
+                    itemCount={openTournamentsMemo.length}
+                    scrollAfter={5}
+                    rowHeightPx={56}
+                    listGapPx={4}
+                    listClassName="space-y-1 overflow-y-auto overscroll-contain pr-1"
+                    sectionClassName={lobbyTournamentSectionClass}
+                    emptyMessage={t("lobby.noTournamentsAvailable")}
+                    errorMessage={
+                      openTournamentsMemo.length === 0 && tournamentsError ? t("lobby.syncing") : null
+                    }
+                  >
+                    {openTournamentsMemo.map((tour) => (
+                      <li
+                        key={tour.id}
+                        className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/[0.055] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                      >
+                        <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-1.5 sm:gap-x-2">
+                          <p className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug text-white sm:text-[15px]">
+                            {tour.name}
+                          </p>
+                          <button
+                            onClick={() => navigate(`/tournaments/${tour.id}`)}
+                            className="shrink-0 rounded-md bg-amber-700 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-amber-600 sm:px-2 sm:text-[11px]"
+                            aria-label={t("lobby.join")}
                           >
-                            <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-1.5 sm:gap-x-2">
-                              <p className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug text-white sm:text-[15px]">{tour.name}</p>
-                              <button
-                                onClick={() => navigate(`/tournaments/${tour.id}`)}
-                                className="shrink-0 rounded-md bg-amber-700 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-amber-600 sm:px-2 sm:text-[11px]"
-                                aria-label={t('lobby.join')}
-                              >
-                                {t('lobby.join')}
-                              </button>
-                            </div>
-                            <p className="text-xs text-gray-400">
-                              {t('lobby.playersCount', { count: tour._count.players, max: tour.maxPlayers })}
-                              {' · '}
-                              {t('lobby.tournamentBlinds', { small: tour.blindSmall, big: tour.blindBig })}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+                            {t("lobby.join")}
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400">
+                          {t("lobby.playersCount", { count: tour._count.players, max: tour.maxPlayers })}
+                          {" · "}
+                          {t("lobby.tournamentBlinds", { small: tour.blindSmall, big: tour.blindBig })}
+                        </p>
+                      </li>
+                    ))}
+                  </LobbyActivitySection>
 
-                  {/* Tournois en cours (spectate possible) */}
-                  <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
-                    <p className="text-gray-300 text-sm font-semibold mb-2">{t('lobby.tournamentInProgress')}</p>
-                    {tournamentsLoading && liveTournamentsMemo.length === 0 ? (
-                      <LobbyListSkeleton rows={2} />
-                    ) : liveTournamentsMemo.length === 0 ? (
-                      <p className="text-gray-500 text-center py-2">{t('lobby.noTournamentsAvailable')}</p>
-                    ) : (
-                      <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
-                        {liveTournamentsMemo.map((tour) => {
-                          const firstTable = tour.tables[0];
-                          return (
-                            <li
-                              key={tour.tournamentId}
-                              className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/[0.055] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
-                            >
-                              <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-1.5 sm:gap-x-2">
-                                <p className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug text-white sm:text-[15px]">{tour.name}</p>
-                                <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1 sm:gap-1.5">
-                                  <button
-                                    onClick={() => navigate(`/tournaments/${tour.tournamentId}`)}
-                                    className="shrink-0 rounded-md bg-amber-700 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-amber-600 sm:px-2 sm:text-[11px]"
-                                    aria-label={t('lobby.join')}
-                                  >
-                                    {t('lobby.join')}
-                                  </button>
-                                  {firstTable ? (
-                                    <button
-                                      onClick={() =>
-                                        navigate(
-                                          `/game?gameId=${encodeURIComponent(firstTable.gameId)}&spectate=1&tournamentId=${encodeURIComponent(tour.tournamentId)}`,
-                                        )
-                                      }
-                                      className="flex shrink-0 items-center gap-0.5 rounded-md bg-slate-700/80 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-slate-600/90 sm:gap-1 sm:px-2 sm:text-[11px]"
-                                      aria-label={t('lobby.spectate')}
-                                    >
-                                      <Eye className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                                      <span className="whitespace-nowrap">{t('lobby.spectate')}</span>
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <p className="text-xs text-gray-400">
-                                {t('lobby.tournamentTables', { count: tour.tables.length })}
-                              </p>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
+                  <LobbyActivitySection
+                    title={t("lobby.tournamentInProgress")}
+                    loading={tournamentsLoading}
+                    hasItems={liveTournamentsMemo.length > 0}
+                    itemCount={liveTournamentsMemo.length}
+                    scrollAfter={3}
+                    rowHeightPx={56}
+                    listGapPx={4}
+                    listClassName="space-y-1 overflow-y-auto overscroll-contain pr-1"
+                    sectionClassName={lobbyTournamentSectionClass}
+                    emptyMessage={t("lobby.noTournamentsAvailable")}
+                  >
+                    {liveTournamentsMemo.map((tour) => {
+                      const firstTable = tour.tables[0];
+                      return (
+                        <li
+                          key={tour.tournamentId}
+                          className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/[0.055] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                        >
+                          <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-1.5 sm:gap-x-2">
+                            <p className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug text-white sm:text-[15px]">
+                              {tour.name}
+                            </p>
+                            <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1 sm:gap-1.5">
+                              <button
+                                onClick={() => navigate(`/tournaments/${tour.tournamentId}`)}
+                                className="shrink-0 rounded-md bg-amber-700 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-amber-600 sm:px-2 sm:text-[11px]"
+                                aria-label={t("lobby.join")}
+                              >
+                                {t("lobby.join")}
+                              </button>
+                              {firstTable ? (
+                                <button
+                                  onClick={() =>
+                                    navigate(
+                                      `/game?gameId=${encodeURIComponent(firstTable.gameId)}&spectate=1&tournamentId=${encodeURIComponent(tour.tournamentId)}`,
+                                    )
+                                  }
+                                  className="flex shrink-0 items-center gap-0.5 rounded-md bg-slate-700/80 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-slate-600/90 sm:gap-1 sm:px-2 sm:text-[11px]"
+                                  aria-label={t("lobby.spectate")}
+                                >
+                                  <Eye className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                                  <span className="whitespace-nowrap">{t("lobby.spectate")}</span>
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-400">
+                            {t("lobby.tournamentTables", { count: tour.tables.length })}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </LobbyActivitySection>
                 </div>
               </div>
               )}
