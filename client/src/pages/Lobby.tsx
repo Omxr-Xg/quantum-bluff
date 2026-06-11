@@ -39,6 +39,7 @@ import {
 } from "../features/tournament/tournamentConstants";
 import lobbyHeaderIcon from "../../app-icon.png";
 import { LobbyShellBackground } from "../components/LobbyShellBackground";
+import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "../components/LobbySoloPlayBlock";
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
@@ -979,7 +980,6 @@ export function Lobby() {
   };
 
   const cardGameAccent = {
-    botIcon: "text-blue-200",
     serverIcon: "text-cyan-200",
     primaryBtn: "border-blue-300/15 bg-blue-950/75 hover:border-blue-200/25 hover:bg-blue-900/80",
     joinBtn: "bg-blue-900 hover:bg-blue-800",
@@ -1863,27 +1863,17 @@ export function Lobby() {
 
           {lobbyMainTab === "poker" && (
             <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-3 lg:overflow-y-auto">
-              {/* Section Jouer contre Bot */}
-              <div ref={lobbyMainTab === "poker" ? tourRefBot : undefined} className="rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-3.5 lg:shrink-0">
-                <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-white sm:text-lg">
-                  <Bot className={`h-5 w-5 shrink-0 sm:h-6 sm:w-6 ${cardGameAccent.botIcon}`} />
-                  {t('lobby.playBot')}
-                </h2>
-
-                <button
-                  type="button"
-                  data-challenge-highlight="poker-bot"
-                  onClick={handlePlayBot}
-                  className={challengeHighlightClass(
-                    isHighlighted("poker-bot"),
-                    `relative w-full rounded-xl border py-2 text-sm font-bold text-white shadow-lg shadow-black/20 transition sm:py-2.5 sm:text-base md:py-3 ${cardGameAccent.primaryBtn}`,
-                  )}
-                  aria-label={t('lobby.configureAndPlay')}
-                >
-                  <ChallengeHighlightBadge show={isHighlighted("poker-bot")} />
-                  {t('lobby.configureAndPlay')}
-                </button>
-              </div>
+              <LobbySoloPlayBlock
+                tourRef={lobbyMainTab === "poker" ? tourRefBot : undefined}
+                icon={Bot}
+                title={t("lobby.playBot")}
+                description={t("lobby.tour.botBody")}
+                buttonLabel={t("lobby.configureAndPlay")}
+                onClick={handlePlayBot}
+                accent={lobbySoloPlayAccents.poker}
+                challengeHighlightId="poker-bot"
+                challengeHighlightActive={isHighlighted("poker-bot")}
+              />
 
               {/* Grille : multi-joueurs (+ tournois uniquement sur l’onglet poker). */}
               <div
@@ -2268,27 +2258,16 @@ export function Lobby() {
               className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto pb-4 pr-0.5 scrollbar-hide sm:pr-1 lg:flex lg:flex-col lg:gap-6 lg:space-y-0"
               style={lobbyAlignmentStyle}
             >
-              <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="mb-4 flex items-center gap-3 text-2xl font-bold text-white">
-                  <Club className="h-8 w-8 text-rose-300" aria-hidden />
-                  {t("lobby.blackjackTitle")}
-                </h2>
-                <p className="mb-4 max-w-xl text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
-                <button
-                  type="button"
-                  data-challenge-highlight="blackjack-play"
-                  onClick={() => navigate("/blackjack")}
-                  className={challengeHighlightClass(
-                    isHighlighted("blackjack-play"),
-                    "relative w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80 md:py-4",
-                  )}
-                  aria-label={t("lobby.blackjackPlay")}
-                >
-                  <ChallengeHighlightBadge show={isHighlighted("blackjack-play")} />
-                  {t("lobby.blackjackPlay")}
-                </button>
-                <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
-              </div>
+              <LobbySoloPlayBlock
+                icon={Club}
+                title={t("lobby.blackjackTitle")}
+                description={t("lobby.blackjackIntro")}
+                buttonLabel={t("lobby.blackjackPlay")}
+                onClick={() => navigate("/blackjack")}
+                accent={lobbySoloPlayAccents.blackjack}
+                challengeHighlightId="blackjack-play"
+                challengeHighlightActive={isHighlighted("blackjack-play")}
+              />
               <div>
                 <LobbyBlackjackMultiSection active={lobbyMainTab === "blackjack"} />
               </div>
