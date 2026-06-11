@@ -2854,6 +2854,10 @@
     "claimReward": "Claim reward",
     "rewardWithChips": "Reward: {{amount}} chips",
     "claimed": "Reward claimed",
+    "seeMore": "See more",
+    "start": "Start",
+    "panelTitle": "All challenges",
+    "openPanel": "Open all daily challenges",
     "categories": {
       "POKER": "Poker",
       "ROULETTE": "Roulette",

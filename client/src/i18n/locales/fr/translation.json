@@ -2852,6 +2852,10 @@
     "claimReward": "Récupérer la récompense",
     "rewardWithChips": "Récompense : {{amount}} jetons",
     "claimed": "Récompense récupérée",
+    "seeMore": "Voir plus",
+    "start": "Commencer",
+    "panelTitle": "Tous les défis",
+    "openPanel": "Ouvrir tous les défis du jour",
     "categories": {
       "POKER": "Poker",
       "ROULETTE": "Roulette",
