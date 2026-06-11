@@ -19,6 +19,7 @@
     "title": "Quantum Bluff",
     "welcome": "Bienvenido, {{username}}",
     "playBot": "Jugar vs Bot",
+    "playBotHint": "Practica en solitario: bots y dificultad a tu gusto.",
     "createServer": "Crear Servidor",
     "createNewServer": "Crear un nuevo servidor",
     "creating": "Creando...",

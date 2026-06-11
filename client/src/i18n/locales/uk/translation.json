@@ -19,6 +19,7 @@
     "title": "Quantum Bluff",
     "welcome": "Вітаємо, {{username}}",
     "playBot": "Гра проти бота",
+    "playBotHint": "Тренуйтеся наодинці — оберіть ботів і складність.",
     "createServer": "Створити сервер",
     "createNewServer": "Створити новий сервер",
     "creating": "Створення...",

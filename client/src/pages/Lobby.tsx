@@ -1867,7 +1867,7 @@ export function Lobby() {
                 tourRef={lobbyMainTab === "poker" ? tourRefBot : undefined}
                 icon={Bot}
                 title={t("lobby.playBot")}
-                description={t("lobby.tour.botBody")}
+                description={t("lobby.playBotHint")}
                 buttonLabel={t("lobby.configureAndPlay")}
                 onClick={handlePlayBot}
                 accent={lobbySoloPlayAccents.poker}

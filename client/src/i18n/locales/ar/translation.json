@@ -19,6 +19,7 @@
     "title": "Quantum Bluff",
     "welcome": "مرحباً، {{username}}",
     "playBot": "اللعب ضد البوت",
+    "playBotHint": "تدرب وحدك: اختر البوتات ومستوى الصعوبة.",
     "createServer": "إنشاء خادم",
     "createNewServer": "إنشاء خادم جديد",
     "creating": "جاري الإنشاء...",
