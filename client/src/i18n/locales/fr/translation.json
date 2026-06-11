@@ -1635,11 +1635,17 @@
   },
   "cosmetic": {
     "banner": {
-      "quantumBlue": "Quantum Bleu",
-      "royalGold": "Or Royal",
-      "neonCasino": "Casino Néon",
-      "darkLegend": "Légende Sombre",
-      "crimsonPoker": "Poker Cramoisi"
+      "generic": "Générique",
+      "france": "France",
+      "tunisia": "Tunisie",
+      "ukraine": "Ukraine",
+      "palestine": "Palestine",
+      "turkey": "Turquie",
+      "algeria": "Algérie",
+      "iran": "Iran",
+      "premium": "Premium",
+      "sexy": "Sexy",
+      "bluffeur": "Bluffeur"
     },
     "frame": {
       "bronze": "Cadre Bronze",

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { PublicPlayerCosmetics } from "../utils/publicCosmetics";
+import { bannerOverlayAlpha } from "../utils/bannerStyle";
 
 type CosmeticAvatarProps = {
   cosmetics?: PublicPlayerCosmetics | null;
@@ -72,6 +73,10 @@ type CosmeticBannerCardProps = {
   bannerHeightClass?: string;
 };
 
+function isBannerImageBackground(bg: string | undefined): boolean {
+  return Boolean(bg?.includes("url("));
+}
+
 /** Carte avec bannière cosmétique en fond (amis lobby, waiting room, etc.). */
 export function CosmeticBannerCard({
   cosmetics,
@@ -80,20 +85,39 @@ export function CosmeticBannerCard({
   bannerHeightClass = "min-h-[4.5rem]",
 }: CosmeticBannerCardProps) {
   const banner = cosmetics?.banner;
-  const overlayAlpha = banner?.overlayOpacity ?? 0.72;
+  const bg = banner?.gradient;
+  const isImage = isBannerImageBackground(bg);
+  const overlayAlpha = bannerOverlayAlpha(isImage, banner?.overlayOpacity);
+
   return (
     <div
       className={`relative overflow-hidden rounded-xl border border-white/10 ${bannerHeightClass} ${className}`}
-      style={
-        banner
-          ? { backgroundImage: banner.gradient, backgroundSize: "cover", backgroundPosition: "center" }
-          : undefined
-      }
     >
-      <div
-        className={`absolute inset-0 ${banner ? "backdrop-blur-[2px]" : "bg-white/[0.045]"}`}
-        style={banner ? { backgroundColor: `rgba(2,6,23,${overlayAlpha})` } : undefined}
-      />
+      {banner && bg ? (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: bg,
+              ...(isImage ? { backgroundPosition: "center 35%" } : {}),
+            }}
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={
+              isImage
+                ? {
+                    background: `linear-gradient(180deg, rgba(2,6,23,${overlayAlpha * 0.45}) 0%, rgba(2,6,23,${overlayAlpha}) 55%, rgba(2,6,23,${Math.min(overlayAlpha + 0.12, 0.55)}) 100%)`,
+                  }
+                : { backgroundColor: `rgba(2,6,23,${overlayAlpha})` }
+            }
+            aria-hidden
+          />
+        </>
+      ) : (
+        <div className="pointer-events-none absolute inset-0 bg-white/[0.045]" aria-hidden />
+      )}
       <div className="relative z-10 h-full">{children}</div>
     </div>
   );

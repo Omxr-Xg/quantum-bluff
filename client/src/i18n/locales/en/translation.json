@@ -1643,11 +1643,17 @@
   },
   "cosmetic": {
     "banner": {
-      "quantumBlue": "Quantum Blue",
-      "royalGold": "Royal Gold",
-      "neonCasino": "Neon Casino",
-      "darkLegend": "Dark Legend",
-      "crimsonPoker": "Crimson Poker"
+      "generic": "Generic",
+      "france": "France",
+      "tunisia": "Tunisia",
+      "ukraine": "Ukraine",
+      "palestine": "Palestine",
+      "turkey": "Turkey",
+      "algeria": "Algeria",
+      "iran": "Iran",
+      "premium": "Premium",
+      "sexy": "Sexy",
+      "bluffeur": "Bluffer"
     },
     "frame": {
       "bronze": "Bronze Frame",

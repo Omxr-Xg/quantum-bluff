@@ -11,6 +11,7 @@ import {
   type ShopCosmetic,
 } from "../services/api";
 import { trackEvent } from "../utils/analytics";
+import { parseBannerStyleJson } from "../utils/bannerStyle";
 
 const profileGlassCard =
   "rounded-2xl border border-white/10 bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl";
@@ -47,11 +48,25 @@ function rarityClass(rarity: string): string {
 function CosmeticPreview({ item }: { item: ShopCosmetic }) {
   const style = parseStyle(item.styleJson);
   if (item.type === "BANNER") {
+    const parsed = parseBannerStyleJson(item.styleJson);
+    const bg = parsed.background ?? "#334155";
     return (
-      <div
-        className="h-14 w-full rounded-lg border border-white/10"
-        style={{ background: style.gradient ?? "#334155" }}
-      />
+      <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg border border-white/10">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: bg, backgroundColor: "#334155" }}
+        />
+        {parsed.isImage ? (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(2,6,23,0.08) 0%, rgba(2,6,23,0.28) 100%)",
+            }}
+            aria-hidden
+          />
+        ) : null}
+      </div>
     );
   }
   if (item.type === "AVATAR_FRAME") {

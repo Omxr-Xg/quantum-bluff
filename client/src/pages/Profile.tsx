@@ -15,6 +15,7 @@ import {
   readGamification,
   refreshGamificationFromServer,
 } from "../utils/gamificationStorage";
+import { parseBannerStyleJson } from "../utils/bannerStyle";
 
 function withAvatarVersion(url: string, version: number): string {
   if (!url || url.startsWith("data:")) return url;
@@ -169,18 +170,23 @@ export function Profile() {
 
         <section className={`mb-5 overflow-hidden p-5 sm:p-7 ${profileGlassCard}`}>
           {equippedBanner ? (
-            <div
-              className="mb-4 h-16 w-full rounded-xl border border-white/10"
-              style={{
-                background: (() => {
-                  try {
-                    return JSON.parse(equippedBanner.styleJson).gradient as string;
-                  } catch {
-                    return "#334155";
-                  }
-                })(),
-              }}
-            />
+            <div className="relative mb-4 aspect-[2/1] w-full overflow-hidden rounded-xl border border-white/10">
+              <div
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                style={{
+                  backgroundImage: parseBannerStyleJson(equippedBanner.styleJson).background,
+                  backgroundColor: "#334155",
+                }}
+              />
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(2,6,23,0.12) 0%, rgba(2,6,23,0.32) 100%)",
+                }}
+                aria-hidden
+              />
+            </div>
           ) : null}
           <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-start md:text-left">
             <div className="relative shrink-0">

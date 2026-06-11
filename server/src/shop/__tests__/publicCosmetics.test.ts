@@ -11,14 +11,15 @@ describe('resolvePublicCosmetics', () => {
 
   it('résout bannière, cadre et titre depuis le catalogue', () => {
     const cosmetics = resolvePublicCosmetics({
-      equippedBannerId: 'banner_quantum_blue',
+      equippedBannerId: 'banner_ban_generic',
       equippedFrameId: 'frame_gold',
       equippedTitleId: 'title_champion',
     })
 
     expect(cosmetics.banner).toEqual({
-      id: 'banner_quantum_blue',
-      gradient: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #312e81 100%)',
+      id: 'banner_ban_generic',
+      gradient: 'url("/cosmetic-banners/ban1.webp")',
+      overlayOpacity: 0.32,
     })
     expect(cosmetics.frame?.id).toBe('frame_gold')
     expect(cosmetics.frame?.border).toBeTruthy()
@@ -33,7 +34,7 @@ describe('resolvePublicCosmetics', () => {
     expect(
       resolvePublicCosmetics({
         equippedBannerId: 'unknown_banner',
-        equippedFrameId: 'banner_quantum_blue',
+        equippedFrameId: 'banner_ban_generic',
         equippedTitleId: null,
       }),
     ).toEqual({

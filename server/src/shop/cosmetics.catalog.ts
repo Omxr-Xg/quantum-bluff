@@ -10,8 +10,16 @@ export type CosmeticCatalogEntry = {
   styleJson: string
 }
 
-function bannerStyle(gradient: string, className: string): string {
-  return JSON.stringify({ gradient, className })
+function bannerImageStyle(file: string, className: string): string {
+  const imageUrl = `/cosmetic-banners/${file}`
+  const backgroundCss = `url("${imageUrl}")`
+  return JSON.stringify({
+    imageUrl,
+    className,
+    backgroundCss,
+    gradient: backgroundCss,
+    overlayOpacity: 0.32,
+  })
 }
 
 function frameStyle(border: string, glow: string, className: string): string {
@@ -22,69 +30,31 @@ function titleStyle(color: string, className: string): string {
   return JSON.stringify({ color, className })
 }
 
-/** Catalogue V1 — exactement 20 cosmétiques (5 bannières, 5 cadres, 10 titres). */
+/** Catalogue boutique — 11 bannières illustrées, 5 cadres, 10 titres. */
+const SHOP_BANNER_DEFS = [
+  { id: 'banner_ban_generic', nameKey: 'cosmetic.banner.generic', file: 'ban1.webp', priceChips: 1_000, rarity: 'common' },
+  { id: 'banner_ban_france', nameKey: 'cosmetic.banner.france', file: 'ban2.webp', priceChips: 1_250, rarity: 'common' },
+  { id: 'banner_ban_tunisia', nameKey: 'cosmetic.banner.tunisia', file: 'ban3.webp', priceChips: 1_500, rarity: 'common' },
+  { id: 'banner_ban_ukraine', nameKey: 'cosmetic.banner.ukraine', file: 'ban4.webp', priceChips: 1_750, rarity: 'uncommon' },
+  { id: 'banner_ban_palestine', nameKey: 'cosmetic.banner.palestine', file: 'ban5.webp', priceChips: 2_000, rarity: 'uncommon' },
+  { id: 'banner_ban_turkey', nameKey: 'cosmetic.banner.turkey', file: 'ban6.webp', priceChips: 2_250, rarity: 'uncommon' },
+  { id: 'banner_ban_algeria', nameKey: 'cosmetic.banner.algeria', file: 'ban7.webp', priceChips: 2_500, rarity: 'rare' },
+  { id: 'banner_ban_iran', nameKey: 'cosmetic.banner.iran', file: 'ban8.webp', priceChips: 2_750, rarity: 'rare' },
+  { id: 'banner_ban_premium', nameKey: 'cosmetic.banner.premium', file: 'ban9.webp', priceChips: 3_000, rarity: 'rare' },
+  { id: 'banner_ban_sexy', nameKey: 'cosmetic.banner.sexy', file: 'ban10.webp', priceChips: 3_250, rarity: 'epic' },
+  { id: 'banner_ban_bluffeur', nameKey: 'cosmetic.banner.bluffeur', file: 'ban11.webp', priceChips: 3_500, rarity: 'legendary' },
+] as const
+
 export const COSMETIC_CATALOG: CosmeticCatalogEntry[] = [
-  // Bannières (5)
-  {
-    id: 'banner_quantum_blue',
-    type: 'BANNER',
-    nameKey: 'cosmetic.banner.quantumBlue',
-    priceChips: 2_000,
+  ...SHOP_BANNER_DEFS.map((b) => ({
+    id: b.id,
+    type: 'BANNER' as const,
+    nameKey: b.nameKey,
+    priceChips: b.priceChips,
     purchasable: true,
-    rarity: 'common',
-    styleJson: bannerStyle(
-      'linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #312e81 100%)',
-      'cosmetic-banner-quantum-blue',
-    ),
-  },
-  {
-    id: 'banner_royal_gold',
-    type: 'BANNER',
-    nameKey: 'cosmetic.banner.royalGold',
-    priceChips: 4_000,
-    purchasable: true,
-    rarity: 'rare',
-    styleJson: bannerStyle(
-      'linear-gradient(135deg, #fbbf24 0%, #d97706 50%, #78350f 100%)',
-      'cosmetic-banner-royal-gold',
-    ),
-  },
-  {
-    id: 'banner_neon_casino',
-    type: 'BANNER',
-    nameKey: 'cosmetic.banner.neonCasino',
-    priceChips: 5_000,
-    purchasable: true,
-    rarity: 'rare',
-    styleJson: bannerStyle(
-      'linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #06b6d4 100%)',
-      'cosmetic-banner-neon-casino',
-    ),
-  },
-  {
-    id: 'banner_dark_legend',
-    type: 'BANNER',
-    nameKey: 'cosmetic.banner.darkLegend',
-    priceChips: 6_500,
-    purchasable: true,
-    rarity: 'epic',
-    styleJson: bannerStyle(
-      'linear-gradient(135deg, #18181b 0%, #3f3f46 50%, #71717a 100%)',
-      'cosmetic-banner-dark-legend',
-    ),
-  },
-  {
-    id: 'banner_crimson_poker',
-    type: 'BANNER',
-    nameKey: 'cosmetic.banner.crimsonPoker',
-    priceChips: 8_000,
-    purchasable: true,
-    rarity: 'legendary',
-    styleJson: bannerStyle(
-      'linear-gradient(135deg, #991b1b 0%, #dc2626 50%, #450a0a 100%)',
-      'cosmetic-banner-crimson-poker',
-    ),
-  },
+    rarity: b.rarity,
+    styleJson: bannerImageStyle(b.file, b.id.replace(/_/g, '-')),
+  })),
 
   // Cadres avatar (5)
   {
