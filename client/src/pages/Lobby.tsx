@@ -46,6 +46,10 @@ import nouveauxCasinoBg from "../assets/backg/nouveauxcasino.webp";
 import casinoRetroBg from "../assets/backg/casnioretro.webp";
 import pokerServerBg from "../assets/backg/pokerserver.webp";
 import pokerTournamentBg from "../assets/backg/pokertournois.webp";
+import {
+  LobbyIllustratedBackground,
+  lobbyIllustratedOverlays,
+} from "../components/LobbyIllustratedBackground";
 import { useUser } from '../hooks/useUser';
 import { useToast } from '../contexts/ToastContext';
 import { useTopBar } from '../contexts/TopBarContext';
@@ -1176,7 +1180,12 @@ export function Lobby() {
          * Backdrop flou + assombri pour focus visuel sur le panneau. */}
         {showCreateModal && (
           <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowCreateModal(false)}>
-            <div className="my-auto mx-2 w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="relative my-auto mx-2 w-full max-w-md overflow-hidden rounded-2xl border border-white/10 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
+              <LobbyIllustratedBackground
+                image={pokerServerBg}
+                overlay={lobbyIllustratedOverlays.pokerServer}
+              />
+              <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">{t('lobby.createServerTitle')}</h3>
                 <button type="button" onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white p-1" aria-label={t('common.close')}>
@@ -1481,6 +1490,7 @@ export function Lobby() {
                 {creating && <Loader2 className="w-5 h-5 animate-spin" />}
                 {t('lobby.validateCreate')}
               </button>
+              </div>
             </div>
           </div>
         )}
@@ -1493,9 +1503,14 @@ export function Lobby() {
             onClick={closeTournamentModal}
           >
             <div
-              className={`my-auto mx-2 w-full ${tournamentExpanded ? "max-w-xl" : "max-w-md"} rounded-2xl border border-amber-300/20 bg-slate-950/75 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl transition-all`}
+              className={`relative my-auto mx-2 w-full overflow-hidden ${tournamentExpanded ? "max-w-xl" : "max-w-md"} rounded-2xl border border-amber-300/20 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl transition-all`}
               onClick={(e) => e.stopPropagation()}
             >
+              <LobbyIllustratedBackground
+                image={pokerTournamentBg}
+                overlay={lobbyIllustratedOverlays.pokerTournament}
+              />
+              <div className="relative z-10">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-amber-300" />
@@ -1750,6 +1765,7 @@ export function Lobby() {
                   {tournamentCreateError}
                 </p>
               )}
+              </div>
             </div>
           </div>
         )}
@@ -1893,14 +1909,9 @@ export function Lobby() {
                 ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined}
                 className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl"
               >
-                <div
-                  className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
-                  style={{ backgroundImage: `url(${pokerServerBg})` }}
-                  aria-hidden
-                />
-                <div
-                  className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-950/95 via-slate-950/92 to-slate-950/96"
-                  aria-hidden
+                <LobbyIllustratedBackground
+                  image={pokerServerBg}
+                  overlay={lobbyIllustratedOverlays.pokerServer}
                 />
                 <div className="relative z-10 flex min-h-0 flex-1 flex-col">
                 <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
@@ -2092,14 +2103,9 @@ export function Lobby() {
 
               {lobbyMainTab === "poker" && (
               <div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-amber-400/15 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <div
-                  className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
-                  style={{ backgroundImage: `url(${pokerTournamentBg})` }}
-                  aria-hidden
-                />
-                <div
-                  className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-950/95 via-slate-950/92 to-slate-950/96"
-                  aria-hidden
+                <LobbyIllustratedBackground
+                  image={pokerTournamentBg}
+                  overlay={lobbyIllustratedOverlays.pokerTournament}
                 />
                 <div className="relative z-10 flex min-h-0 flex-1 flex-col">
                 <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">

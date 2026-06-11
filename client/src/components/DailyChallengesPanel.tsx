@@ -9,6 +9,11 @@ import {
   storeChallengeNextHighlight,
 } from "../utils/dailyChallengeNav";
 import { isSocialFollowChallenge } from "../utils/socialFollowChallenge";
+import dailyChallengesBg from "../assets/backg/dailychallenges.webp";
+import {
+  LobbyIllustratedBackground,
+  lobbyIllustratedOverlays,
+} from "./LobbyIllustratedBackground";
 
 type WeeklyBonus = {
   code: string;
@@ -168,9 +173,14 @@ export function DailyChallengesPanel({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[min(92dvh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-amber-200/20 bg-slate-950/98 shadow-2xl sm:rounded-2xl"
+        className="relative flex max-h-[min(92dvh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-amber-200/20 shadow-2xl backdrop-blur-xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
+        <LobbyIllustratedBackground
+          image={dailyChallengesBg}
+          overlay={lobbyIllustratedOverlays.dailyChallenges}
+        />
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
           <div>
             <h2 id="daily-challenges-panel-title" className="flex items-center gap-2 text-lg font-bold text-white">
@@ -244,6 +254,7 @@ export function DailyChallengesPanel({
               ) : null}
             </div>
           ) : null}
+        </div>
         </div>
       </div>
     </div>

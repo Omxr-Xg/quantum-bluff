@@ -40,7 +40,7 @@ export function Blackjack() {
             name: t("bjMulti.soloRoomName"),
             maxSeats: 2,
             minBet: 10,
-            visibility: "PRIVATE",
+            visibility: "PUBLIC",
           }),
         });
         if (!create.ok) {
@@ -84,13 +84,16 @@ export function Blackjack() {
             <p className="max-w-sm text-sm text-slate-300/90">{t("bjMulti.soloStarting")}</p>
           </>
         ) : (
-          <button
-            type="button"
-            onClick={() => navigate("/lobby?tab=blackjack")}
-            className="rounded-xl bg-amber-600 px-6 py-3 font-bold text-white transition hover:bg-amber-500"
-          >
-            {t("bjMulti.backToLobby")}
-          </button>
+          <>
+            <p className="max-w-sm text-sm text-red-300">{error}</p>
+            <button
+              type="button"
+              onClick={() => navigate("/lobby?tab=blackjack")}
+              className="rounded-xl bg-amber-600 px-6 py-3 font-bold text-white transition hover:bg-amber-500"
+            >
+              {t("bjMulti.backToLobby")}
+            </button>
+          </>
         )}
       </div>
     </div>

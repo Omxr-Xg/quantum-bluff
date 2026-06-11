@@ -29,6 +29,10 @@ import { LobbyActivitySection, LobbyFriendRoomBadge } from "./LobbyActivityBlock
 import { LobbySoloPlayBlock, lobbySoloPlayAccents } from "./LobbySoloPlayBlock";
 import botBeloteBg from "../assets/backg/botbelote.webp";
 import beloteServerBg from "../assets/backg/beloteserver.webp";
+import {
+  LobbyIllustratedBackground,
+  lobbyIllustratedOverlays,
+} from "./LobbyIllustratedBackground";
 import { LobbyBeloteTournamentPanel } from "./LobbyBeloteTournamentPanel";
 import {
   BELOTE_BUY_IN_DEFAULT,
@@ -384,11 +388,16 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
             role="presentation"
           >
             <div
-              className="my-auto mx-2 w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
+              className="relative my-auto mx-2 w-full max-w-md overflow-hidden rounded-2xl border border-white/10 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
               role="dialog"
               aria-modal="true"
               onClick={(e) => e.stopPropagation()}
             >
+              <LobbyIllustratedBackground
+                image={beloteServerBg}
+                overlay={lobbyIllustratedOverlays.beloteServer}
+              />
+              <div className="relative z-10">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-xl font-bold text-white">{t("lobby.createServerTitle")}</h3>
                 <button
@@ -616,6 +625,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
                 {creating ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                 {t("lobby.validateCreate")}
               </button>
+              </div>
             </div>
           </div>,
           document.body,
@@ -637,14 +647,9 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
 
       <div className="grid min-h-0 auto-rows-min grid-cols-1 gap-4 sm:gap-5 lg:gap-3 md:grid-cols-2 md:items-start">
       <div className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-        <div
-          className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
-          style={{ backgroundImage: `url(${beloteServerBg})` }}
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-950/95 via-slate-950/92 to-slate-950/96"
-          aria-hidden
+        <LobbyIllustratedBackground
+          image={beloteServerBg}
+          overlay={lobbyIllustratedOverlays.beloteServer}
         />
         <div className="relative z-10 flex min-h-0 flex-col">
       <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">

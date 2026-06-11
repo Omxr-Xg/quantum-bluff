@@ -28,6 +28,10 @@ import { formatFetchError } from "../utils/fetchErrors";
 import { shouldShowPollError } from "../utils/resilientPoll";
 import { LobbyActivitySection, lobbyTournamentSectionClass } from "./LobbyActivityBlocks";
 import beloteTournamentBg from "../assets/backg/belotetournois.webp";
+import {
+  LobbyIllustratedBackground,
+  lobbyIllustratedOverlays,
+} from "./LobbyIllustratedBackground";
 
 type OpenItem = {
   id: string;
@@ -194,14 +198,9 @@ export function LobbyBeloteTournamentPanel({ active }: LobbyBeloteTournamentPane
   return (
     <>
       <div className={beloteTournamentSectionClass}>
-        <div
-          className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat brightness-[0.42]"
-          style={{ backgroundImage: `url(${beloteTournamentBg})` }}
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-950/95 via-slate-950/92 to-slate-950/96"
-          aria-hidden
+        <LobbyIllustratedBackground
+          image={beloteTournamentBg}
+          overlay={lobbyIllustratedOverlays.beloteTournament}
         />
         <div className="relative z-10 flex min-h-0 flex-col">
         <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
@@ -327,10 +326,15 @@ export function LobbyBeloteTournamentPanel({ active }: LobbyBeloteTournamentPane
           role="presentation"
         >
           <div
-            className={`my-auto w-full ${expanded ? "max-w-xl" : "max-w-md"} rounded-2xl border border-emerald-300/20 bg-slate-950/75 p-6 shadow-2xl`}
+            className={`relative my-auto w-full overflow-hidden ${expanded ? "max-w-xl" : "max-w-md"} rounded-2xl border border-emerald-300/20 p-6 shadow-2xl backdrop-blur-xl`}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
           >
+            <LobbyIllustratedBackground
+              image={beloteTournamentBg}
+              overlay={lobbyIllustratedOverlays.beloteTournament}
+            />
+            <div className="relative z-10">
             <h3 className="mb-4 text-xl font-bold text-white">
               {t("belote.tournament.modalTitle", "Nouveau tournoi Belote")}
             </h3>
@@ -445,6 +449,7 @@ export function LobbyBeloteTournamentPanel({ active }: LobbyBeloteTournamentPane
             )}
 
             {createError ? <p className="mt-3 text-sm text-red-400">{createError}</p> : null}
+            </div>
           </div>
         </div>
       ) : null}
