@@ -44,7 +44,7 @@ function lobbyPath(tab: "poker" | "minigames" | "blackjack" | "belote", highligh
 const CODE_NAV: Partial<Record<string, ChallengeStartNav>> = {
   INVITE_FRIEND: { path: "/friends?highlight=friends-add", highlight: "friends-add" },
   WEEKLY_INVITE_FRIEND: { path: "/friends?highlight=friends-add", highlight: "friends-add" },
-  SEND_3_CHAT: { path: lobbyPath("poker", "poker-waiting"), highlight: "poker-waiting" },
+  SEND_3_CHAT: { path: lobbyPath("poker", "poker-create"), highlight: "poker-create" },
   COMPLETE_ALL_DAILY: { path: lobbyPath("poker", "poker-waiting"), highlight: "poker-waiting" },
   ONLINE_15_MIN: { path: lobbyPath("poker", "poker-waiting"), highlight: "poker-waiting" },
   WEEKLY_BONUS: { path: lobbyPath("poker", "poker-waiting"), highlight: "poker-waiting" },
@@ -52,7 +52,7 @@ const CODE_NAV: Partial<Record<string, ChallengeStartNav>> = {
 
 const CATEGORY_NAV: Record<string, ChallengeStartNav> = {
   POKER: { path: lobbyPath("poker", "poker-waiting"), highlight: "poker-waiting" },
-  MULTIPLAYER: { path: lobbyPath("poker", "poker-waiting"), highlight: "poker-waiting" },
+  MULTIPLAYER: { path: lobbyPath("poker", "poker-create"), highlight: "poker-create" },
   ROULETTE: {
     path: lobbyPath("minigames", "minigames-retro"),
     highlight: "minigames-retro",
