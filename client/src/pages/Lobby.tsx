@@ -1803,13 +1803,13 @@ export function Lobby() {
               >
 
               {/* Section Serveur Multi-joueurs */}
-              <div ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl lg:min-h-0 lg:flex-1">
+              <div ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined} className="flex min-w-0 flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
                   <Server className={`h-6 w-6 xl:h-7 xl:w-7 ${cardGameAccent.serverIcon}`} />
                   {t('lobby.multiplayerServers')}
                 </h2>
 
-                <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={openCreateModal}
                     disabled={!userId || creating}
@@ -1820,12 +1820,15 @@ export function Lobby() {
                     {creating ? t('lobby.creating') : t('lobby.createNewServer')}
                   </button>
 
-                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                  <div className="flex flex-col gap-2">
                   <LobbyActivitySection
                     title={t("lobby.waitingRooms")}
                     tourRef={lobbyMainTab === "poker" ? tourRefWaiting : undefined}
                     loading={roomsLoading}
                     hasItems={roomsMemo.length > 0}
+                    itemCount={roomsMemo.length}
+                    scrollAfter={5}
+                    rowHeightPx={68}
                     emptyMessage={t("lobby.noServersAvailable")}
                     errorMessage={roomsMemo.length === 0 && roomsError ? t("lobby.syncing") : null}
                   >
@@ -1928,6 +1931,9 @@ export function Lobby() {
                     tourRef={lobbyMainTab === "poker" ? tourRefGames : undefined}
                     loading={gamesLoading}
                     hasItems={gamesMemo.length > 0}
+                    itemCount={gamesMemo.length}
+                    scrollAfter={3}
+                    rowHeightPx={76}
                     emptyMessage={t("lobby.noServersAvailable")}
                   >
                     {gamesMemo.map((g) => (

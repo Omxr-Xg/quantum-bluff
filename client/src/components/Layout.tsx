@@ -912,10 +912,7 @@ export function Layout({ children }: LayoutProps) {
     isBeloteWaitingRoom ||
     path.startsWith("/belote/game");
   /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
-  const lobbyDocumentScroll =
-    path === "/lobby" ||
-    path === "/tutorial/game" ||
-    path === "/leaderboard";
+  const lobbyDocumentScroll = path === "/lobby" || path === "/tutorial/game";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||

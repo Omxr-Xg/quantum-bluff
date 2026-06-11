@@ -1,13 +1,26 @@
-import type { ReactNode, RefObject } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import { Loader2, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LobbyListSkeleton } from "./LobbyPanelSkeleton";
 
 export const lobbyActivitySectionClass =
-  "flex min-h-0 flex-1 flex-col rounded-xl border border-white/12 bg-gradient-to-b from-white/[0.07] to-white/[0.025] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-md sm:p-3.5";
+  "flex shrink-0 flex-col rounded-xl border border-white/12 bg-gradient-to-b from-white/[0.07] to-white/[0.025] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-md sm:p-3.5";
 
 export const lobbyActivityListClass =
-  "min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1";
+  "space-y-2 overflow-y-auto overscroll-contain pr-1";
+
+const LIST_GAP_PX = 8;
+
+export function lobbyActivityListMaxHeight(
+  itemCount: number,
+  scrollAfter: number,
+  rowHeightPx: number,
+): CSSProperties | undefined {
+  if (itemCount <= 0) return undefined;
+  const visible = Math.min(itemCount, scrollAfter);
+  const gaps = Math.max(0, visible - 1) * LIST_GAP_PX;
+  return { maxHeight: `${visible * rowHeightPx + gaps}px` };
+}
 
 export function LobbyFriendRoomBadge() {
   const { t } = useTranslation();
@@ -24,6 +37,11 @@ type LobbyActivitySectionProps = {
   tourRef?: RefObject<HTMLDivElement | null>;
   loading: boolean;
   hasItems: boolean;
+  itemCount: number;
+  /** Nombre de lignes visibles avant scroll interne. */
+  scrollAfter: number;
+  /** Hauteur estimée d’une ligne (px). */
+  rowHeightPx: number;
   emptyMessage: string;
   errorMessage?: string | null;
   onRetry?: () => void;
@@ -35,26 +53,30 @@ export function LobbyActivitySection({
   tourRef,
   loading,
   hasItems,
+  itemCount,
+  scrollAfter,
+  rowHeightPx,
   emptyMessage,
   errorMessage,
   onRetry,
   children,
 }: LobbyActivitySectionProps) {
   const { t } = useTranslation();
+  const listStyle = lobbyActivityListMaxHeight(itemCount, scrollAfter, rowHeightPx);
 
   return (
     <div ref={tourRef} className={lobbyActivitySectionClass}>
-      <p className="mb-2 flex shrink-0 items-center gap-2 text-sm font-bold tracking-tight text-slate-100">
+      <p className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-bold tracking-tight text-slate-100">
         {title}
         {loading && hasItems ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" aria-hidden />
         ) : null}
       </p>
       {loading && !hasItems ? (
-        <LobbyListSkeleton rows={3} />
+        <LobbyListSkeleton rows={1} />
       ) : !hasItems && errorMessage ? (
-        <div className="flex flex-1 flex-col items-center justify-center py-6 text-center">
-          <p className="mb-3 text-sm text-red-400">{errorMessage}</p>
+        <div className="py-2 text-center">
+          <p className="mb-2 text-sm text-red-400">{errorMessage}</p>
           {onRetry ? (
             <button
               type="button"
@@ -66,11 +88,11 @@ export function LobbyActivitySection({
           ) : null}
         </div>
       ) : !hasItems ? (
-        <p className="flex flex-1 items-center justify-center py-6 text-center text-sm text-slate-500">
-          {emptyMessage}
-        </p>
+        <p className="py-1.5 text-sm text-slate-500">{emptyMessage}</p>
       ) : (
-        <ul className={lobbyActivityListClass}>{children}</ul>
+        <ul className={lobbyActivityListClass} style={listStyle}>
+          {children}
+        </ul>
       )}
     </div>
   );

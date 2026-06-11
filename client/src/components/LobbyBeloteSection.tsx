@@ -614,13 +614,13 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
       : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+    <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
       <h2 className="mb-3 flex items-center gap-3 text-xl font-bold text-white xl:text-2xl">
         <Server className={`h-7 w-7 xl:h-8 xl:w-8 ${beloteAccent.serverIcon}`} />
         {t("lobby.multiplayerServers")}
       </h2>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+      <div className="flex flex-col gap-2">
         <button
           type="button"
           onClick={openCreateModal}
@@ -631,11 +631,14 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
           {creating ? t("lobby.creating") : t("lobby.createNewServer")}
         </button>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+        <div className="flex flex-col gap-2">
         <LobbyActivitySection
           title={t("lobby.waitingRooms")}
           loading={roomsLoading}
           hasItems={waitingRooms.length > 0}
+          itemCount={waitingRooms.length}
+          scrollAfter={5}
+          rowHeightPx={68}
           emptyMessage={t("lobby.noServersAvailable")}
           errorMessage={waitingRooms.length === 0 ? roomsError : null}
         >
@@ -729,6 +732,9 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
           title={t("lobby.gamesInProgress")}
           loading={gamesLoading}
           hasItems={games.length > 0}
+          itemCount={games.length}
+          scrollAfter={3}
+          rowHeightPx={76}
           emptyMessage={t("belote.noGamesInProgress")}
         >
           {games.map((g) => (
