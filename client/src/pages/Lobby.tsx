@@ -1832,7 +1832,7 @@ export function Lobby() {
                     hasItems={roomsMemo.length > 0}
                     itemCount={roomsMemo.length}
                     scrollAfter={5}
-                    rowHeightPx={68}
+                    rowHeightPx={80}
                     emptyMessage={t("lobby.noServersAvailable")}
                     errorMessage={roomsMemo.length === 0 && roomsError ? t("lobby.syncing") : null}
                   >
@@ -1845,16 +1845,16 @@ export function Lobby() {
                       return (
                         <li
                           key={room.id}
-                          className="relative rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2.5 pr-[14.5rem] shadow-sm backdrop-blur-md transition hover:border-white/20 sm:pr-[17rem]"
+                          className="relative min-h-[5rem] rounded-xl border border-white/12 bg-white/[0.06] px-3.5 py-3.5 pr-[15rem] shadow-sm backdrop-blur-md transition hover:border-white/20 sm:pr-[17.5rem]"
                         >
                           <div className="min-w-0">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <p className="min-w-0 truncate text-sm font-semibold text-white sm:text-[15px]">
+                              <p className="min-w-0 truncate text-[15px] font-semibold text-white sm:text-base">
                                 {room.name}
                               </p>
                               {room.isFriendRoom ? <LobbyFriendRoomBadge /> : null}
                             </div>
-                            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
+                            <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-400">
                               {room.turbo ? (
                                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-orange-300/25 bg-orange-600/15 px-2 py-0.5 text-[10px] font-semibold text-orange-200">
                                   <Zap className="h-3 w-3" aria-hidden />
@@ -1871,18 +1871,18 @@ export function Lobby() {
                           </div>
                           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-2 whitespace-nowrap">
                             {isPrivate ? (
-                              <span className="flex min-h-8 w-[5.5rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-purple-500/35 bg-purple-600/25 px-2 py-1.5 text-[10px] font-semibold text-purple-200 sm:w-28 sm:text-xs">
-                                <Lock className="h-3 w-3" aria-hidden />
+                              <span className="flex min-h-9 w-[5.75rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-purple-500/35 bg-purple-600/25 px-2.5 py-2 text-xs font-semibold text-purple-200 sm:w-[7.25rem]">
+                                <Lock className="h-3.5 w-3.5" aria-hidden />
                                 {t("lobby.private")}
                               </span>
                             ) : (
-                              <span className="flex min-h-8 w-[5.5rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-green-500/35 bg-green-600/25 px-2 py-1.5 text-[10px] font-semibold text-green-200 sm:w-28 sm:text-xs">
-                                <Globe className="h-3 w-3" aria-hidden />
+                              <span className="flex min-h-9 w-[5.75rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-green-500/35 bg-green-600/25 px-2.5 py-2 text-xs font-semibold text-green-200 sm:w-[7.25rem]">
+                                <Globe className="h-3.5 w-3.5" aria-hidden />
                                 {t("lobby.public")}
                               </span>
                             )}
                             {isFull ? (
-                              <span className="flex min-h-8 w-[5.5rem] cursor-not-allowed items-center justify-center rounded-lg bg-slate-700 px-2 py-1.5 text-[10px] font-semibold text-gray-500 sm:w-28 sm:text-xs">
+                              <span className="flex min-h-9 w-[5.75rem] cursor-not-allowed items-center justify-center rounded-lg bg-slate-700 px-2.5 py-2 text-xs font-semibold text-gray-500 sm:w-[7.25rem]">
                                 {t("lobby.roomFull")}
                               </span>
                             ) : isPrivate && !isHost ? (
@@ -1894,7 +1894,7 @@ export function Lobby() {
                                   )
                                 }
                                 disabled={requestingRoom === room.id}
-                                className="flex min-h-8 w-[5.5rem] max-w-full items-center justify-center gap-1 rounded-lg bg-purple-600 px-2 py-1.5 text-[10px] font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-purple-800 sm:w-28 sm:text-xs"
+                                className="flex min-h-9 w-[5.75rem] max-w-full items-center justify-center gap-1 rounded-lg bg-purple-600 px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-purple-800 sm:w-[7.25rem]"
                                 aria-label={t("lobby.requestJoin")}
                               >
                                 {requestingRoom === room.id ? (
@@ -1909,7 +1909,7 @@ export function Lobby() {
                                 type="button"
                                 onClick={() => handleJoinRoom(room.id, room)}
                                 disabled={!hasEnoughChips}
-                                className={`min-h-8 w-[5.5rem] shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-white transition sm:w-28 sm:text-xs ${
+                                className={`min-h-9 w-[5.75rem] shrink-0 rounded-lg px-2.5 py-2 text-xs font-semibold text-white transition sm:w-[7.25rem] ${
                                   hasEnoughChips
                                     ? cardGameAccent.joinBtn
                                     : "cursor-not-allowed bg-slate-600 opacity-50"
@@ -1937,23 +1937,23 @@ export function Lobby() {
                     hasItems={gamesMemo.length > 0}
                     itemCount={gamesMemo.length}
                     scrollAfter={3}
-                    rowHeightPx={76}
+                    rowHeightPx={90}
                     emptyMessage={t("lobby.noServersAvailable")}
                   >
                     {gamesMemo.map((g) => (
                       <li
                         key={g.gameId}
-                        className="rounded-xl border border-white/12 bg-white/[0.06] px-3 py-3 shadow-sm backdrop-blur-md transition hover:border-white/20"
+                        className="min-h-[5rem] rounded-xl border border-white/12 bg-white/[0.06] px-3.5 py-3.5 shadow-sm backdrop-blur-md transition hover:border-white/20"
                       >
-                        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+                        <div className="flex h-full w-full min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
                           <div className="min-w-0 flex-1">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <p className="min-w-0 truncate text-sm font-semibold text-white sm:text-[15px]">
+                              <p className="min-w-0 truncate text-[15px] font-semibold text-white sm:text-base">
                                 {g.roomName}
                               </p>
                               {g.isFriendRoom ? <LobbyFriendRoomBadge /> : null}
                             </div>
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="mt-1.5 text-sm text-slate-400">
                               {t("lobby.playersCount", { count: g.playerCount, max: g.maxPlayers })} · {g.phase}
                             </p>
                           </div>
@@ -1962,7 +1962,7 @@ export function Lobby() {
                               <button
                                 type="button"
                                 onClick={() => handleJoinGame(g)}
-                                className={`rounded-lg px-3 py-2 text-xs font-semibold text-white transition sm:text-sm ${cardGameAccent.joinBtn}`}
+                                className={`rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white transition ${cardGameAccent.joinBtn}`}
                                 aria-label={t("lobby.join")}
                               >
                                 {t("lobby.join")}
@@ -1971,7 +1971,7 @@ export function Lobby() {
                             <button
                               type="button"
                               onClick={() => handleSpectateGame(g)}
-                              className="flex items-center gap-1.5 rounded-lg bg-slate-700/85 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-600/90 sm:text-sm"
+                              className="flex items-center gap-1.5 rounded-lg bg-slate-700/85 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-600/90"
                               aria-label={t("lobby.spectate")}
                             >
                               <Eye className="h-3.5 w-3.5 shrink-0" />
@@ -2009,9 +2009,9 @@ export function Lobby() {
                     hasItems={openTournamentsMemo.length > 0}
                     itemCount={openTournamentsMemo.length}
                     scrollAfter={5}
-                    rowHeightPx={56}
-                    listGapPx={4}
-                    listClassName="space-y-1 overflow-y-auto overscroll-contain pr-1"
+                    rowHeightPx={68}
+                    listGapPx={6}
+                    listClassName="space-y-1.5 overflow-y-auto overscroll-contain pr-1"
                     sectionClassName={lobbyTournamentSectionClass}
                     emptyMessage={t("lobby.noTournamentsAvailable")}
                     errorMessage={
@@ -2021,21 +2021,21 @@ export function Lobby() {
                     {openTournamentsMemo.map((tour) => (
                       <li
                         key={tour.id}
-                        className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/[0.055] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                        className="flex min-h-[4.25rem] flex-col justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
                       >
-                        <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-1.5 sm:gap-x-2">
-                          <p className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug text-white sm:text-[15px]">
+                        <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-2">
+                          <p className="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug text-white sm:text-base">
                             {tour.name}
                           </p>
                           <button
                             onClick={() => navigate(`/tournaments/${tour.id}`)}
-                            className="shrink-0 rounded-md bg-amber-700 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-amber-600 sm:px-2 sm:text-[11px]"
+                            className="shrink-0 rounded-lg bg-amber-700 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600 sm:px-3 sm:text-sm"
                             aria-label={t("lobby.join")}
                           >
                             {t("lobby.join")}
                           </button>
                         </div>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-sm text-gray-400">
                           {t("lobby.playersCount", { count: tour._count.players, max: tour.maxPlayers })}
                           {" · "}
                           {t("lobby.tournamentBlinds", { small: tour.blindSmall, big: tour.blindBig })}
@@ -2050,9 +2050,9 @@ export function Lobby() {
                     hasItems={liveTournamentsMemo.length > 0}
                     itemCount={liveTournamentsMemo.length}
                     scrollAfter={3}
-                    rowHeightPx={56}
-                    listGapPx={4}
-                    listClassName="space-y-1 overflow-y-auto overscroll-contain pr-1"
+                    rowHeightPx={76}
+                    listGapPx={6}
+                    listClassName="space-y-1.5 overflow-y-auto overscroll-contain pr-1"
                     sectionClassName={lobbyTournamentSectionClass}
                     emptyMessage={t("lobby.noTournamentsAvailable")}
                   >
@@ -2061,16 +2061,16 @@ export function Lobby() {
                       return (
                         <li
                           key={tour.tournamentId}
-                          className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/[0.055] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                          className="flex min-h-[4.75rem] flex-col justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
                         >
-                          <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-1.5 sm:gap-x-2">
-                            <p className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-snug text-white sm:text-[15px]">
+                          <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-2">
+                            <p className="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug text-white sm:text-base">
                               {tour.name}
                             </p>
-                            <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1 sm:gap-1.5">
+                            <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
                               <button
                                 onClick={() => navigate(`/tournaments/${tour.tournamentId}`)}
-                                className="shrink-0 rounded-md bg-amber-700 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-amber-600 sm:px-2 sm:text-[11px]"
+                                className="shrink-0 rounded-lg bg-amber-700 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600 sm:px-3 sm:text-sm"
                                 aria-label={t("lobby.join")}
                               >
                                 {t("lobby.join")}
@@ -2082,16 +2082,16 @@ export function Lobby() {
                                       `/game?gameId=${encodeURIComponent(firstTable.gameId)}&spectate=1&tournamentId=${encodeURIComponent(tour.tournamentId)}`,
                                     )
                                   }
-                                  className="flex shrink-0 items-center gap-0.5 rounded-md bg-slate-700/80 px-1.5 py-1 text-[10px] font-semibold text-white transition hover:bg-slate-600/90 sm:gap-1 sm:px-2 sm:text-[11px]"
+                                  className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-700/80 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-600/90 sm:px-3 sm:text-sm"
                                   aria-label={t("lobby.spectate")}
                                 >
-                                  <Eye className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                                  <Eye className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                                   <span className="whitespace-nowrap">{t("lobby.spectate")}</span>
                                 </button>
                               ) : null}
                             </div>
                           </div>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-sm text-gray-400">
                             {t("lobby.tournamentTables", { count: tour.tables.length })}
                           </p>
                         </li>

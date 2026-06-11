@@ -9,10 +9,10 @@ export function LobbyListSkeleton({ rows = 3, className = "" }: LobbyListSkeleto
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
-          className="animate-pulse rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3"
+          className="min-h-[5rem] animate-pulse rounded-xl border border-white/8 bg-white/[0.04] px-3.5 py-3.5"
         >
-          <div className="mb-2 h-3.5 w-2/5 rounded bg-white/10" />
-          <div className="h-2.5 w-1/3 rounded bg-white/[0.07]" />
+          <div className="mb-2.5 h-4 w-2/5 rounded bg-white/10" />
+          <div className="h-3 w-1/3 rounded bg-white/[0.07]" />
         </div>
       ))}
     </div>
