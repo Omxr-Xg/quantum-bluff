@@ -127,7 +127,11 @@ export async function listBeloteGamesInProgressForLobby(
 ): Promise<BeloteGameInProgressLobbyItem[]> {
   const { myFriends, coPlayCounts } = await loadLobbyFriendSortContext(userId)
   const rooms = await prisma.beloteRoom.findMany({
-    where: { status: 'IN_GAME', gameId: { not: null } },
+    where: {
+      status: 'IN_GAME',
+      gameId: { not: null },
+      buyIn: { gt: 0 },
+    },
     select: {
       id: true,
       name: true,
