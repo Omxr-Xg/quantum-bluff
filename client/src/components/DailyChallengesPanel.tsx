@@ -4,9 +4,11 @@ import { useTranslation } from "react-i18next";
 import { CheckCircle, Target, Trophy, X } from "lucide-react";
 import type { DailyChallengeDto } from "../services/api";
 import {
-  getDailyChallengeStartPath,
+  getChallengeStartNavigation,
   sortChallengesByCompletionProximity,
+  storeChallengeNextHighlight,
 } from "../utils/dailyChallengeNav";
+import { isSocialFollowChallenge } from "../utils/socialFollowChallenge";
 
 type WeeklyBonus = {
   code: string;
@@ -28,6 +30,7 @@ type DailyChallengesPanelProps = {
   cycleDay: number;
   claiming: boolean;
   onClaim: (code: string) => void;
+  onStartSocialFollow?: (code: string) => void;
 };
 
 export function DailyChallengesPanel({
@@ -39,6 +42,7 @@ export function DailyChallengesPanel({
   cycleDay,
   claiming,
   onClaim,
+  onStartSocialFollow,
 }: DailyChallengesPanelProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -136,11 +140,19 @@ export function DailyChallengesPanel({
             type="button"
             className="shrink-0 self-stretch rounded-xl border border-amber-300/25 bg-amber-800/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700/90 sm:self-center"
             onClick={() => {
+              if (isSocialFollowChallenge(c.code)) {
+                onStartSocialFollow?.(c.code);
+                return;
+              }
+              const nav = getChallengeStartNavigation(c);
+              storeChallengeNextHighlight(nav.nextHighlight);
               onClose();
-              navigate(getDailyChallengeStartPath(c));
+              navigate(nav.path);
             }}
           >
-            {t("dailyChallenges.start")}
+            {isSocialFollowChallenge(c.code)
+              ? t("dailyChallenges.followSocial")
+              : t("dailyChallenges.start")}
           </button>
         ) : null}
       </li>

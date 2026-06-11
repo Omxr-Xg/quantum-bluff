@@ -16,7 +16,13 @@ import {
   WEEKLY_BONUS_CODE,
   WEEKLY_BONUS_GOAL,
   WEEKLY_MISSION_CODES,
+  WEEKLY_SOCIAL_FOLLOW_CODES,
 } from './dailyChallengeRotation.js'
+import {
+  isSocialFollowChallengeCode,
+  SOCIAL_FOLLOW_MAX_AWAY_MS,
+  SOCIAL_FOLLOW_MIN_AWAY_MS,
+} from './socialFollowChallenges.js'
 import { grantManualBadge } from '../logic/gamification.js'
 import { isRouletteBlack, isRouletteRed } from '../logic/roulette.js'
 
@@ -35,6 +41,7 @@ class DailyChallengeError extends Error {
 
 const pokerWinStreakByUser = new Map<string, number>()
 const onlineMinuteLastTick = new Map<string, number>()
+const socialFollowVisitStartedAt = new Map<string, number>()
 
 function clampProgress(nextValue: number, goal: number): number {
   return Math.max(0, Math.min(goal, nextValue))
@@ -203,7 +210,7 @@ async function ensureWeeklyChallengesForUser(
   weekKey = getWeekKey()
 ): Promise<DailyChallengeProgress[]> {
   const dayKey = getWeekStorageDayKey(weekKey)
-  const codes = [...WEEKLY_MISSION_CODES, WEEKLY_BONUS_CODE]
+  const codes = [...WEEKLY_MISSION_CODES, ...WEEKLY_SOCIAL_FOLLOW_CODES, WEEKLY_BONUS_CODE]
   await db.dailyChallengeProgress.createMany({
     data: codes.map((code) => {
       const def = definitionFor(code)
@@ -228,7 +235,7 @@ async function ensureWeeklyChallengesForUser(
   return rows
     .filter((r) => isWeeklyChallengeCode(r.challengeCode))
     .sort((a, b) => {
-      const order = [...WEEKLY_MISSION_CODES, WEEKLY_BONUS_CODE]
+      const order = [...WEEKLY_MISSION_CODES, ...WEEKLY_SOCIAL_FOLLOW_CODES, WEEKLY_BONUS_CODE]
       return order.indexOf(a.challengeCode as typeof order[number]) -
         order.indexOf(b.challengeCode as typeof order[number])
     })
@@ -571,7 +578,8 @@ export async function getMyDailyChallenges(userId: string): Promise<{
   })
 
   const missionRows = weeklyRows.filter((r) =>
-    (WEEKLY_MISSION_CODES as readonly string[]).includes(r.challengeCode)
+    (WEEKLY_MISSION_CODES as readonly string[]).includes(r.challengeCode) ||
+    (WEEKLY_SOCIAL_FOLLOW_CODES as readonly string[]).includes(r.challengeCode)
   )
   const bonusRow = weeklyRows.find((r) => r.challengeCode === WEEKLY_BONUS_CODE)
   const bonusDef = definitionFor(WEEKLY_BONUS_CODE)
@@ -593,6 +601,122 @@ export async function getMyDailyChallenges(userId: string): Promise<{
       badgeId: WEEKLY_BONUS_BADGE_ID,
     },
   }
+}
+
+function socialFollowVisitKey(userId: string, challengeCode: string): string {
+  return `${userId}:${challengeCode}`
+}
+
+export function markSocialFollowVisitStarted(userId: string, challengeCodeRaw: string): void {
+  if (!isSocialFollowChallengeCode(challengeCodeRaw)) {
+    throw new DailyChallengeError(400, 'INVALID_CHALLENGE_CODE', 'Code challenge invalide')
+  }
+  socialFollowVisitStartedAt.set(socialFollowVisitKey(userId, challengeCodeRaw), Date.now())
+}
+
+export async function completeSocialFollowVisit(
+  userId: string,
+  challengeCodeRaw: string
+): Promise<{
+  dayKey: string
+  challengeCode: DailyChallengeCode
+  rewardTokens: number
+  chips: number
+  newBadges: string[]
+}> {
+  if (!isSocialFollowChallengeCode(challengeCodeRaw)) {
+    throw new DailyChallengeError(400, 'INVALID_CHALLENGE_CODE', 'Code challenge invalide')
+  }
+  const challengeCode = challengeCodeRaw as DailyChallengeCode
+  const visitKey = socialFollowVisitKey(userId, challengeCode)
+  const startedAt = socialFollowVisitStartedAt.get(visitKey)
+  if (startedAt == null) {
+    throw new DailyChallengeError(400, 'SOCIAL_VISIT_NOT_STARTED', 'Visite réseau social non démarrée')
+  }
+
+  const awayMs = Date.now() - startedAt
+  if (awayMs < SOCIAL_FOLLOW_MIN_AWAY_MS) {
+    throw new DailyChallengeError(400, 'SOCIAL_VISIT_TOO_SHORT', 'Revenez après avoir visité la page')
+  }
+  if (awayMs > SOCIAL_FOLLOW_MAX_AWAY_MS) {
+    socialFollowVisitStartedAt.delete(visitKey)
+    throw new DailyChallengeError(400, 'SOCIAL_VISIT_EXPIRED', 'Visite expirée, recommencez')
+  }
+
+  socialFollowVisitStartedAt.delete(visitKey)
+  const dayKey = getWeekStorageDayKey()
+
+  return prisma.$transaction(async (tx) => {
+    await ensureWeeklyChallengesForUser(userId, tx)
+    const challenge = await tx.dailyChallengeProgress.findUnique({
+      where: {
+        userId_dayKey_challengeCode: {
+          userId,
+          dayKey,
+          challengeCode,
+        },
+      },
+    })
+    if (!challenge) {
+      throw new DailyChallengeError(404, 'CHALLENGE_NOT_FOUND', 'Challenge introuvable')
+    }
+    if (challenge.claimed) {
+      throw new DailyChallengeError(409, 'CHALLENGE_ALREADY_CLAIMED', 'Challenge déjà réclamé')
+    }
+
+    if (!challenge.completed) {
+      await tx.dailyChallengeProgress.update({
+        where: {
+          userId_dayKey_challengeCode: {
+            userId,
+            dayKey,
+            challengeCode,
+          },
+        },
+        data: {
+          progress: challenge.goal,
+          completed: true,
+        },
+      })
+    }
+
+    const rewardTokens = challenge.rewardTokens
+    const updatedUser = await tx.user.update({
+      where: { id: userId },
+      data: { chips: { increment: rewardTokens } },
+      select: { chips: true },
+    })
+
+    await tx.walletLedgerEntry.create({
+      data: {
+        userId,
+        amount: rewardTokens,
+        reason: 'WEEKLY_CHALLENGE_REWARD',
+        gameType: 'daily_challenge',
+        roundId: getWeekKey(),
+        actionId: `weekly-social:${getWeekKey()}:${challengeCode}`,
+      },
+    })
+
+    await tx.dailyChallengeProgress.update({
+      where: {
+        userId_dayKey_challengeCode: {
+          userId,
+          dayKey,
+          challengeCode,
+        },
+      },
+      data: { claimed: true, claimedAt: new Date() },
+    })
+
+    return {
+      dayKey,
+      challengeCode,
+      rewardTokens,
+      chips: updatedUser.chips,
+      newBadges: [],
+    }
+  })
 }
 
 export async function claimDailyChallenge(userId: string, challengeCodeRaw: string): Promise<{

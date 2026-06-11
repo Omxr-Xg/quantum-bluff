@@ -34,6 +34,13 @@ import {
   listAdminCosmetics,
 } from '../admin/adminPlayer.service.js'
 import { CosmeticAssetError, saveCosmeticAssetFromDataUrl } from '../admin/cosmeticAsset.service.js'
+import { NewsAssetError, saveNewsAssetFromDataUrl } from '../admin/newsAsset.service.js'
+import {
+  createNewsPost,
+  deleteNewsPost,
+  listAdminNewsPosts,
+  updateNewsPost,
+} from '../news/news.service.js'
 
 const router = Router()
 
@@ -1097,6 +1104,103 @@ router.get('/bot-analytics', async (_req: Request, res: Response) => {
 })
 
 router.use('/belote-analytics', beloteAnalyticsRoutes)
+
+const newsPostBody = z.object({
+  title: z.string().min(1).max(200),
+  content: z.string().min(1).max(100_000),
+  published: z.boolean().optional(),
+  slug: z.string().max(80).optional(),
+})
+
+const newsPatchBody = z.object({
+  title: z.string().min(1).max(200).optional(),
+  content: z.string().min(1).max(100_000).optional(),
+  published: z.boolean().optional(),
+  slug: z.string().max(80).optional(),
+})
+
+router.get('/news', async (_req, res) => {
+  try {
+    const posts = await listAdminNewsPosts()
+    return res.json({ posts })
+  } catch (e) {
+    console.error('[adminConsole] news list', e)
+    return res.status(500).json({ error: 'Chargement impossible' })
+  }
+})
+
+router.post('/news', async (req, res) => {
+  const parsed = newsPostBody.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Données invalides' })
+  }
+  try {
+    const post = await createNewsPost(parsed.data)
+    void logAdminAction(req, {
+      action: 'news.create',
+      targetId: post.id,
+      metadata: { slug: post.slug, published: post.published },
+    })
+    return res.status(201).json({ post })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Création impossible'
+    return res.status(400).json({ error: msg })
+  }
+})
+
+router.patch('/news/:id', async (req, res) => {
+  const parsed = newsPatchBody.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Données invalides' })
+  }
+  try {
+    const post = await updateNewsPost(req.params.id, parsed.data)
+    void logAdminAction(req, {
+      action: 'news.update',
+      targetId: post.id,
+      metadata: { slug: post.slug, published: post.published },
+    })
+    return res.json({ post })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Mise à jour impossible'
+    return res.status(400).json({ error: msg })
+  }
+})
+
+router.delete('/news/:id', async (req, res) => {
+  try {
+    await deleteNewsPost(req.params.id)
+    void logAdminAction(req, {
+      action: 'news.delete',
+      targetId: req.params.id,
+    })
+    return res.json({ deleted: true })
+  } catch (e) {
+    console.error('[adminConsole] news delete', e)
+    return res.status(500).json({ error: 'Suppression impossible' })
+  }
+})
+
+router.post('/news/upload-image', async (req, res) => {
+  const parsed = uploadAssetBody.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Image invalide' })
+  }
+  try {
+    const saved = await saveNewsAssetFromDataUrl(parsed.data.dataUrl)
+    void logAdminAction(req, {
+      action: 'news.upload_image',
+      metadata: { filename: saved.filename },
+    })
+    return res.status(201).json(saved)
+  } catch (e) {
+    if (e instanceof NewsAssetError) {
+      return res.status(e.statusCode).json({ error: e.message })
+    }
+    console.error('[adminConsole] news upload', e)
+    return res.status(500).json({ error: 'Import impossible' })
+  }
+})
 
 router.post('/bot-analytics/run', async (req: Request, res: Response) => {
   try {

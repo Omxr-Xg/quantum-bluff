@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Eye,
   Megaphone,
+  Newspaper,
   Sparkles,
 } from "lucide-react";
 import { apiUrl } from "../utils/apiBase";
@@ -38,6 +39,7 @@ import { QuantumBluffLogo } from "../assets/logo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { AdminPlayerDetailPanel } from "../components/admin/AdminPlayerDetailPanel";
 import { AdminCosmeticStudio } from "../components/admin/AdminCosmeticStudio";
+import { AdminNewsStudio } from "../components/admin/AdminNewsStudio";
 
 const adminBtnSecondary =
   "inline-flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-2.5 text-sm text-white shadow-sm transition hover:border-amber-300/25 hover:bg-slate-900/70";
@@ -54,7 +56,8 @@ type Tab =
   | "reports"
   | "giftCodes"
   | "broadcast"
-  | "cosmeticStudio";
+  | "cosmeticStudio"
+  | "news";
 
 type BroadcastSegment =
   | "new_7d"
@@ -463,7 +466,7 @@ export function AdminConsole() {
         void loadGiftCodes();
         setLoading(false);
         return;
-      } else if (tab === "broadcast" || tab === "cosmeticStudio") {
+      } else if (tab === "broadcast" || tab === "cosmeticStudio" || tab === "news") {
         setLoading(false);
         return;
       } else path = `/api/admin/console/ratings?${listParams}`;
@@ -703,6 +706,7 @@ export function AdminConsole() {
     { id: "reports", label: t("adminConsole.tabReports") },
     { id: "giftCodes", label: "Codes Cadeaux" },
     { id: "cosmeticStudio", label: t("adminConsole.tabCosmeticStudio") },
+    { id: "news", label: t("adminConsole.tabNews") },
     { id: "broadcast", label: t("adminConsole.tabBroadcast") },
   ];
 
@@ -805,6 +809,11 @@ export function AdminConsole() {
                   <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
                   {x.label}
                 </span>
+              ) : x.id === "news" ? (
+                <span className="inline-flex items-center gap-2">
+                  <Newspaper className="h-4 w-4 shrink-0" aria-hidden />
+                  {x.label}
+                </span>
               ) : (
                 x.label
               )}
@@ -812,7 +821,7 @@ export function AdminConsole() {
           ))}
         </nav>
 
-        {tab !== "broadcast" && tab !== "giftCodes" && tab !== "cosmeticStudio" && (
+        {tab !== "broadcast" && tab !== "giftCodes" && tab !== "cosmeticStudio" && tab !== "news" && (
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
@@ -1365,6 +1374,8 @@ export function AdminConsole() {
           )}
 
         {tab === "cosmeticStudio" && <AdminCosmeticStudio />}
+
+        {tab === "news" && <AdminNewsStudio />}
 
         {tab === "broadcast" && (
           <div className={`space-y-4 p-6 ${adminGlassPanelClass}`}>

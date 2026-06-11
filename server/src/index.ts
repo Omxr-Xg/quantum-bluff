@@ -64,6 +64,7 @@ import hiddenBetsRoutes from './routes/hiddenBets.routes.js'
 import feedbackRoutes from './routes/feedback.routes.js'
 import playerReportRoutes from './routes/playerReport.routes.js'
 import adminConsoleRoutes from './routes/adminConsole.routes.js'
+import newsRoutes from './routes/news.routes.js'
 import { antiCheatMiddleware } from './middleware/antiCheat.middleware.js'
 import adminRoutes from './routes/admin.routes.js'
 import { GameGateway } from './sockets/game.gateway.js'
@@ -303,6 +304,7 @@ app.use('/api/cosmetics', cosmeticAssetsRoutes)
 app.use('/api/seasons', seasonRoutes)
 app.use('/api/player', playerRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/news', newsRoutes)
 // PROD HARDENING : On ne charge les routes sensibles qu'en mode développement
 if (!env.isProduction) {
   app.use('/api/admin/blackjack/runtime', adminBlackjackRuntimeRoutes)

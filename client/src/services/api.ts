@@ -516,6 +516,29 @@ export const api = createApi({
       invalidatesTags: ['DailyChallenge'],
     }),
 
+    startSocialFollowVisit: builder.mutation<{ ok: boolean }, string>({
+      query: (challengeCode) => ({
+        url: `/daily-challenges/${encodeURIComponent(challengeCode)}/social-visit-start`,
+        method: 'POST',
+      }),
+    }),
+
+    completeSocialFollowVisit: builder.mutation<
+      {
+        success: boolean
+        chips: number
+        rewardTokens: number
+        challengeCode: string
+      },
+      string
+    >({
+      query: (challengeCode) => ({
+        url: `/daily-challenges/${encodeURIComponent(challengeCode)}/social-visit-complete`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['DailyChallenge'],
+    }),
+
     getFriendProfile: builder.query<FriendProfile, string>({
       query: (friendId) => `/friends/profile/${encodeURIComponent(friendId)}`,
       providesTags: (_r, _e, friendId) => [{ type: 'Friend', id: friendId }],
@@ -917,4 +940,6 @@ export const {
   useMarkAllNotificationsReadMutation,
   useGetDailyChallengesQuery,
   useClaimDailyChallengeMutation,
+  useStartSocialFollowVisitMutation,
+  useCompleteSocialFollowVisitMutation,
 } = api

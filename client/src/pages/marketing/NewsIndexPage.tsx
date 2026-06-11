@@ -1,19 +1,50 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Clock } from "lucide-react";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
-import { getSiteContent } from "../../content/marketing/siteContent";
+import { getSiteContent, type NewsArticle } from "../../content/marketing/siteContent";
+import { apiUrl } from "../../utils/apiBase";
 
 export function NewsIndexPage() {
   const { i18n } = useTranslation();
   const news = getSiteContent(i18n.language).news;
+  const [published, setPublished] = useState<NewsArticle[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(apiUrl("/api/news"));
+        if (!res.ok) return;
+        const data = (await res.json()) as { articles?: NewsArticle[] };
+        if (!cancelled && Array.isArray(data.articles)) {
+          setPublished(data.articles);
+        }
+      } catch {
+        /* ignore — static articles still shown */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const articles = useMemo(() => {
+    const staticSlugs = new Set(news.articles.map((a) => a.slug));
+    const merged = [
+      ...published,
+      ...news.articles.filter((a) => !staticSlugs.has(a.slug)),
+    ];
+    return merged.sort((a, b) => b.date.localeCompare(a.date));
+  }, [news.articles, published]);
 
   return (
     <PublicSiteShell pageTitle={news.title}>
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
         <p className="mb-10 text-base text-slate-400">{news.subtitle}</p>
         <div className="space-y-6">
-          {news.articles.map((article) => (
+          {articles.map((article) => (
             <article
               key={article.slug}
               className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-cyan-400/25 hover:bg-white/[0.06]"

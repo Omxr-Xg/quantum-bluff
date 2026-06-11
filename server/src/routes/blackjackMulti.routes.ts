@@ -43,6 +43,7 @@ import { createCasinoRoundContext } from '../casino/services/roundContext.servic
 import { appendWalletLedgerEntry } from '../casino/services/walletLedger.service.js'
 import { applyRepaymentOnPositiveWin } from '../services/friendLoan.service.js'
 import { emitToUsers, FRIEND_LOAN_SOCKET } from '../services/friendLoan.emit.js'
+import { hashRoomPassword, verifyRoomPassword } from '../utils/roomPassword.js'
 
 const router = express.Router()
 
@@ -363,6 +364,16 @@ router.post('/', authMiddleware, async (req, res) => {
     minBet = Math.floor(minBet)
     if (minBet < 10) minBet = 10
 
+    let passwordHash: string | null = null
+    if (visibility === 'PRIVATE') {
+      try {
+        passwordHash = await hashRoomPassword(req.body?.password)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Mot de passe requis pour une salle privée'
+        return res.status(400).json({ error: msg })
+      }
+    }
+
     const room = await prisma.$transaction(async (tx) => {
       const r = await tx.blackjackRoom.create({
         data: {
@@ -371,6 +382,7 @@ router.post('/', authMiddleware, async (req, res) => {
           maxSeats,
           visibility,
           minBet,
+          passwordHash,
           status: 'WAITING',
         },
       })
@@ -387,7 +399,10 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await touchBlackjackRoom(room.id)
 
-    return res.status(201).json({ room })
+    const { passwordHash: _ph, ...safeRoom } = room
+    return res.status(201).json({
+      room: { ...safeRoom, hasPassword: Boolean(room.passwordHash) },
+    })
   } catch (e) {
     console.error('blackjackMulti POST /', e)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -417,7 +432,11 @@ router.get('/', authMiddleware, async (req, res) => {
       take: 50,
     })
 
-    return res.json({ rooms })
+    const safeRooms = rooms.map(({ passwordHash, ...rest }) => ({
+      ...rest,
+      hasPassword: Boolean(passwordHash),
+    }))
+    return res.json({ rooms: safeRooms })
   } catch (e) {
     console.error('blackjackMulti GET /', e)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -558,7 +577,8 @@ router.get('/:roomId', authMiddleware, async (req, res) => {
       if (!seated) return res.status(403).json({ error: 'Salle privée' })
     }
 
-    return res.json({ room })
+    const { passwordHash, ...safeRoom } = room
+    return res.json({ room: { ...safeRoom, hasPassword: Boolean(passwordHash) } })
   } catch (e) {
     console.error('blackjackMulti GET /:roomId', e)
     return res.status(500).json({ error: 'Erreur serveur' })
@@ -583,6 +603,16 @@ router.post('/:roomId/join', authMiddleware, async (req, res) => {
     const existing = room.seats.find((s) => s.userId === userId)
     if (existing) {
       return res.json({ seat: existing, roomId: room.id })
+    }
+
+    if (room.passwordHash && room.hostId !== userId) {
+      const ok = await verifyRoomPassword(req.body?.password, room.passwordHash)
+      if (!ok) {
+        return res.status(403).json({
+          error: 'Mot de passe incorrect',
+          code: 'WRONG_PASSWORD',
+        })
+      }
     }
 
     if (room.seats.length >= room.maxSeats) {

@@ -8,8 +8,15 @@ import { mergeGamificationFromServerResponse } from "../utils/gamificationStorag
 import {
   useClaimDailyChallengeMutation,
   useGetDailyChallengesQuery,
+  useStartSocialFollowVisitMutation,
   type DailyChallengeDto,
 } from "../services/api";
+import {
+  getSocialFollowUrl,
+  isSocialFollowChallenge,
+  setPendingSocialFollow,
+  type WeeklySocialFollowCode,
+} from "../utils/socialFollowChallenge";
 import {
   readDailyChallengesCache,
   writeDailyChallengesCache,
@@ -42,6 +49,7 @@ export function DailyChallenges() {
   });
 
   const [claimChallenge, { isLoading: claiming }] = useClaimDailyChallengeMutation();
+  const [startSocialVisit] = useStartSocialFollowVisitMutation();
 
   const data = live ?? cached;
   const challenges = data?.challenges ?? [];
@@ -94,6 +102,17 @@ export function DailyChallenges() {
       window.clearInterval(id);
     };
   }, [userId]);
+
+  const handleStartSocialFollow = async (code: string) => {
+    if (!isSocialFollowChallenge(code)) return;
+    try {
+      await startSocialVisit(code).unwrap();
+      setPendingSocialFollow(code as WeeklySocialFollowCode);
+      window.open(getSocialFollowUrl(code as WeeklySocialFollowCode), "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Social follow start error:", err);
+    }
+  };
 
   const handleClaim = async (challengeCode: string) => {
     try {
@@ -217,7 +236,7 @@ export function DailyChallenges() {
                 e.stopPropagation();
                 openPanel();
               }}
-              className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-amber-300/20 bg-amber-950/40 py-2 text-xs font-semibold text-amber-100/90 transition hover:bg-amber-900/50"
+              className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-amber-400/55 bg-gradient-to-r from-amber-500/90 via-yellow-500/85 to-amber-400/90 py-2 text-xs font-bold text-amber-950 shadow-[0_0_16px_rgba(251,191,36,0.25)] transition hover:from-amber-400 hover:via-yellow-400 hover:to-amber-300"
             >
               {t("dailyChallenges.seeMore")}
               <ChevronRight className="h-3.5 w-3.5" aria-hidden />
@@ -235,6 +254,7 @@ export function DailyChallenges() {
         cycleDay={cycleDay}
         claiming={claiming}
         onClaim={(code) => void handleClaim(code)}
+        onStartSocialFollow={(code) => void handleStartSocialFollow(code)}
       />
     </>
   );

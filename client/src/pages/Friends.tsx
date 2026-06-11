@@ -34,7 +34,10 @@ import { useToast } from "../contexts/ToastContext";
 import { useTopBar } from "../contexts/TopBarContext";
 import { useVoice } from "../contexts/VoiceContext";
 
+import { ChallengeHighlightBadge } from "../components/ChallengeHighlightBadge";
 import { FriendSearchResultRow } from "../components/FriendSearchResultRow";
+import { useChallengeHighlight } from "../hooks/useChallengeHighlight";
+import { challengeHighlightClass } from "../utils/challengeHighlight";
 import { FriendChatMessages } from "../components/FriendChatMessages";
 import {
   useGetFriendsQuery,
@@ -152,6 +155,7 @@ function SortDropdown({ ariaLabel, value, options, onChange }: SortDropdownProps
 export function Friends() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { isHighlighted } = useChallengeHighlight();
   const { userId } = useUser();
   const { socket, isConnected, connect } = useSocket();
   const { addToast } = useToast();
@@ -705,9 +709,14 @@ export function Friends() {
               </button>
               <button
                 type="button"
+                data-challenge-highlight="friends-add"
                 onClick={() => setShowAddFriend(true)}
-                className={`flex shrink-0 touch-manipulation items-center justify-center gap-2 px-4 py-2 text-sm ${pokerButton}`}
+                className={challengeHighlightClass(
+                  isHighlighted("friends-add"),
+                  `relative flex shrink-0 touch-manipulation items-center justify-center gap-2 px-4 py-2 text-sm ${pokerButton}`,
+                )}
               >
+                <ChallengeHighlightBadge show={isHighlighted("friends-add")} />
                 <UserPlus className="h-4 w-4" />
                 {t("friends.addOneFriend")}
               </button>

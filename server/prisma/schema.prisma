@@ -469,6 +469,7 @@ model WaitingRoom {
    * Mode turbo : tour de jeu limité à 10 s (sinon 30 s)
    */
   turbo      Boolean        @default(false)
+  passwordHash String?
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 
@@ -719,9 +720,10 @@ model BlackjackRoom {
   visibility RoomVisibility      @default(PUBLIC)
   status     BlackjackRoomStatus @default(WAITING)
   gameId     String?
-  minBet     Int                 @default(10)
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
+  minBet       Int                 @default(10)
+  passwordHash String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   host        User                      @relation("BlackjackRoomHost", fields: [hostId], references: [id])
   seats       BlackjackRoomSeat[]
@@ -1719,4 +1721,19 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([action])
   @@map("admin_audit_logs")
+}
+
+model NewsPost {
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  title       String
+  excerpt     String    @default("")
+  content     String    @db.Text
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([published, publishedAt])
+  @@map("news_posts")
 }

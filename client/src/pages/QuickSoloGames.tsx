@@ -2,8 +2,11 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { Bomb, CircleDot, TrendingUp } from "lucide-react";
+import { ChallengeHighlightBadge } from "../components/ChallengeHighlightBadge";
 import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
 import { SoloGameBackButton } from "../components/minigames/SoloGameBackButton";
+import { useChallengeHighlight } from "../hooks/useChallengeHighlight";
+import { challengeHighlightClass } from "../utils/challengeHighlight";
 import { SOLO_GAMES_BACK_PATH } from "../utils/soloGameNav";
 
 type QuickGameCard = {
@@ -64,6 +67,7 @@ const QUICK_GAMES: QuickGameCard[] = [
 export function QuickSoloGames() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isHighlighted } = useChallengeHighlight();
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[#020716]">
@@ -99,10 +103,15 @@ export function QuickSoloGames() {
                     }
                   : undefined
               }
-              className={`group relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden border-white/10 px-6 py-8 text-center ${
-                index > 0 ? "border-t" : ""
-              } ${game.href ? "cursor-pointer transition hover:bg-white/[0.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60" : ""}`}
+              data-challenge-highlight={game.id}
+              className={challengeHighlightClass(
+                isHighlighted(game.id),
+                `group relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden border-white/10 px-6 py-8 text-center ${
+                  index > 0 ? "border-t" : ""
+                } ${game.href ? "cursor-pointer transition hover:bg-white/[0.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60" : ""}`,
+              )}
             >
+              <ChallengeHighlightBadge show={isHighlighted(game.id)} />
               <div className={`pointer-events-none absolute inset-0 ${game.mesh}`} aria-hidden />
               <div className={`pointer-events-none absolute inset-0 opacity-60 ${game.pattern}`} aria-hidden />
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(2,7,22,0.55)_100%)]" aria-hidden />

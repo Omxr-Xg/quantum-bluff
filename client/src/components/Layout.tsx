@@ -51,6 +51,7 @@ import { validateGiftCode, resolvePaymentPromoCode } from "../utils/wallet";
 import { DailyLoginModal } from "./DailyLoginModal";
 import { Toast } from "./Toast";
 import { InvitationBanner } from "./InvitationBanner";
+import { SocialFollowReturnListener } from "./SocialFollowReturnListener";
 import { NotificationCenter } from "./NotificationCenter";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ChipIcon } from "./ChipIcon";
@@ -2254,6 +2255,7 @@ export function Layout({ children }: LayoutProps) {
       )}
 
       <InvitationBanner />
+      <SocialFollowReturnListener />
 
       <div
         className={`w-full min-w-0 overflow-x-clip overflow-y-visible ${

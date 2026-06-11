@@ -1,7 +1,9 @@
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { Loader2, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ChallengeHighlightBadge } from "./ChallengeHighlightBadge";
 import { LobbyListSkeleton } from "./LobbyPanelSkeleton";
+import { challengeHighlightClass } from "../utils/challengeHighlight";
 
 export const lobbyActivitySectionClass =
   "flex shrink-0 flex-col rounded-xl border border-white/12 bg-gradient-to-b from-white/[0.07] to-white/[0.025] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-md sm:p-3.5";
@@ -52,6 +54,8 @@ type LobbyActivitySectionProps = {
   sectionClassName?: string;
   listClassName?: string;
   listGapPx?: number;
+  challengeHighlightId?: string;
+  challengeHighlightActive?: boolean;
   children: ReactNode;
 };
 
@@ -69,13 +73,23 @@ export function LobbyActivitySection({
   sectionClassName,
   listClassName = lobbyActivityListClass,
   listGapPx = DEFAULT_LIST_GAP_PX,
+  challengeHighlightId,
+  challengeHighlightActive = false,
   children,
 }: LobbyActivitySectionProps) {
   const { t } = useTranslation();
   const listStyle = lobbyActivityListMaxHeight(itemCount, scrollAfter, rowHeightPx, listGapPx);
 
   return (
-    <div ref={tourRef} className={sectionClassName ?? lobbyActivitySectionClass}>
+    <div
+      ref={tourRef}
+      data-challenge-highlight={challengeHighlightId}
+      className={challengeHighlightClass(
+        Boolean(challengeHighlightId && challengeHighlightActive),
+        `${challengeHighlightId ? "relative " : ""}${sectionClassName ?? lobbyActivitySectionClass}`,
+      )}
+    >
+      <ChallengeHighlightBadge show={Boolean(challengeHighlightId && challengeHighlightActive)} />
       <p className="mb-1.5 flex shrink-0 items-center gap-2 text-sm font-bold tracking-tight text-slate-100">
         {title}
         {loading && hasItems ? (

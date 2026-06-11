@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
@@ -54,6 +55,12 @@ import {
 } from "../utils/userProfile";
 import { LobbyBlackjackMultiSection } from "../components/LobbyBlackjackMultiSection";
 import { LobbyBeloteSection } from "../components/LobbyBeloteSection";
+import { ChallengeHighlightBadge } from "../components/ChallengeHighlightBadge";
+import { useChallengeHighlight } from "../hooks/useChallengeHighlight";
+import {
+  challengeHighlightClass,
+  consumeChallengeNextHighlight,
+} from "../utils/challengeHighlight";
 import {
   LobbyActivitySection,
   LobbyFriendRoomBadge,
@@ -121,6 +128,7 @@ interface WaitingRoomItem {
   bigBlind?: number | null;
   blockedPlayers?: { id: string; username: string }[];
   isFriendRoom?: boolean;
+  hasPassword?: boolean;
 }
 
 interface GameInProgressItem {
@@ -162,6 +170,7 @@ export function Lobby() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isHighlighted } = useChallengeHighlight();
   const { userId, username } = useUser();
   const inVoiceCall = useIsInVoiceCall();
   const authHeaders = useCallback(() => {
@@ -203,6 +212,13 @@ export function Lobby() {
   const [createTurbo, setCreateTurbo] = useState(false);
   /** Nom affiché de la salle ; vide = nom par défaut (ex. « Salle de … » / traduction). */
   const [createRoomName, setCreateRoomName] = useState("");
+  const [createRoomPassword, setCreateRoomPassword] = useState("");
+  const [passwordJoinTarget, setPasswordJoinTarget] = useState<{
+    roomId: string;
+    roomName: string;
+    blockedPlayers?: { username: string }[];
+  } | null>(null);
+  const [joinPasswordInput, setJoinPasswordInput] = useState("");
   const [requestingRoom, setRequestingRoom] = useState<string | null>(null);
   const [blockedRoomWarning, setBlockedRoomWarning] = useState<{
     names: string[];
@@ -800,6 +816,16 @@ export function Lobby() {
     navigate("/bot-configuration");
   };
 
+  const navigateQuickSoloHub = useCallback(() => {
+    const next = consumeChallengeNextHighlight();
+    navigate(next ? `/minigames/quick-solo?highlight=${next}` : "/minigames/quick-solo");
+  }, [navigate]);
+
+  const navigateRetroCasinoHub = useCallback(() => {
+    const next = consumeChallengeNextHighlight();
+    navigate(next ? `/minigames/retro-casino?highlight=${next}` : "/minigames/retro-casino");
+  }, [navigate]);
+
   const openCreateModal = () => {
     setShowCreateModal(true);
     setCreateVisibility('PUBLIC');
@@ -810,6 +836,7 @@ export function Lobby() {
     setCreateMinBalance(100);
     setCreateTurbo(false);
     setCreateRoomName("");
+    setCreateRoomPassword("");
   };
 
   const MIN_BALANCE = 100;
@@ -819,13 +846,17 @@ export function Lobby() {
     smallBlindField.isInvalid ||
     bigBlindField.isInvalid ||
     createSmallBlind > createBigBlind;
+  const privatePasswordInvalid =
+    createVisibility === "PRIVATE" &&
+    (createRoomPassword.trim().length < 4 || createRoomPassword.trim().length > 32);
   const canCreateServer =
     createVisibility !== null &&
     createMaxPlayers !== null &&
     !creating &&
     !isMinBalanceInvalid &&
     !minBalanceField.isInvalid &&
-    !isBlindsInvalid;
+    !isBlindsInvalid &&
+    !privatePasswordInvalid;
 
   const handleCreateServer = async () => {
     if (!userId) return;
@@ -834,6 +865,11 @@ export function Lobby() {
       addToast(t('lobby.minAmount100'), 'error');
       return;
     }
+    if (createVisibility === "PRIVATE" && privatePasswordInvalid) {
+      addToast(t("lobby.roomPasswordRequired"), "error");
+      return;
+    }
+    const roomPassword = createRoomPassword.trim();
     setCreating(true);
     setShowCreateModal(false);
     try {
@@ -853,6 +889,7 @@ export function Lobby() {
           bigBlind: createBigBlind,
           minBalance: createMinBalance,
           turbo: createTurbo,
+          ...(createVisibility === "PRIVATE" ? { password: roomPassword } : {}),
         }),
       });
       if (!res.ok) {
@@ -860,7 +897,9 @@ export function Lobby() {
         throw new Error(err?.error || `Erreur ${res.status}`);
       }
       const room = await res.json();
-      navigate(`/waiting-room?roomId=${room.id}`);
+      navigate(`/waiting-room?roomId=${room.id}`, {
+        state: createVisibility === "PRIVATE" ? { joinPassword: roomPassword } : undefined,
+      });
     } catch (e) {
       setRoomsError(e instanceof Error ? e.message : t('common.error'));
     } finally {
@@ -904,7 +943,31 @@ export function Lobby() {
       addToast(`Jetons insuffisants — il faut au moins ${room.minBalance} jetons pour cette salle.`, 'error');
       return;
     }
+    if (room?.hasPassword && room.hostId !== userId) {
+      setPasswordJoinTarget({
+        roomId,
+        roomName: room.name,
+        blockedPlayers: room.blockedPlayers,
+      });
+      setJoinPasswordInput("");
+      return;
+    }
     openBlockedRoomWarning(room?.blockedPlayers, () => navigate(`/waiting-room?roomId=${roomId}`));
+  };
+
+  const confirmPasswordJoinRoom = () => {
+    if (!passwordJoinTarget) return;
+    const pwd = joinPasswordInput.trim();
+    if (!pwd) {
+      addToast(t("belote.passwordRequired"), "error");
+      return;
+    }
+    const { roomId, blockedPlayers } = passwordJoinTarget;
+    openBlockedRoomWarning(blockedPlayers, () =>
+      navigate(`/waiting-room?roomId=${roomId}`, { state: { joinPassword: pwd } }),
+    );
+    setPasswordJoinTarget(null);
+    setJoinPasswordInput("");
   };
 
   const handleJoinGame = (game: GameInProgressItem) => {
@@ -1166,9 +1229,26 @@ export function Lobby() {
                 </div>
                 {createVisibility && (
                   <p className="text-xs text-slate-500 mt-2">
-                    {createVisibility === 'PUBLIC' ? t('lobby.publicDesc') : t('lobby.privateDesc')}
+                    {createVisibility === "PUBLIC" ? t("lobby.publicDesc") : t("lobby.privateDescPassword")}
                   </p>
                 )}
+                {createVisibility === "PRIVATE" ? (
+                  <div className="mt-4">
+                    <label htmlFor="lobby-create-room-password" className="mb-2 block text-sm font-medium text-slate-300">
+                      {t("lobby.roomPasswordLabel")}
+                    </label>
+                    <input
+                      id="lobby-create-room-password"
+                      type="password"
+                      maxLength={32}
+                      value={createRoomPassword}
+                      onChange={(e) => setCreateRoomPassword(e.target.value)}
+                      placeholder={t("lobby.roomPasswordPlaceholder")}
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-red-400/50 focus:ring-1 focus:ring-red-400/30"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                ) : null}
               </div>
 
               {/* Mode turbo */}
@@ -1782,7 +1862,7 @@ export function Lobby() {
             </nav>
 
           {lobbyMainTab === "poker" && (
-            <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-3">
+            <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-3 lg:overflow-y-auto">
               {/* Section Jouer contre Bot */}
               <div ref={lobbyMainTab === "poker" ? tourRefBot : undefined} className="rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-3.5 lg:shrink-0">
                 <h2 className="mb-2 flex items-center gap-2 text-base font-bold text-white sm:text-lg">
@@ -1791,48 +1871,62 @@ export function Lobby() {
                 </h2>
 
                 <button
+                  type="button"
+                  data-challenge-highlight="poker-bot"
                   onClick={handlePlayBot}
-                  className={`w-full rounded-xl border py-2 text-sm font-bold text-white shadow-lg shadow-black/20 transition sm:py-2.5 sm:text-base md:py-3 ${cardGameAccent.primaryBtn}`}
+                  className={challengeHighlightClass(
+                    isHighlighted("poker-bot"),
+                    `relative w-full rounded-xl border py-2 text-sm font-bold text-white shadow-lg shadow-black/20 transition sm:py-2.5 sm:text-base md:py-3 ${cardGameAccent.primaryBtn}`,
+                  )}
                   aria-label={t('lobby.configureAndPlay')}
                 >
+                  <ChallengeHighlightBadge show={isHighlighted("poker-bot")} />
                   {t('lobby.configureAndPlay')}
                 </button>
               </div>
 
               {/* Grille : multi-joueurs (+ tournois uniquement sur l’onglet poker). */}
               <div
-                className={`grid min-h-0 grid-cols-1 gap-4 sm:gap-5 lg:flex-1 lg:gap-3 lg:overflow-y-auto ${
-                  lobbyMainTab === "poker" ? "md:grid-cols-2" : ""
+                className={`grid min-h-0 auto-rows-min grid-cols-1 gap-4 sm:gap-5 lg:gap-3 ${
+                  lobbyMainTab === "poker" ? "md:grid-cols-2 md:items-start" : ""
                 }`}
               >
 
               {/* Section Serveur Multi-joueurs */}
-              <div ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined} className="flex min-w-0 flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+              <div ref={lobbyMainTab === "poker" ? tourRefMultiplayer : undefined} className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
                 <h2 className="mb-2 flex shrink-0 items-center gap-2 text-lg font-bold text-white xl:text-xl">
                   <Server className={`h-6 w-6 xl:h-7 xl:w-7 ${cardGameAccent.serverIcon}`} />
                   {t('lobby.multiplayerServers')}
                 </h2>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex min-h-0 flex-col gap-2">
                   <button
+                    type="button"
+                    data-challenge-highlight="poker-create"
                     onClick={openCreateModal}
                     disabled={!userId || creating}
-                    className={`flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border py-2.5 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-3 ${cardGameAccent.primaryBtn}`}
+                    className={challengeHighlightClass(
+                      isHighlighted("poker-create"),
+                      `relative flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border py-2.5 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-3 ${cardGameAccent.primaryBtn}`,
+                    )}
                     aria-label={t('lobby.createNewServer')}
                   >
+                    <ChallengeHighlightBadge show={isHighlighted("poker-create")} />
                     {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                     {creating ? t('lobby.creating') : t('lobby.createNewServer')}
                   </button>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex min-h-0 flex-col gap-2">
                   <LobbyActivitySection
                     title={t("lobby.waitingRooms")}
                     tourRef={lobbyMainTab === "poker" ? tourRefWaiting : undefined}
+                    challengeHighlightId="poker-waiting"
+                    challengeHighlightActive={isHighlighted("poker-waiting")}
                     loading={roomsLoading}
                     hasItems={roomsMemo.length > 0}
                     itemCount={roomsMemo.length}
                     scrollAfter={5}
-                    rowHeightPx={80}
+                    rowHeightPx={92}
                     emptyMessage={t("lobby.noServersAvailable")}
                     errorMessage={roomsMemo.length === 0 && roomsError ? t("lobby.syncing") : null}
                   >
@@ -1845,7 +1939,7 @@ export function Lobby() {
                       return (
                         <li
                           key={room.id}
-                          className="relative min-h-[5rem] rounded-xl border border-white/12 bg-white/[0.06] px-3.5 py-3.5 pr-[15rem] shadow-sm backdrop-blur-md transition hover:border-white/20 sm:pr-[17.5rem]"
+                          className="relative min-h-[5.75rem] rounded-xl border border-white/12 bg-white/[0.06] px-3.5 py-4 pr-[15rem] shadow-sm backdrop-blur-md transition hover:border-white/20 sm:pr-[17.5rem]"
                         >
                           <div className="min-w-0">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -1885,7 +1979,7 @@ export function Lobby() {
                               <span className="flex min-h-9 w-[5.75rem] cursor-not-allowed items-center justify-center rounded-lg bg-slate-700 px-2.5 py-2 text-xs font-semibold text-gray-500 sm:w-[7.25rem]">
                                 {t("lobby.roomFull")}
                               </span>
-                            ) : isPrivate && !isHost ? (
+                            ) : isPrivate && !isHost && !room.hasPassword ? (
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1937,13 +2031,13 @@ export function Lobby() {
                     hasItems={gamesMemo.length > 0}
                     itemCount={gamesMemo.length}
                     scrollAfter={3}
-                    rowHeightPx={90}
+                    rowHeightPx={104}
                     emptyMessage={t("lobby.noServersAvailable")}
                   >
                     {gamesMemo.map((g) => (
                       <li
                         key={g.gameId}
-                        className="min-h-[5rem] rounded-xl border border-white/12 bg-white/[0.06] px-3.5 py-3.5 shadow-sm backdrop-blur-md transition hover:border-white/20"
+                        className="min-h-[5.75rem] rounded-xl border border-white/12 bg-white/[0.06] px-3.5 py-4 shadow-sm backdrop-blur-md transition hover:border-white/20"
                       >
                         <div className="flex h-full w-full min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
                           <div className="min-w-0 flex-1">
@@ -1987,13 +2081,13 @@ export function Lobby() {
               </div>
 
               {lobbyMainTab === "poker" && (
-              <div className="flex min-w-0 flex-col rounded-2xl border border-amber-400/15 bg-amber-950/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
-                <h2 className="text-xl text-white font-bold flex items-center gap-3 mb-3 xl:text-2xl">
+              <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-amber-400/15 bg-amber-950/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
+                <h2 className="mb-3 flex shrink-0 items-center gap-3 text-xl font-bold text-white xl:text-2xl">
                   <Trophy className="w-7 h-7 text-amber-200 xl:h-8 xl:w-8" />
                   {t('lobby.tournamentBlockTitle')}
                 </h2>
 
-                <div className="flex flex-col gap-3">
+                <div className="flex min-h-0 flex-col gap-3">
                   <button
                     onClick={openTournamentModal}
                     className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300/25 bg-amber-900/70 py-2.5 font-bold text-white shadow-lg shadow-black/20 transition hover:border-amber-200/40 hover:bg-amber-800/80 md:py-3"
@@ -2009,7 +2103,7 @@ export function Lobby() {
                     hasItems={openTournamentsMemo.length > 0}
                     itemCount={openTournamentsMemo.length}
                     scrollAfter={5}
-                    rowHeightPx={68}
+                    rowHeightPx={80}
                     listGapPx={6}
                     listClassName="space-y-1.5 overflow-y-auto overscroll-contain pr-1"
                     sectionClassName={lobbyTournamentSectionClass}
@@ -2021,7 +2115,7 @@ export function Lobby() {
                     {openTournamentsMemo.map((tour) => (
                       <li
                         key={tour.id}
-                        className="flex min-h-[4.25rem] flex-col justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                        className="flex min-h-[5rem] flex-col justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
                       >
                         <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-2">
                           <p className="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug text-white sm:text-base">
@@ -2050,7 +2144,7 @@ export function Lobby() {
                     hasItems={liveTournamentsMemo.length > 0}
                     itemCount={liveTournamentsMemo.length}
                     scrollAfter={3}
-                    rowHeightPx={76}
+                    rowHeightPx={90}
                     listGapPx={6}
                     listClassName="space-y-1.5 overflow-y-auto overscroll-contain pr-1"
                     sectionClassName={lobbyTournamentSectionClass}
@@ -2061,7 +2155,7 @@ export function Lobby() {
                       return (
                         <li
                           key={tour.tournamentId}
-                          className="flex min-h-[4.75rem] flex-col justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
+                          className="flex min-h-[5.5rem] flex-col justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md"
                         >
                           <div className="flex w-full min-w-0 flex-nowrap items-center gap-x-2">
                             <p className="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug text-white sm:text-base">
@@ -2126,10 +2220,15 @@ export function Lobby() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => navigate("/minigames/quick-solo")}
-                    className="w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80"
+                    data-challenge-highlight="minigames-quick"
+                    onClick={navigateQuickSoloHub}
+                    className={challengeHighlightClass(
+                      isHighlighted("minigames-quick"),
+                      "relative w-full rounded-xl border border-cyan-300/15 bg-cyan-950/70 py-3 text-base font-bold text-white transition hover:border-cyan-200/25 hover:bg-cyan-900/80",
+                    )}
                     aria-label={t("minigames.newCasinoEnter")}
                   >
+                    <ChallengeHighlightBadge show={isHighlighted("minigames-quick")} />
                     {t("minigames.newCasinoEnter")}
                   </button>
                 </div>
@@ -2146,10 +2245,15 @@ export function Lobby() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => navigate("/minigames/retro-casino")}
-                    className="w-full rounded-sm border-2 border-amber-600/35 bg-gradient-to-r from-amber-950/80 via-stone-950/70 to-red-950/75 py-3 text-base font-black uppercase tracking-[0.14em] text-amber-100 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] transition hover:border-amber-500/50 hover:from-amber-900/80 hover:to-red-900/75"
+                    data-challenge-highlight="minigames-retro"
+                    onClick={navigateRetroCasinoHub}
+                    className={challengeHighlightClass(
+                      isHighlighted("minigames-retro"),
+                      "relative w-full rounded-sm border-2 border-amber-600/35 bg-gradient-to-r from-amber-950/80 via-stone-950/70 to-red-950/75 py-3 text-base font-black uppercase tracking-[0.14em] text-amber-100 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] transition hover:border-amber-500/50 hover:from-amber-900/80 hover:to-red-900/75",
+                    )}
                     aria-label={t("minigames.retroCasinoEnter")}
                   >
+                    <ChallengeHighlightBadge show={isHighlighted("minigames-retro")} />
                     {t("minigames.retroCasinoEnter")}
                   </button>
                 </div>
@@ -2172,10 +2276,15 @@ export function Lobby() {
                 <p className="mb-4 max-w-xl text-sm leading-relaxed text-gray-400">{t("lobby.blackjackIntro")}</p>
                 <button
                   type="button"
+                  data-challenge-highlight="blackjack-play"
                   onClick={() => navigate("/blackjack")}
-                  className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3 md:py-4 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80"
+                  className={challengeHighlightClass(
+                    isHighlighted("blackjack-play"),
+                    "relative w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80 md:py-4",
+                  )}
                   aria-label={t("lobby.blackjackPlay")}
                 >
+                  <ChallengeHighlightBadge show={isHighlighted("blackjack-play")} />
                   {t("lobby.blackjackPlay")}
                 </button>
                 <p className="mt-3 text-center text-xs leading-relaxed text-gray-500">{t("lobby.blackjackSoloHint")}</p>
@@ -2200,6 +2309,54 @@ export function Lobby() {
         </div>
 
       </div>
+
+      {passwordJoinTarget && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md"
+              onClick={() => setPasswordJoinTarget(null)}
+              role="presentation"
+            >
+              <div
+                className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950/90 p-6 shadow-2xl"
+                role="dialog"
+                aria-modal="true"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="mb-1 text-lg font-bold text-white">{passwordJoinTarget.roomName}</h3>
+                <p className="mb-4 text-sm text-slate-400">{t("lobby.enterRoomPassword")}</p>
+                <input
+                  type="password"
+                  className="mb-4 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none focus:border-blue-400/50"
+                  value={joinPasswordInput}
+                  onChange={(e) => setJoinPasswordInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") confirmPasswordJoinRoom();
+                  }}
+                  autoComplete="current-password"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPasswordJoinTarget(null)}
+                    className="flex-1 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5"
+                  >
+                    {t("common.cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmPasswordJoinRoom}
+                    className="flex-1 rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    {t("lobby.join")}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       <LobbyInteractiveTour
         open={lobbyTourOpen}

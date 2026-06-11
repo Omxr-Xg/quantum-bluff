@@ -21,6 +21,9 @@ import { apiFetch, apiUrl } from "../utils/apiBase";
 import { formatFetchError } from "../utils/fetchErrors";
 import { shouldShowPollError } from "../utils/resilientPoll";
 import { getAuthItem } from "../utils/authStorage";
+import { ChallengeHighlightBadge } from "./ChallengeHighlightBadge";
+import { useChallengeHighlight } from "../hooks/useChallengeHighlight";
+import { challengeHighlightClass } from "../utils/challengeHighlight";
 import { LobbyActivitySection, LobbyFriendRoomBadge } from "./LobbyActivityBlocks";
 import {
   BELOTE_BUY_IN_DEFAULT,
@@ -114,6 +117,7 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { isHighlighted } = useChallengeHighlight();
   const { userId } = useUser();
   const { addToast } = useToast();
   const inVoiceCall = useIsInVoiceCall();
@@ -623,10 +627,15 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
       <div className="flex flex-col gap-2">
         <button
           type="button"
+          data-challenge-highlight="belote-create"
           onClick={openCreateModal}
           disabled={!userId || creating}
-          className={`flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border py-2.5 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-3 ${beloteAccent.primaryBtn}`}
+          className={challengeHighlightClass(
+            isHighlighted("belote-create"),
+            `relative flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border py-2.5 font-bold text-white shadow-lg shadow-black/20 transition disabled:cursor-not-allowed disabled:bg-slate-700/70 md:py-3 ${beloteAccent.primaryBtn}`,
+          )}
         >
+          <ChallengeHighlightBadge show={isHighlighted("belote-create")} />
           {creating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
           {creating ? t("lobby.creating") : t("lobby.createNewServer")}
         </button>
@@ -634,6 +643,8 @@ export function LobbyBeloteSection({ active }: { active: boolean }) {
         <div className="flex flex-col gap-2">
         <LobbyActivitySection
           title={t("lobby.waitingRooms")}
+          challengeHighlightId="belote-waiting"
+          challengeHighlightActive={isHighlighted("belote-waiting")}
           loading={roomsLoading}
           hasItems={waitingRooms.length > 0}
           itemCount={waitingRooms.length}

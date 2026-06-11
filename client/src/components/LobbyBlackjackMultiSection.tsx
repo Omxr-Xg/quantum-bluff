@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -47,6 +48,7 @@ interface BjRoom {
   status: "WAITING" | "PLAYING";
   gameId: string | null;
   minBet: number;
+  hasPassword?: boolean;
   seats: BjSeat[];
 }
 
@@ -90,6 +92,9 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
   const newMaxField = useNumberFieldInput({ value: newMax, onChange: setNewMax, min: 2, max: 7 });
   const newMinBetField = useNumberFieldInput({ value: newMinBet, onChange: setNewMinBet, min: 10 });
   const [newVis, setNewVis] = useState<BjVisibility>("PUBLIC");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordJoinRoom, setPasswordJoinRoom] = useState<BjRoom | null>(null);
+  const [joinPasswordInput, setJoinPasswordInput] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [invitedFriendIds, setInvitedFriendIds] = useState<string[]>([]);
   const [bjMaxDisplay, setBjMaxDisplay] = useState(() => getDisplayedBlackjackMaxBet());
@@ -190,12 +195,23 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
     setInvitedFriendIds([]);
   }, [roomIdParam]);
 
-  const openRoom = (id: string) => {
-    setBjRoomInUrl(id);
+  const openRoom = (room: BjRoom) => {
+    const seated = room.seats.some((s) => s.userId === userId);
+    if (room.hasPassword && room.hostId !== userId && !seated) {
+      setPasswordJoinRoom(room);
+      setJoinPasswordInput("");
+      return;
+    }
+    setBjRoomInUrl(room.id);
   };
 
   const createRoom = async () => {
     const name = newName.trim() || t("bjMulti.defaultRoomName");
+    const pwd = newPassword.trim();
+    if (newVis === "PRIVATE" && (pwd.length < 4 || pwd.length > 32)) {
+      addToast(t("lobby.roomPasswordRequired"), "error");
+      return;
+    }
     setCreating(true);
     try {
       const res = await fetch(apiUrl("/api/blackjack-tables"), {
@@ -206,6 +222,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           maxSeats: newMax,
           minBet: newMinBet,
           visibility: newVis,
+          ...(newVis === "PRIVATE" ? { password: pwd } : {}),
         }),
       });
       if (!res.ok) {
@@ -215,6 +232,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
       const data = (await res.json()) as { room: BjRoom };
       setShowCreate(false);
       setNewName("");
+      setNewPassword("");
       await loadList();
       setBjRoomInUrl(data.room.id);
       addToast(t("bjMulti.created"), "success");
@@ -223,23 +241,49 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
     }
   };
 
-  const joinSeat = async (id: string) => {
+  const joinSeat = async (id: string, password?: string) => {
     setBusy(`join-${id}`);
     try {
       const res = await fetch(apiUrl(`/api/blackjack-tables/${id}/join`), {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({}),
+        body: JSON.stringify(password ? { password } : {}),
       });
       if (!res.ok) {
-        addToast(t("bjMulti.joinFailed"), "error");
+        const err = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
+        if (err.code === "WRONG_PASSWORD") {
+          addToast(t("belote.wrongPassword"), "error");
+        } else {
+          addToast(err.error ?? t("bjMulti.joinFailed"), "error");
+        }
         return;
       }
+      setPasswordJoinRoom(null);
+      setJoinPasswordInput("");
       setBjRoomInUrl(id);
       await loadRoom(id);
     } finally {
       setBusy(null);
     }
+  };
+
+  const requestJoinSeat = (room: BjRoom) => {
+    if (room.hasPassword && room.hostId !== userId) {
+      setPasswordJoinRoom(room);
+      setJoinPasswordInput("");
+      return;
+    }
+    void joinSeat(room.id);
+  };
+
+  const confirmPasswordJoin = () => {
+    if (!passwordJoinRoom) return;
+    const pwd = joinPasswordInput.trim();
+    if (!pwd) {
+      addToast(t("belote.passwordRequired"), "error");
+      return;
+    }
+    void joinSeat(passwordJoinRoom.id, pwd);
   };
 
   const leaveSeat = async (id: string) => {
@@ -333,6 +377,55 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
     }
   };
 
+  const passwordJoinModal =
+    passwordJoinRoom && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md"
+            onClick={() => setPasswordJoinRoom(null)}
+            role="presentation"
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950/90 p-6 shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="mb-1 text-lg font-bold text-white">{passwordJoinRoom.name}</h3>
+              <p className="mb-4 text-sm text-slate-400">{t("lobby.enterRoomPassword")}</p>
+              <input
+                type="password"
+                className="mb-4 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-white outline-none focus:border-rose-400/50"
+                value={joinPasswordInput}
+                onChange={(e) => setJoinPasswordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmPasswordJoin();
+                }}
+                autoComplete="current-password"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordJoinRoom(null)}
+                  className="flex-1 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmPasswordJoin}
+                  className="flex-1 rounded-xl bg-rose-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800"
+                >
+                  {t("bjMulti.join")}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   if (!active) return null;
 
   if (roomIdParam && roomDetail) {
@@ -349,6 +442,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
       friends?.filter((f) => f.id !== userId && !seatedIds.has(f.id)) ?? [];
 
     return (
+      <>
       <div className={`space-y-4 ${className}`}>
         <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_22px_60px_rgba(0,0,0,0.30)] backdrop-blur-xl">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -500,7 +594,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
               <button
                 type="button"
                 disabled={!!busy}
-                onClick={() => joinSeat(roomDetail.id)}
+                onClick={() => requestJoinSeat(roomDetail)}
                 className="w-full rounded-xl border border-rose-300/15 bg-rose-950/70 py-3.5 font-bold text-white transition hover:border-rose-200/25 hover:bg-rose-900/80 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-6"
               >
                 {t("bjMulti.takeSeat")}
@@ -540,6 +634,8 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           </div>
         </div>
       </div>
+      {passwordJoinModal}
+      </>
     );
   }
 
@@ -611,13 +707,30 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
           {t("bjMulti.visibility")}
           <select
             value={newVis}
-            onChange={(e) => setNewVis(e.target.value as BjVisibility)}
+            onChange={(e) => {
+              setNewVis(e.target.value as BjVisibility);
+              if (e.target.value !== "PRIVATE") setNewPassword("");
+            }}
             className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md"
           >
             <option value="PUBLIC">{t("bjMulti.public")}</option>
             <option value="PRIVATE">{t("bjMulti.private")}</option>
           </select>
         </label>
+        {newVis === "PRIVATE" ? (
+          <label className="mt-3 block text-sm text-slate-300">
+            {t("lobby.roomPasswordLabel")}
+            <input
+              type="password"
+              maxLength={32}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder={t("lobby.roomPasswordPlaceholder")}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-white backdrop-blur-md"
+              autoComplete="new-password"
+            />
+          </label>
+        ) : null}
         <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"
@@ -706,7 +819,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => openRoom(r.id)}
+                        onClick={() => openRoom(r)}
                         className="rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/[0.09]"
                       >
                         {t("bjMulti.open")}
@@ -715,7 +828,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
                         <button
                           type="button"
                           disabled={!!busy}
-                          onClick={() => joinSeat(r.id)}
+                          onClick={() => requestJoinSeat(r)}
                           className="rounded-lg bg-rose-900 px-3 py-2 text-sm font-bold text-white transition hover:bg-rose-800 disabled:opacity-50"
                         >
                           {t("bjMulti.join")}
@@ -731,6 +844,7 @@ export function LobbyBlackjackMultiSection({ active, className = "" }: LobbyBlac
       </div>
 
       {createModal}
+      {passwordJoinModal}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { DailyChallengeCode } from './dailyChallenge.types.js'
+import { WEEKLY_SOCIAL_FOLLOW_CODES } from './socialFollowChallenges.js'
 
 /** Jour 1 = 2026-01-01 UTC (cycle de 7 jours). */
 const ROTATION_EPOCH_UTC = Date.parse('2026-01-01T00:00:00.000Z')
@@ -38,10 +39,20 @@ export const WEEKLY_BONUS_GOAL = WEEKLY_MISSION_CODES.length
 export const WEEKLY_BONUS_REWARD = 20_000
 export const WEEKLY_BONUS_BADGE_ID = 'weekly_champion'
 
-export const WEEKLY_CHALLENGE_CODES = [...WEEKLY_MISSION_CODES, WEEKLY_BONUS_CODE] as const
+export const WEEKLY_CHALLENGE_CODES = [
+  ...WEEKLY_MISSION_CODES,
+  ...WEEKLY_SOCIAL_FOLLOW_CODES,
+  WEEKLY_BONUS_CODE,
+] as const
+
+export { WEEKLY_SOCIAL_FOLLOW_CODES }
 
 export function isWeeklyChallengeCode(code: string): boolean {
   return (WEEKLY_CHALLENGE_CODES as readonly string[]).includes(code)
+}
+
+export function isWeeklyMissionCode(code: string): boolean {
+  return (WEEKLY_MISSION_CODES as readonly string[]).includes(code)
 }
 
 export function getDayKey(now = new Date()): string {

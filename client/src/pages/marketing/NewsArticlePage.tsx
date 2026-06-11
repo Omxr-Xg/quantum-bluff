@@ -1,13 +1,55 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Clock } from "lucide-react";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
-import { getNewsArticle } from "../../content/marketing/siteContent";
+import { NewsArticleBody } from "../../components/marketing/NewsArticleBody";
+import { getNewsArticle, type NewsArticle } from "../../content/marketing/siteContent";
+import { apiUrl } from "../../utils/apiBase";
 
 export function NewsArticlePage() {
   const { slug } = useParams<{ slug: string }>();
   const { i18n, t } = useTranslation();
-  const article = slug ? getNewsArticle(slug, i18n.language) : undefined;
+  const staticArticle = slug ? getNewsArticle(slug, i18n.language) : undefined;
+  const [remoteArticle, setRemoteArticle] = useState<NewsArticle | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!slug || staticArticle) {
+      setRemoteArticle(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/news/${encodeURIComponent(slug)}`));
+        if (cancelled) return;
+        if (!res.ok) {
+          setRemoteArticle(null);
+          return;
+        }
+        const data = (await res.json()) as { article?: NewsArticle };
+        setRemoteArticle(data.article ?? null);
+      } catch {
+        if (!cancelled) setRemoteArticle(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, staticArticle]);
+
+  const article = staticArticle ?? (remoteArticle === undefined ? undefined : remoteArticle ?? undefined);
+  const loading = !staticArticle && remoteArticle === undefined;
+
+  if (loading) {
+    return (
+      <PublicSiteShell pageTitle={t("publicSite.backToNews")}>
+        <div className="mx-auto max-w-3xl px-4 py-12 text-center text-slate-400 sm:px-6">
+          {t("common.loading")}
+        </div>
+      </PublicSiteShell>
+    );
+  }
 
   if (!article) {
     return (
@@ -56,12 +98,8 @@ export function NewsArticlePage() {
             {article.readMinutes} min
           </span>
         </div>
-        <div className="mt-8 space-y-5 border-t border-white/10 pt-8">
-          {article.body.map((p, i) => (
-            <p key={`body-${i}`} className="text-base leading-relaxed text-slate-300">
-              {p}
-            </p>
-          ))}
+        <div className="mt-8 border-t border-white/10 pt-8">
+          <NewsArticleBody body={article.body} />
         </div>
       </article>
     </PublicSiteShell>

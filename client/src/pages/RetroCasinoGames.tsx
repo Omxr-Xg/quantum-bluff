@@ -2,8 +2,11 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { Clover, Disc, SquareStack } from "lucide-react";
+import { ChallengeHighlightBadge } from "../components/ChallengeHighlightBadge";
 import { DiscreteAdSlot } from "../components/ads/DiscreteAdSlot";
 import { SoloGameBackButton } from "../components/minigames/SoloGameBackButton";
+import { useChallengeHighlight } from "../hooks/useChallengeHighlight";
+import { challengeHighlightClass } from "../utils/challengeHighlight";
 import { SOLO_GAMES_BACK_PATH } from "../utils/soloGameNav";
 
 type RetroGameCard = {
@@ -62,6 +65,7 @@ const RETRO_GAMES: RetroGameCard[] = [
 export function RetroCasinoGames() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isHighlighted } = useChallengeHighlight();
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[#140a08]">
@@ -119,10 +123,15 @@ export function RetroCasinoGames() {
                     }
                   : undefined
               }
-              className={`group relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden border-amber-900/30 px-5 py-7 text-center ${
-                index > 0 ? "border-t-2" : ""
-              } ${clickable ? "cursor-pointer transition hover:bg-amber-950/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50" : "opacity-90"}`}
+              data-challenge-highlight={game.id}
+              className={challengeHighlightClass(
+                isHighlighted(game.id),
+                `group relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden border-amber-900/30 px-5 py-7 text-center ${
+                  index > 0 ? "border-t-2" : ""
+                } ${clickable ? "cursor-pointer transition hover:bg-amber-950/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50" : "opacity-90"}`,
+              )}
             >
+              <ChallengeHighlightBadge show={isHighlighted(game.id)} />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#1c120e]/80 via-[#140a08]/60 to-[#0c0604]/90" aria-hidden />
               <div className={`pointer-events-none absolute inset-0 opacity-50 ${game.carpet}`} aria-hidden />
               <div className="pointer-events-none absolute inset-3 rounded-sm border border-amber-700/20" aria-hidden />

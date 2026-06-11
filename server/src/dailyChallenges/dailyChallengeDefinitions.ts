@@ -80,6 +80,27 @@ export const ALL_DAILY_CHALLENGE_DEFINITIONS: ReadonlyArray<DailyChallengeDefini
     rewardTokens: 3000,
   },
   {
+    code: 'WEEKLY_FOLLOW_INSTAGRAM',
+    i18nKey: 'dailyChallenges.weeklyFollowInstagram',
+    category: 'SOCIAL',
+    goal: 1,
+    rewardTokens: 1000,
+  },
+  {
+    code: 'WEEKLY_FOLLOW_TIKTOK',
+    i18nKey: 'dailyChallenges.weeklyFollowTiktok',
+    category: 'SOCIAL',
+    goal: 1,
+    rewardTokens: 1000,
+  },
+  {
+    code: 'WEEKLY_FOLLOW_LINKEDIN',
+    i18nKey: 'dailyChallenges.weeklyFollowLinkedin',
+    category: 'SOCIAL',
+    goal: 1,
+    rewardTokens: 1000,
+  },
+  {
     code: 'WEEKLY_BONUS',
     i18nKey: 'dailyChallenges.weeklyBonus',
     category: 'GLOBAL',

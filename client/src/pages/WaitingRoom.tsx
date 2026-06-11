@@ -52,6 +52,9 @@ export function WaitingRoom() {
     const st = location.state as { outcome?: string; message?: string } | null;
     return st?.outcome === "lost" && st.message ? st.message : null;
   });
+  const joinPasswordRef = useRef(
+    (location.state as { joinPassword?: string } | null)?.joinPassword ?? null,
+  );
   const { userId, username } = useUser();
   const { socket, joinRoom, leaveRoom } = useSocket();
   const voice = useVoice();
@@ -341,7 +344,12 @@ export function WaitingRoom() {
         const joinRes = await fetch(joinUrl, {
           method: "POST",
           headers: authHeaders(),
-          body: JSON.stringify({ userId, avatarUrl: getUserAvatar(), confirmBlockedWarning: blockedWarningAccepted }),
+          body: JSON.stringify({
+            userId,
+            avatarUrl: getUserAvatar(),
+            confirmBlockedWarning: blockedWarningAccepted,
+            ...(joinPasswordRef.current ? { password: joinPasswordRef.current } : {}),
+          }),
         });
         if (cancelled) return;
         if (!joinRes.ok) {

@@ -20,6 +20,7 @@ import {
   scoreLobbyFriendAffinity,
   sortLobbyByFriendAffinity,
 } from '../lobby/lobbyFriendSort.service.js';
+import { hashRoomPassword, verifyRoomPassword } from '../utils/roomPassword.js';
 
 const router = express.Router();
 
@@ -348,6 +349,7 @@ router.get('/', waitingRoomListLimiter, authMiddleware, async (req, res) => {
           blockedPlayers: await getBlockedPlayersForViewer(userId, room.players),
           isFriendRoom: affinity.isFriendRoom,
           friendAffinityScore: affinity.friendAffinityScore,
+          hasPassword: Boolean(room.passwordHash),
           _createdAt: room.createdAt.getTime(),
         }
       }),
@@ -553,12 +555,23 @@ router.post('/create', waitingRoomCreateLimiter, authMiddleware, async (req, res
     const resolvedName =
       sanitizedCustom.length > 0 ? sanitizedCustom : `Salle de ${user.username}`
 
+    let passwordHash: string | null = null
+    if (roomVisibility === 'PRIVATE') {
+      try {
+        passwordHash = await hashRoomPassword(req.body?.password)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Mot de passe requis pour une salle privée'
+        return res.status(400).json({ error: msg })
+      }
+    }
+
     const room = await prisma.waitingRoom.create({
       data: {
         name: resolvedName,
         hostId,
         maxPlayers: clampedMaxPlayers,
         visibility: roomVisibility,
+        passwordHash,
         smallBlind: sb,
         bigBlind: bb,
         minBalance: minB,
@@ -591,6 +604,7 @@ router.post('/create', waitingRoomCreateLimiter, authMiddleware, async (req, res
       visibility: room.visibility,
       status: room.status,
       turbo: room.turbo,
+      hasPassword: Boolean(room.passwordHash),
       players: room.players.map((p) => mapWaitingRoomPlayer(p)),
     });
   } catch (error) {
@@ -714,6 +728,7 @@ router.get('/:roomId', waitingRoomListLimiter, authMiddleware, async (req, res) 
       bigBlind: room.bigBlind ?? null,
       blockedPlayers: await getBlockedPlayersForViewer(viewerId, room.players),
       presentUserIds: getWaitingRoomPresentUserIds(io, roomId),
+      hasPassword: Boolean(room.passwordHash),
       players: room.players.map((p) => mapWaitingRoomPlayer(p)),
     });
   } catch (error) {
@@ -813,7 +828,15 @@ router.post('/:roomId/join', waitingRoomJoinLimiter, authMiddleware, async (req,
       });
     }
 
-    if (room.visibility === 'PRIVATE' && room.hostId !== userId) {
+    if (room.passwordHash && room.hostId !== userId) {
+      const ok = await verifyRoomPassword(req.body?.password, room.passwordHash)
+      if (!ok) {
+        return res.status(403).json({
+          error: 'Mot de passe incorrect',
+          code: 'WRONG_PASSWORD',
+        })
+      }
+    } else if (room.visibility === 'PRIVATE' && room.hostId !== userId) {
       const approved = await prisma.joinRequest.findFirst({
         where: { roomId, userId, status: 'ACCEPTED' }
       });
