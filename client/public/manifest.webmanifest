@@ -1,7 +1,7 @@
 {
   "name": "Quantum Bluff",
   "short_name": "Quantum Bluff",
-  "description": "Quantum Bluff is a social gaming platform with poker, belote, roulette, slot machine, voice calls, rankings and rewards.",
+  "description": "Quantum Bluff is a social gaming platform with poker, belote, roulette, slot machine, voice calls, rankings and rewards. Native apps for macOS, Windows and Android at /downloads.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

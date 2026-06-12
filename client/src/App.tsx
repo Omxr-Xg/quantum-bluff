@@ -71,6 +71,7 @@ import { TermsOfServicePage } from "./pages/marketing/TermsOfServicePage";
 import { NewsIndexPage } from "./pages/marketing/NewsIndexPage";
 import { NewsArticlePage } from "./pages/marketing/NewsArticlePage";
 import { SeoGameLandingPage } from "./pages/marketing/SeoGameLandingPage";
+import { DownloadsPage } from "./pages/marketing/DownloadsPage";
 
 import { InvitationAcceptProvider } from "./contexts/InvitationAcceptContext";
 import { VoiceProvider } from "./contexts/VoiceContext";
@@ -140,6 +141,7 @@ function App() {
           <Routes>
             <Route path="/" element={<StartScreen />} />
             <Route path="/discover" element={<DiscoverPage />} />
+            <Route path="/downloads" element={<DownloadsPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

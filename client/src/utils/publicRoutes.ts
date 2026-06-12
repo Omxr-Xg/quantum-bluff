@@ -1,5 +1,6 @@
 const PUBLIC_MARKETING_PATHS = [
   "/discover",
+  "/downloads",
   "/about",
   "/contact",
   "/privacy-policy",

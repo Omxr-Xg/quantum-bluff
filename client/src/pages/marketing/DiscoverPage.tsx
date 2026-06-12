@@ -29,6 +29,12 @@ export function DiscoverPage() {
             {t("publicSite.ctaPlay")}
           </Link>
           <Link
+            to="/downloads"
+            className="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5"
+          >
+            {t("publicSite.ctaDownloads")}
+          </Link>
+          <Link
             to="/news"
             className="inline-flex items-center gap-1 rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5"
           >
@@ -133,12 +139,20 @@ export function DiscoverPage() {
         <div className="mx-auto max-w-2xl px-4 py-14 text-center sm:px-6">
           <h2 className="text-2xl font-black text-white">{content.ctaTitle}</h2>
           <p className="mt-3 text-slate-300">{content.ctaBody}</p>
-          <Link
-            to="/auth"
-            className="mt-6 inline-block rounded-full border border-cyan-300/40 bg-blue-600/40 px-10 py-3.5 text-sm font-bold text-white hover:bg-blue-500/50"
-          >
-            {t("publicSite.ctaPlay")}
-          </Link>
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              to="/auth"
+              className="rounded-full border border-cyan-300/40 bg-blue-600/40 px-10 py-3.5 text-sm font-bold text-white hover:bg-blue-500/50"
+            >
+              {t("publicSite.ctaPlay")}
+            </Link>
+            <Link
+              to="/downloads"
+              className="rounded-full border border-white/15 px-8 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5"
+            >
+              {t("publicSite.ctaDownloads")}
+            </Link>
+          </div>
         </div>
       </section>
     </PublicSiteShell>

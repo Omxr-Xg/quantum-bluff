@@ -1,0 +1,11 @@
+version: 1.0.2
+files:
+  - url: Quantum Bluff-1.0.2-arm64-mac.zip
+    sha512: v1ccQ8ZDr1pXzVGW0hAjioePfSDkKvATkOP1/EK+Y0DrJnjzAl+g8Un+eY37rhGiw/pIYhp3WoTr7hFLuuAODQ==
+    size: 174300393
+  - url: Quantum Bluff-1.0.2-arm64.dmg
+    sha512: f4a6Lw9YBXZkoKrUX482inwEaElgYUnXzevcxdB7Rp0vm2y+JxKu/08PlpzCxAhmPXojMz94O80fDJHlRBi0DA==
+    size: 183794782
+path: Quantum Bluff-1.0.2-arm64-mac.zip
+sha512: v1ccQ8ZDr1pXzVGW0hAjioePfSDkKvATkOP1/EK+Y0DrJnjzAl+g8Un+eY37rhGiw/pIYhp3WoTr7hFLuuAODQ==
+releaseDate: '2026-06-12T00:11:24.334Z'

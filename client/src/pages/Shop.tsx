@@ -70,10 +70,19 @@ function CosmeticPreview({ item }: { item: ShopCosmetic }) {
     );
   }
   if (item.type === "AVATAR_FRAME") {
+    const border = style.border ?? "#94a3b8";
+    const glow = style.glow;
+    if (border.includes("gradient")) {
+      return (
+        <div className="mx-auto h-16 w-16 rounded-full p-1" style={{ background: border, boxShadow: glow }}>
+          <div className="h-full w-full rounded-full bg-slate-800" />
+        </div>
+      );
+    }
     return (
       <div
         className="mx-auto h-16 w-16 rounded-full border-4 bg-slate-800"
-        style={{ borderColor: style.border ?? "#94a3b8", boxShadow: style.glow }}
+        style={{ borderColor: border, boxShadow: glow }}
       />
     );
   }

@@ -17,6 +17,15 @@ coverage/
 # Build Electron local (centaines de Mo, pas versionné)
 client/dist-electron/
 # Installables / archives (limite GitHub 100 Mo par fichier)
+# Copiés en prod via scripts/sync-desktop-downloads.sh — ne pas versionner.
+server/updates/*.exe
+server/updates/*.dmg
+server/updates/*.apk
+server/updates/*.zip
+client/public/downloads/*.exe
+client/public/downloads/*.dmg
+client/public/downloads/*.apk
+client/public/downloads/*.zip
 Game_Versions/*.exe
 Game_Versions/*.dmg
 Game_Versions/*.apk

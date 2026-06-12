@@ -1495,11 +1495,13 @@
   "publicSite": {
     "nav": {
       "discover": "Discover",
+      "downloads": "Downloads",
       "news": "News",
       "about": "About",
       "contact": "Contact"
     },
     "footer": {
+      "downloads": "Downloads",
       "privacy": "Privacy",
       "terms": "Terms",
       "about": "About",
@@ -1509,11 +1511,134 @@
     "login": "Log in",
     "ctaPlay": "Play now",
     "ctaNews": "Read the news",
+    "ctaDownloads": "Download the app",
     "lastUpdated": "Last updated:",
     "backToNews": "Back to news",
     "articleNotFound": "Article not found",
     "articleNotFoundBody": "This article does not exist or has been moved.",
     "newsGallery": "Photos"
+  },
+  "downloads": {
+    "metaTitle": "Downloads — Quantum Bluff (Mac, Windows, Android)",
+    "metaDescription": "Download Quantum Bluff for macOS, Windows and Android. Free native apps, same account as the web, automatic updates.",
+    "pageTitle": "Downloads",
+    "eyebrow": "Native apps",
+    "tabsAria": "App type",
+    "tabDesktop": "Mac & Windows",
+    "tabAndroid": "Android (APK)",
+    "heroTitle": "Quantum Bluff for Mac & Windows",
+    "heroSubtitle": "Install the native app: smooth UI, dedicated window, and automatic updates. Same account and games as the web version.",
+    "versionBadge": "Version {{version}}",
+    "freeBadge": "Free",
+    "downloadButton": "Download",
+    "platform": {
+      "windowsArch": "Windows 10/11 — 64-bit",
+      "macArch": "macOS — Apple Silicon (M1/M2/M3)",
+      "androidArch": "Android 8+ — universal APK"
+    },
+    "windows": {
+      "title": "Windows",
+      "desc": "NSIS installer: pick your install folder and get a desktop shortcut.",
+      "steps": [
+        "Download the .exe file",
+        "Run the installer and accept permissions",
+        "Open Quantum Bluff from Start menu or desktop"
+      ]
+    },
+    "mac": {
+      "title": "macOS",
+      "desc": "Recommended .dmg disk image, or .zip archive if you prefer manual install.",
+      "steps": [
+        "Download the .dmg (or .zip)",
+        "Open the disk image and drag Quantum Bluff to Applications",
+        "On first launch: right-click → Open if macOS shows a warning"
+      ],
+      "dmgButton": "Download .dmg",
+      "zipButton": ".zip archive"
+    },
+    "featuresTitle": "Why the desktop client?",
+    "features": [
+      { "title": "Fast", "body": "Bundled UI — no browser tab, one-click launch." },
+      { "title": "Auto-updates", "body": "New versions offered at startup, one-click install." },
+      { "title": "Stable", "body": "Native window tuned for poker, belote, and social casino." },
+      { "title": "Same account", "body": "Chips, friends, achievements, and cosmetics sync with the web." }
+    ],
+    "requirementsTitle": "System requirements",
+    "requirements": {
+      "windows": [
+        "Windows 10 or 11 (64-bit)",
+        "4 GB RAM minimum",
+        "Internet connection to play online"
+      ],
+      "mac": [
+        "macOS 12 Monterey or later",
+        "Apple Silicon Mac (M1, M2, M3…)",
+        "Internet connection to play online"
+      ],
+      "android": [
+        "Android 8.0 or later",
+        "2 GB RAM minimum",
+        "Internet connection to play online"
+      ]
+    },
+    "faqTitle": "FAQ",
+    "faq": [
+      {
+        "q": "Is it free?",
+        "a": "Yes. The desktop client is free like the web version. Only virtual chips are used — no real money."
+      },
+      {
+        "q": "Do I need a separate account?",
+        "a": "No. Use the same login as on the website: email, Google, or username."
+      },
+      {
+        "q": "Are updates automatic?",
+        "a": "Yes. On launch, the app checks for new versions and offers to install them."
+      },
+      {
+        "q": "Is Intel Mac supported?",
+        "a": "This build targets Apple Silicon. An Intel build may be added later."
+      }
+    ],
+    "webHint": "Prefer playing in the browser? No install required.",
+    "android": {
+      "heroTitle": "Quantum Bluff for Android",
+      "heroSubtitle": "Install the Capacitor APK: same experience as the site, optimized for mobile. Poker, belote, casino and friends in your pocket.",
+      "title": "Android",
+      "desc": "Native Android app (Capacitor). Download the APK and install it on your phone or tablet.",
+      "downloadButton": "Download APK",
+      "sideloadHint": "Outside Play Store: allow “Unknown sources” or “Install unknown apps” for your file manager / browser, then open the APK.",
+      "steps": [
+        "Download the .apk file",
+        "Open it from Downloads or Files",
+        "Accept installation and launch Quantum Bluff"
+      ],
+      "featuresTitle": "Why the Android app?",
+      "features": [
+        { "title": "Mobile", "body": "Touch-friendly UI, full screen without the browser bar." },
+        { "title": "Fast", "body": "Native WebView: smooth loading for tables and lobby." },
+        { "title": "App icon", "body": "Home screen shortcut, like a real installed app." },
+        { "title": "Same account", "body": "Chips, friends and progress match the web version." }
+      ],
+      "faq": [
+        {
+          "q": "Why not the Play Store?",
+          "a": "This build is distributed as a direct APK for testing and demos. Play Store release may follow."
+        },
+        {
+          "q": "Install blocked?",
+          "a": "Go to Settings → Security and allow installs from your file manager or Chrome."
+        },
+        {
+          "q": "Same account as the website?",
+          "a": "Yes. Log in with the same email, Google or username."
+        },
+        {
+          "q": "Which Android version?",
+          "a": "Android 8.0 (Oreo) or newer recommended."
+        }
+      ]
+    }
   },
   "startScreen": {
     "tagline": "Poker reinvented",
@@ -1656,10 +1781,35 @@
       "bluffeur": "Bluffer"
     },
     "frame": {
+      "iron": "Iron Frame",
       "bronze": "Bronze Frame",
+      "copper": "Copper Frame",
+      "pearl": "Pearl Frame",
+      "roseGold": "Rose Gold Frame",
       "silver": "Silver Frame",
+      "platinum": "Platinum Frame",
+      "ruby": "Ruby Frame",
+      "emerald": "Emerald Frame",
+      "sapphire": "Sapphire Frame",
+      "amethyst": "Amethyst Frame",
+      "crimson": "Crimson Frame",
+      "midnight": "Midnight Frame",
       "gold": "Gold Frame",
+      "obsidian": "Obsidian Frame",
+      "ocean": "Ocean Frame",
+      "sunset": "Sunset Frame",
+      "forest": "Forest Frame",
       "diamond": "Diamond Frame",
+      "neonCyan": "Neon Cyan Frame",
+      "neonMagenta": "Neon Magenta Frame",
+      "ace": "Ace Frame",
+      "fire": "Fire Frame",
+      "ice": "Ice Frame",
+      "lightning": "Lightning Frame",
+      "galaxy": "Galaxy Frame",
+      "rainbow": "Rainbow Frame",
+      "holographic": "Holographic Frame",
+      "royal": "Royal Frame",
       "quantum": "Quantum Frame"
     },
     "title": {

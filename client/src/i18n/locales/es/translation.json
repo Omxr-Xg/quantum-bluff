@@ -1209,11 +1209,13 @@
   "publicSite": {
     "nav": {
       "discover": "Descubrir",
+      "downloads": "Descargas",
       "news": "Noticias",
       "about": "Acerca de",
       "contact": "Contacto"
     },
     "footer": {
+      "downloads": "Descargas",
       "privacy": "Privacidad",
       "terms": "Términos",
       "about": "Acerca de",
@@ -1223,11 +1225,134 @@
     "login": "Iniciar sesión",
     "ctaPlay": "Jugar ahora",
     "ctaNews": "Leer noticias",
+    "ctaDownloads": "Descargar la app",
     "lastUpdated": "Última actualización:",
     "backToNews": "Volver a noticias",
     "articleNotFound": "Artículo no encontrado",
     "articleNotFoundBody": "Este artículo no existe o ha sido movido.",
     "newsGallery": "Fotos"
+  },
+  "downloads": {
+    "metaTitle": "Descargas — Quantum Bluff (Mac, Windows, Android)",
+    "metaDescription": "Descarga Quantum Bluff para macOS, Windows y Android. Apps nativas gratuitas, misma cuenta que en la web, actualizaciones automáticas.",
+    "pageTitle": "Descargas",
+    "eyebrow": "Aplicaciones nativas",
+    "tabsAria": "Tipo de aplicación",
+    "tabDesktop": "Mac y Windows",
+    "tabAndroid": "Android (APK)",
+    "heroTitle": "Quantum Bluff para Mac y Windows",
+    "heroSubtitle": "Instala la aplicación nativa: interfaz fluida, ventana dedicada y actualizaciones automáticas. Misma cuenta y partidas que en la web.",
+    "versionBadge": "Versión {{version}}",
+    "freeBadge": "Gratis",
+    "downloadButton": "Descargar",
+    "platform": {
+      "windowsArch": "Windows 10/11 — 64 bits",
+      "macArch": "macOS — Apple Silicon (M1/M2/M3)",
+      "androidArch": "Android 8+ — APK universal"
+    },
+    "windows": {
+      "title": "Windows",
+      "desc": "Instalador NSIS: elige la carpeta y se creará un acceso directo en el escritorio.",
+      "steps": [
+        "Descarga el archivo .exe",
+        "Ejecuta el instalador y acepta los permisos",
+        "Abre Quantum Bluff desde el menú Inicio o el escritorio"
+      ]
+    },
+    "mac": {
+      "title": "macOS",
+      "desc": "Imagen .dmg recomendada, o archivo .zip si prefieres instalar manualmente.",
+      "steps": [
+        "Descarga el .dmg (o .zip)",
+        "Abre el disco y arrastra Quantum Bluff a Aplicaciones",
+        "En el primer inicio: clic derecho → Abrir si macOS muestra una advertencia"
+      ],
+      "dmgButton": "Descargar .dmg",
+      "zipButton": "Archivo .zip"
+    },
+    "featuresTitle": "¿Por qué el cliente de escritorio?",
+    "features": [
+      { "title": "Rápido", "body": "Interfaz embebida: sin pestaña del navegador, inicio en un clic." },
+      { "title": "Actualizaciones", "body": "Nuevas versiones al iniciar, instalación en un clic." },
+      { "title": "Estable", "body": "Ventana nativa optimizada para póker, belote y casino social." },
+      { "title": "Misma cuenta", "body": "Fichas, amigos, logros y cosméticos sincronizados con la web." }
+    ],
+    "requirementsTitle": "Requisitos del sistema",
+    "requirements": {
+      "windows": [
+        "Windows 10 u 11 (64 bits)",
+        "4 GB de RAM mínimo",
+        "Conexión a Internet para jugar en línea"
+      ],
+      "mac": [
+        "macOS 12 Monterey o posterior",
+        "Mac Apple Silicon (M1, M2, M3…)",
+        "Conexión a Internet para jugar en línea"
+      ],
+      "android": [
+        "Android 8.0 o posterior",
+        "2 GB de RAM mínimo",
+        "Conexión a Internet para jugar en línea"
+      ]
+    },
+    "faqTitle": "Preguntas frecuentes",
+    "faq": [
+      {
+        "q": "¿Es gratis?",
+        "a": "Sí. El cliente de escritorio es gratuito como la versión web. Solo se usan fichas virtuales, sin dinero real."
+      },
+      {
+        "q": "¿Necesito otra cuenta?",
+        "a": "No. Usa el mismo inicio de sesión que en el sitio: email, Google o usuario."
+      },
+      {
+        "q": "¿Las actualizaciones son automáticas?",
+        "a": "Sí. Al iniciar, la app comprueba nuevas versiones y te propone instalarlas."
+      },
+      {
+        "q": "¿Mac Intel está soportado?",
+        "a": "Esta build es para Apple Silicon. Una versión Intel podría añadirse más adelante."
+      }
+    ],
+    "webHint": "¿Prefieres jugar en el navegador? No hace falta instalar nada.",
+    "android": {
+      "heroTitle": "Quantum Bluff para Android",
+      "heroSubtitle": "Instala el APK Capacitor: la misma experiencia que la web, optimizada para móvil. Póker, belote, casino y amigos en tu bolsillo.",
+      "title": "Android",
+      "desc": "App nativa Android (Capacitor). Descarga el APK e instálalo en tu teléfono o tablet.",
+      "downloadButton": "Descargar APK",
+      "sideloadHint": "Fuera de Play Store: permite «Orígenes desconocidos» o «Instalar apps desconocidas» para tu gestor de archivos o Chrome, luego abre el APK.",
+      "steps": [
+        "Descarga el archivo .apk",
+        "Ábrelo desde Descargas o Archivos",
+        "Acepta la instalación y abre Quantum Bluff"
+      ],
+      "featuresTitle": "¿Por qué la app Android?",
+      "features": [
+        { "title": "Móvil", "body": "Interfaz táctil, pantalla completa sin barra del navegador." },
+        { "title": "Rápida", "body": "WebView nativa: carga fluida del lobby y las mesas." },
+        { "title": "Icono", "body": "Acceso directo en la pantalla de inicio, como una app real." },
+        { "title": "Misma cuenta", "body": "Fichas, amigos y progreso igual que en la web." }
+      ],
+      "faq": [
+        {
+          "q": "¿Por qué no Play Store?",
+          "a": "Esta versión se distribuye en APK directo para pruebas y demos. Una publicación en Play Store puede seguir."
+        },
+        {
+          "q": "¿Instalación bloqueada?",
+          "a": "Ve a Ajustes → Seguridad y permite instalar desde tu gestor de archivos o Chrome."
+        },
+        {
+          "q": "¿Misma cuenta que la web?",
+          "a": "Sí. Inicia sesión con el mismo email, Google o usuario."
+        },
+        {
+          "q": "¿Qué versión de Android?",
+          "a": "Android 8.0 (Oreo) o superior recomendado."
+        }
+      ]
+    }
   },
   "startScreen": {
     "tagline": "El póker reinventado",
@@ -1370,10 +1495,35 @@
       "bluffeur": "Farolero"
     },
     "frame": {
+      "iron": "Marco hierro",
       "bronze": "Marco bronce",
+      "copper": "Marco cobre",
+      "pearl": "Marco perla",
+      "roseGold": "Marco oro rosa",
       "silver": "Marco plata",
+      "platinum": "Marco platino",
+      "ruby": "Marco rubí",
+      "emerald": "Marco esmeralda",
+      "sapphire": "Marco zafiro",
+      "amethyst": "Marco amatista",
+      "crimson": "Marco carmesí",
+      "midnight": "Marco medianoche",
       "gold": "Marco oro",
+      "obsidian": "Marco obsidiana",
+      "ocean": "Marco océano",
+      "sunset": "Marco atardecer",
+      "forest": "Marco bosque",
       "diamond": "Marco diamante",
+      "neonCyan": "Marco neón cian",
+      "neonMagenta": "Marco neón magenta",
+      "ace": "Marco as",
+      "fire": "Marco fuego",
+      "ice": "Marco hielo",
+      "lightning": "Marco rayo",
+      "galaxy": "Marco galaxia",
+      "rainbow": "Marco arcoíris",
+      "holographic": "Marco holográfico",
+      "royal": "Marco real",
       "quantum": "Marco Quantum"
     },
     "title": {

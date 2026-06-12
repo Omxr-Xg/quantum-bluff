@@ -16,12 +16,14 @@ type PublicSiteShellProps = {
 
 const NAV = [
   { to: "/discover", key: "discover" },
+  { to: "/downloads", key: "downloads" },
   { to: "/news", key: "news" },
   { to: "/about", key: "about" },
   { to: "/contact", key: "contact" },
 ] as const;
 
 const FOOTER_LEGAL = [
+  { to: "/downloads", key: "downloads" },
   { to: "/privacy-policy", key: "privacy" },
   { to: "/terms-of-service", key: "terms" },
   { to: "/about", key: "about" },
@@ -54,7 +56,8 @@ export function PublicSiteShell({ children, pageTitle }: PublicSiteShellProps) {
                   className={`rounded-full px-2.5 py-1.5 transition sm:px-3 ${
                     pathname === item.to ||
                     (item.to === "/discover" && pathname === "/") ||
-                    (item.to === "/news" && pathname.startsWith("/news"))
+                    (item.to === "/news" && pathname.startsWith("/news")) ||
+                    (item.to === "/downloads" && pathname.startsWith("/downloads"))
                       ? "bg-blue-500/20 text-cyan-100"
                       : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`}

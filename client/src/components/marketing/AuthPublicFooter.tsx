@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 const PRIMARY_LINKS = [
   { to: "/discover", labelKey: "publicSite.nav.discover" },
+  { to: "/downloads", labelKey: "publicSite.nav.downloads" },
   { to: "/news", labelKey: "publicSite.nav.news" },
   { to: "/about", labelKey: "publicSite.nav.about" },
   { to: "/contact", labelKey: "publicSite.nav.contact" },

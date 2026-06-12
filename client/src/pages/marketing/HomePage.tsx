@@ -186,6 +186,12 @@ export function HomePage() {
               {t("publicSite.ctaPlay")}
             </Link>
             <Link
+              to="/downloads"
+              className="rounded-full border border-white/15 px-8 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5"
+            >
+              {t("publicSite.ctaDownloads")}
+            </Link>
+            <Link
               to="/news"
               className="rounded-full border border-white/15 px-8 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5"
             >

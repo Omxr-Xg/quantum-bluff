@@ -15,7 +15,9 @@ import {
   readGamification,
   refreshGamificationFromServer,
 } from "../utils/gamificationStorage";
+import { CosmeticAvatar } from "../components/PlayerCosmetics";
 import { parseBannerStyleJson } from "../utils/bannerStyle";
+import { resolvePublicCosmeticsFromShop } from "../utils/publicCosmetics";
 
 function withAvatarVersion(url: string, version: number): string {
   if (!url || url.startsWith("data:")) return url;
@@ -64,8 +66,8 @@ export function Profile() {
   const { data: shopData } = useGetShopCosmeticsQuery(undefined, { skip: !userId });
 
   const equippedTitle = shopData?.items.find((i) => i.id === loadout?.titleId);
-  const equippedFrame = shopData?.items.find((i) => i.id === loadout?.frameId);
   const equippedBanner = shopData?.items.find((i) => i.id === loadout?.bannerId);
+  const profileCosmetics = resolvePublicCosmeticsFromShop(shopData?.items, loadout);
 
   const [gam, setGam] = useState(() => readGamification());
   useEffect(() => {
@@ -190,27 +192,17 @@ export function Profile() {
           ) : null}
           <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-start md:text-left">
             <div className="relative shrink-0">
-              <div
-                className="h-28 w-28 overflow-hidden rounded-full border bg-blue-950/55 shadow-[0_0_44px_rgba(59,130,246,0.20)] sm:h-32 sm:w-32"
-                style={
-                  equippedFrame
-                    ? (() => {
-                        try {
-                          const s = JSON.parse(equippedFrame.styleJson) as { border?: string; glow?: string };
-                          return { borderColor: s.border ?? "#93c5fd", boxShadow: s.glow };
-                        } catch {
-                          return { borderColor: "rgba(191,219,254,0.25)" };
-                        }
-                      })()
-                    : { borderColor: "rgba(191,219,254,0.25)" }
-                }
+              <CosmeticAvatar
+                cosmetics={profileCosmetics}
+                sizeClass="h-28 w-28 sm:h-32 sm:w-32"
+                className="bg-blue-950/55 shadow-[0_0_44px_rgba(59,130,246,0.20)]"
               >
                 <img
                   src={profileData.avatar}
                   alt={`${profileData.name}'s avatar`}
                   className="h-full w-full object-cover"
                 />
-              </div>
+              </CosmeticAvatar>
               {typeof gam.level === "number" ? (
                 <div className="absolute -bottom-2 left-1/2 flex min-w-[5.25rem] -translate-x-1/2 items-center justify-center gap-1 whitespace-nowrap rounded-full border border-amber-300/25 bg-slate-950/90 px-3 py-1 text-[0.65rem] font-bold text-amber-100 shadow-lg">
                   <Trophy className="h-3 w-3" />

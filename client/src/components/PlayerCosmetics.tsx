@@ -10,6 +10,10 @@ type CosmeticAvatarProps = {
   className?: string;
 };
 
+function isGradientBorder(border?: string): boolean {
+  return Boolean(border?.includes("gradient"));
+}
+
 export function CosmeticAvatar({
   cosmetics,
   sizeClass = "h-10 w-10",
@@ -17,13 +21,37 @@ export function CosmeticAvatar({
   className = "",
 }: CosmeticAvatarProps) {
   const frame = cosmetics?.frame;
+  const borderWidth = frame?.borderWidth ?? 3;
+  const gradientFrame = frame && isGradientBorder(frame.border);
+
+  if (frame && gradientFrame) {
+    return (
+      <div
+        className={`rounded-full ${sizeClass} ${className}`}
+        style={{
+          padding: borderWidth,
+          background: frame.border,
+          boxShadow: frame.glow,
+          ...(frame.imageUrl
+            ? {
+                backgroundImage: `url("${frame.imageUrl}")`,
+                backgroundSize: "cover",
+              }
+            : {}),
+        }}
+      >
+        <div className="h-full w-full overflow-hidden rounded-full bg-blue-950/60">{children}</div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`overflow-hidden rounded-full bg-blue-950/60 ${sizeClass} ${className}`}
       style={
         frame
           ? {
-              borderWidth: frame.borderWidth ?? 2,
+              borderWidth,
               borderStyle: "solid",
               borderColor: frame.border,
               boxShadow: frame.glow,
