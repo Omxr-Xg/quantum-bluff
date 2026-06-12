@@ -57,4 +57,19 @@ else
   echo "Avertissement : APK introuvable. Lance : npm run package:android-rendu"
 fi
 
-echo "OK — fichiers copiés vers server/updates et client/public/downloads"
+# Alias sans espaces (page /downloads + GitHub Releases)
+alias_release() {
+  local src_name="$1" dest_name="$2"
+  for dir in "$UPDATES" "$PUBLIC_DL"; do
+    if [[ -f "$dir/$src_name" ]]; then
+      cp -f "$dir/$src_name" "$dir/$dest_name"
+      echo "→ $dest_name"
+    fi
+  done
+}
+
+alias_release "Quantum Bluff Setup ${VERSION}.exe" "Quantum-Bluff-Setup-${VERSION}.exe"
+alias_release "Quantum Bluff-${VERSION}-arm64.dmg" "Quantum-Bluff-${VERSION}-arm64.dmg"
+alias_release "Quantum Bluff-${VERSION}-arm64-mac.zip" "Quantum-Bluff-${VERSION}-arm64-mac.zip"
+
+echo "OK — fichiers copies vers server/updates et client/public/downloads"

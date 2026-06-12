@@ -18,7 +18,8 @@
     "package:android-rendu": "bash scripts/package-android-rendu.sh",
     "package:desktop": "cd client && npm run electron:build:mac && npm run electron:build:win && bash ../scripts/sync-desktop-downloads.sh",
     "sync:desktop-downloads": "bash scripts/sync-desktop-downloads.sh",
-    "sync:app-downloads": "bash scripts/sync-desktop-downloads.sh"
+    "sync:app-downloads": "bash scripts/sync-desktop-downloads.sh",
+    "publish:app-release": "bash scripts/publish-app-release.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

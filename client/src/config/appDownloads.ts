@@ -10,22 +10,23 @@ export type DesktopPlatform = {
   archKey: string;
 };
 
+/** Noms sans espaces — requis pour GitHub Releases (URLs stables). */
 export const DESKTOP_PLATFORMS: DesktopPlatform[] = [
   {
     id: "windows",
-    fileName: `Quantum Bluff Setup ${APP_RELEASE_VERSION}.exe`,
+    fileName: `Quantum-Bluff-Setup-${APP_RELEASE_VERSION}.exe`,
     sizeLabel: "~141 Mo",
     archKey: "windowsArch",
   },
   {
     id: "macDmg",
-    fileName: `Quantum Bluff-${APP_RELEASE_VERSION}-arm64.dmg`,
+    fileName: `Quantum-Bluff-${APP_RELEASE_VERSION}-arm64.dmg`,
     sizeLabel: "~175 Mo",
     archKey: "macArch",
   },
   {
     id: "macZip",
-    fileName: `Quantum Bluff-${APP_RELEASE_VERSION}-arm64-mac.zip`,
+    fileName: `Quantum-Bluff-${APP_RELEASE_VERSION}-arm64-mac.zip`,
     sizeLabel: "~166 Mo",
     archKey: "macArch",
   },
@@ -37,15 +38,26 @@ export const ANDROID_APK = {
   archKey: "androidArch",
 } as const;
 
-/** URL de téléchargement — priorité API /updates, sinon /downloads statique. */
+/** Repo GitHub — releases publiques (installateurs > 100 Mo). */
+export const GITHUB_RELEASES_BASE =
+  "https://github.com/Omxr-Xg/quantum-bluff/releases/download";
+
+/** Tag release aligné sur APP_RELEASE_VERSION (ex. v1.0.2). */
+export function githubReleaseTag(version = APP_RELEASE_VERSION): string {
+  return version.startsWith("v") ? version : `v${version}`;
+}
+
+/** URL de téléchargement page marketing — releases GitHub en prod, /downloads en dev local. */
 export function resolveAppDownloadUrl(fileName: string): string {
-  const api = import.meta.env.VITE_API_URL?.trim();
   const encoded = encodeURIComponent(fileName);
-  if (api) {
-    return `${api.replace(/\/$/, "")}/updates/${encoded}`;
+  const envBase = import.meta.env.VITE_DOWNLOADS_BASE_URL?.trim();
+  if (envBase) {
+    return `${envBase.replace(/\/$/, "")}/${encoded}`;
   }
-  const staticBase = import.meta.env.VITE_DOWNLOADS_BASE_URL?.trim() || "/downloads";
-  return `${staticBase.replace(/\/$/, "")}/${encoded}`;
+  if (import.meta.env.DEV) {
+    return `/downloads/${encoded}`;
+  }
+  return `${GITHUB_RELEASES_BASE}/${githubReleaseTag()}/${encoded}`;
 }
 
 /** @deprecated Utiliser appDownloads */
