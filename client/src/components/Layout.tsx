@@ -913,7 +913,10 @@ export function Layout({ children }: LayoutProps) {
     isBeloteWaitingRoom ||
     path.startsWith("/belote/game");
   /** Scroll sur la fenêtre (document) : évite le double scroll conteneur interne + contenu. */
-  const lobbyDocumentScroll = path === "/lobby" || path === "/tutorial/game";
+  const lobbyDocumentScroll =
+    path === "/lobby" ||
+    path === "/tutorial/game" ||
+    path === "/leaderboard";
   const isGameConfigOrRoom =
     isGamePage ||
     path.includes("bot-configuration") ||
@@ -1355,7 +1358,6 @@ export function Layout({ children }: LayoutProps) {
       ? botConfigMenuContent
       : (
     <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-visible max-sm:justify-between sm:w-auto sm:shrink-0 sm:justify-end md:gap-2">
-      <LanguageSwitcher buttonClassName={languageButtonClass} />
       {lobbyMoneyAndProfile}
       <div
         className="flex min-w-0 max-sm:min-w-0 max-sm:flex-1 max-sm:items-center max-sm:justify-end max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-visible max-sm:scroll-smooth max-sm:py-2 max-sm:scrollbar-hide max-sm:[-webkit-overflow-scrolling:touch] max-sm:[touch-action:pan-x] sm:min-w-0 sm:shrink-0 sm:gap-1.5 md:gap-2"

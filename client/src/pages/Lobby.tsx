@@ -1785,7 +1785,7 @@ export function Lobby() {
           <div className="md:col-span-2 lg:col-span-1 space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-3">
             <nav
               ref={lobbyTabsRef}
-              className={`flex h-12 w-full shrink-0 items-stretch gap-1 overflow-x-auto rounded-2xl border p-1 scrollbar-hide shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-300 md:h-14 md:gap-1.5 md:p-1.5 ${
+              className={`grid w-full shrink-0 grid-cols-4 items-stretch gap-0.5 overflow-hidden rounded-2xl border p-1 shadow-2xl shadow-black/30 backdrop-blur-xl transition-[border-color,background-color] duration-300 sm:gap-1 md:gap-1.5 md:p-1.5 ${
                 lobbyMainTab === "poker"
                   ? "border-white/10 bg-slate-950/55"
                   : lobbyMainTab === "belote"
@@ -1801,82 +1801,83 @@ export function Lobby() {
                 type="button"
                 role="tab"
                 aria-selected={lobbyMainTab === "poker"}
+                aria-label={t("lobby.tabPoker")}
                 onClick={() => setMainTab("poker")}
-                className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
+                className={`relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:min-h-12 sm:flex-row sm:gap-1.5 sm:px-2 md:min-h-14 md:gap-2 md:px-2.5 ${
                   lobbyMainTab === "poker"
                     ? "bg-gradient-to-br from-blue-950/90 via-slate-900/80 to-slate-950/80 text-blue-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-blue-300/22"
                     : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
                 <Spade
-                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "poker" ? "text-blue-200 drop-shadow-[0_0_8px_rgba(59,130,246,0.35)]" : ""}`}
+                  className={`h-4 w-4 shrink-0 sm:h-5 sm:w-5 ${lobbyMainTab === "poker" ? "text-blue-200 drop-shadow-[0_0_8px_rgba(59,130,246,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
+                <span className="max-w-full truncate font-serif text-[10px] font-bold leading-tight tracking-wide sm:text-xs md:text-sm">
                   {t("lobby.tabPoker")}
                 </span>
               </button>
-              <div className="hidden w-px shrink-0 self-stretch bg-slate-600/40 md:block" aria-hidden />
               <button
                 type="button"
                 role="tab"
                 aria-selected={lobbyMainTab === "blackjack"}
+                aria-label={t("lobby.tabBlackjack")}
                 onClick={() => setMainTab("blackjack")}
-                className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
+                className={`relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:min-h-12 sm:flex-row sm:gap-1.5 sm:px-2 md:min-h-14 md:gap-2 md:px-2.5 ${
                   lobbyMainTab === "blackjack"
                     ? "bg-gradient-to-br from-rose-900/75 via-rose-950/55 to-slate-950/80 text-rose-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-rose-300/22"
                     : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
                 <Club
-                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "blackjack" ? "text-rose-200 drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]" : ""}`}
+                  className={`h-4 w-4 shrink-0 sm:h-5 sm:w-5 ${lobbyMainTab === "blackjack" ? "text-rose-200 drop-shadow-[0_0_10px_rgba(244,63,94,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
+                <span className="max-w-full truncate font-serif text-[10px] font-bold leading-tight tracking-wide sm:text-xs md:text-sm">
                   {t("lobby.tabBlackjack")}
                 </span>
               </button>
-              <div className="hidden w-px shrink-0 self-stretch bg-slate-600/40 md:block" aria-hidden />
               <button
                 type="button"
                 role="tab"
                 aria-selected={lobbyMainTab === "belote"}
+                aria-label={t("belote.lobbyTitle")}
                 onClick={() => setMainTab("belote")}
-                className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
+                className={`relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:min-h-12 sm:flex-row sm:gap-1.5 sm:px-2 md:min-h-14 md:gap-2 md:px-2.5 ${
                   lobbyMainTab === "belote"
                     ? "bg-gradient-to-br from-emerald-800/45 via-emerald-950/45 to-slate-950/80 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-emerald-300/22"
                     : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
                 <Diamond
-                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "belote" ? "text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.35)]" : ""}`}
+                  className={`h-4 w-4 shrink-0 sm:h-5 sm:w-5 ${lobbyMainTab === "belote" ? "text-emerald-200 drop-shadow-[0_0_10px_rgba(16,185,129,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
+                <span className="max-w-full truncate font-serif text-[10px] font-bold leading-tight tracking-wide sm:text-xs md:text-sm">
                   {t("belote.lobbyTitle")}
                 </span>
               </button>
-              <div className="hidden w-px shrink-0 self-stretch bg-slate-600/40 md:block" aria-hidden />
               <button
                 type="button"
                 role="tab"
                 aria-selected={lobbyMainTab === "minigames"}
+                aria-label={t("lobby.tabMinigames")}
                 onClick={() => setMainTab("minigames")}
-                className={`relative flex h-full min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-xl px-2 py-1 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:gap-2.5 sm:px-3 ${
+                className={`relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-center transition-[color,background-color,box-shadow,ring-color] duration-300 sm:min-h-12 sm:flex-row sm:gap-1.5 sm:px-2 md:min-h-14 md:gap-2 md:px-2.5 ${
                   lobbyMainTab === "minigames"
                     ? "bg-gradient-to-br from-amber-900/55 via-orange-950/50 to-slate-950/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.13),0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-amber-300/22"
                     : "text-slate-500 ring-1 ring-inset ring-transparent hover:bg-white/[0.06] hover:text-slate-300"
                 }`}
               >
                 <Sparkles
-                  className={`h-5 w-5 shrink-0 ${lobbyMainTab === "minigames" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(245,158,11,0.35)]" : ""}`}
+                  className={`h-4 w-4 shrink-0 sm:h-5 sm:w-5 ${lobbyMainTab === "minigames" ? "text-amber-200 drop-shadow-[0_0_10px_rgba(245,158,11,0.35)]" : ""}`}
                   strokeWidth={2.2}
                   aria-hidden
                 />
-                <span className="truncate font-serif text-xs font-bold tracking-wide md:text-sm">
+                <span className="max-w-full truncate font-serif text-[10px] font-bold leading-tight tracking-wide sm:text-xs md:text-sm">
                   {t("lobby.tabMinigames")}
                 </span>
               </button>

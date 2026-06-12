@@ -212,11 +212,11 @@ export function Leaderboard() {
 
   return (
     <div
-      className={`relative w-full overflow-x-hidden p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] transition-[background-color] duration-700 ease-in-out ${pageBaseBg}`}
+      className={`relative w-full min-h-[100dvh] overflow-x-clip overflow-y-visible p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] transition-[background-color] duration-700 ease-in-out ${pageBaseBg}`}
     >
       {/* Fond Général — indigo / ciel (3ᵉ thème) */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: mainTab === "general" ? 1 : 0 }}
         aria-hidden
       >
@@ -235,7 +235,7 @@ export function Leaderboard() {
 
       {/* Fond Texas Hold’em — identique lobby */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: mainTab === "poker" ? 1 : 0 }}
         aria-hidden
       >
@@ -254,7 +254,7 @@ export function Leaderboard() {
 
       {/* Fond Roulette / Casino — identique lobby */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-700 ease-in-out"
+        className="pointer-events-none fixed inset-0 transition-opacity duration-700 ease-in-out"
         style={{ opacity: mainTab === "casino" ? 1 : 0 }}
         aria-hidden
       >
