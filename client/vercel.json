@@ -5,6 +5,14 @@
       "NODE_OPTIONS": "--max-old-space-size=4096"
     }
   },
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "quantum-bluff.com" }],
+      "destination": "https://www.quantum-bluff.com/:path*",
+      "statusCode": 308
+    }
+  ],
   "rewrites": [
     {
       "source": "/auth/:path*",

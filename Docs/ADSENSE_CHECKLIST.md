@@ -60,6 +60,27 @@ Statut normal sur un domaine récent : Google connaît l'URL (sitemap, liens int
 
 **Signaux techniques livrés :** prerender post-build (`scripts/prerender-marketing.mjs`), `usePageMeta` + JSON-LD Article sur toutes les pages publiques.
 
+## 7. « Page with redirect » — HTTP / variante de domaine
+
+Exemples GSC : `http://quantum-bluff.com/`, `http://www.quantum-bluff.com/`.
+
+**Ce n'est pas une erreur.** Google a trouvé des URLs en `http://` ; Vercel les redirige en 308 vers `https://`. Google n'indexe pas l'URL source d'une redirection — c'est le comportement voulu.
+
+| URL découverte | Comportement attendu |
+|----------------|----------------------|
+| `http://quantum-bluff.com/` | Redirige → `https://www.quantum-bluff.com/` |
+| `http://www.quantum-bluff.com/` | Redirige → `https://www.quantum-bluff.com/` |
+| `https://www.quantum-bluff.com/` | **URL canonique indexable** |
+
+**Actions :**
+
+1. Dans Search Console, utiliser la propriété **`https://www.quantum-bluff.com`** (pas `http://`, pas apex sans www).
+2. Sitemap et canonicals : toujours `https://www.quantum-bluff.com/...` (déjà le cas).
+3. Vercel : domaine primaire = `www.quantum-bluff.com` ; apex `quantum-bluff.com` redirige vers www (`vercel.json`).
+4. Dans GSC → « Page with redirect » : cliquer **Valider la correction** une fois le deploy actif — le statut peut rester sur les URLs `http://` (normal).
+
+Ne pas essayer d'indexer les variantes `http://` : seule **`https://www.quantum-bluff.com`** doit apparaître dans les résultats.
+
 ## Facteurs hors code (acceptés)
 
 - **Domaine récent** : jeunesse du domaine peut retarder la confiance Google.
