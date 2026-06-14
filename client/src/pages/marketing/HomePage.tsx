@@ -18,6 +18,7 @@ import { QuantumBluffLogo } from "../../assets/logo";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
 import { getSiteContent } from "../../content/marketing/siteContent";
 import { GAME_SEO_PATHS, getAllLandings, getFeaturedGuides } from "../../content/marketing/marketingInternalLinks";
+import { usePageMeta } from "../../utils/usePageMeta";
 
 const SOCIAL_ICONS = [Mic, Users, MessageCircle, Trophy, Award, UserPlus] as const;
 const WHY_ICONS = [Gift, Smartphone, Zap, TrendingUp] as const;
@@ -27,6 +28,13 @@ export function HomePage() {
   const home = getSiteContent(i18n.language).home;
   const featuredGuides = getFeaturedGuides(i18n.language);
   const allLandings = getAllLandings(i18n.language);
+  const discover = getSiteContent(i18n.language).discover;
+
+  usePageMeta({
+    title: "Quantum Bluff — Casino social poker, Belote et mini-jeux en ligne",
+    description: discover.heroSubtitle,
+    canonicalPath: "/",
+  });
 
   return (
     <PublicSiteShell>

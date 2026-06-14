@@ -8,6 +8,7 @@ export function ResponsibleGamingPage() {
   return (
     <MarketingTextPage
       title={content.title}
+      canonicalPath="/responsible-gaming"
       lastUpdated={`${t("publicSite.lastUpdated")} ${content.lastUpdated}`}
       sections={content.sections}
     />

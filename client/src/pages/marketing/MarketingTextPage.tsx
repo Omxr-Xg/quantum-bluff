@@ -1,16 +1,34 @@
 import type { ReactNode } from "react";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
+import { usePageMeta } from "../../utils/usePageMeta";
 
 type Section = { heading: string; paragraphs: string[] };
 
 type MarketingTextPageProps = {
   title: string;
+  metaDescription?: string;
+  canonicalPath?: string;
   lastUpdated?: string;
   sections: Section[];
   extra?: ReactNode;
 };
 
-export function MarketingTextPage({ title, lastUpdated, sections, extra }: MarketingTextPageProps) {
+export function MarketingTextPage({
+  title,
+  metaDescription,
+  canonicalPath,
+  lastUpdated,
+  sections,
+  extra,
+}: MarketingTextPageProps) {
+  const description =
+    metaDescription ?? sections[0]?.paragraphs[0]?.slice(0, 160) ?? title;
+  usePageMeta({
+    title: `${title} — Quantum Bluff`,
+    description,
+    canonicalPath,
+  });
+
   return (
     <PublicSiteShell pageTitle={title}>
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12">

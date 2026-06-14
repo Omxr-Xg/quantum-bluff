@@ -46,6 +46,20 @@ Une fois l’indexation stabilisée (idéalement 2–4 semaines après deploy) :
 2. Relancer la demande d’examen du site `quantum-bluff.com`.
 3. Si rejet persistant : consulter le motif exact, enrichir encore les pages les plus courtes, et attendre une nouvelle période de crawl.
 
+## 6. « Discovered – currently not indexed » (Search Console)
+
+Statut normal sur un domaine récent : Google connaît l'URL (sitemap, liens internes) mais n'a pas encore choisi de l'indexer.
+
+**Actions après deploy du prerender SEO :**
+
+1. Inspection d'URL → tester une page en live (`/news/guide-debutant-quantum-bluff`, `/contact`, `/news`)
+2. Vérifier que le HTML contient du texte visible (pas seulement le spinner de chargement)
+3. Demander l'indexation manuellement pour les 10 URLs prioritaires (guides + landings + `/news`)
+4. Attendre 1–3 semaines ; le statut devrait passer à « Indexed » progressivement
+5. Ne pas re-soumettre AdSense tant que moins de ~15 pages ne sont pas indexées
+
+**Signaux techniques livrés :** prerender post-build (`scripts/prerender-marketing.mjs`), `usePageMeta` + JSON-LD Article sur toutes les pages publiques.
+
 ## Facteurs hors code (acceptés)
 
 - **Domaine récent** : jeunesse du domaine peut retarder la confiance Google.

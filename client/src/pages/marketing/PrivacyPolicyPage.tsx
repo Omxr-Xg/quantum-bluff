@@ -8,6 +8,7 @@ export function PrivacyPolicyPage() {
   return (
     <MarketingTextPage
       title={privacy.title}
+      canonicalPath="/privacy-policy"
       lastUpdated={`${t("publicSite.lastUpdated")} ${privacy.lastUpdated}`}
       sections={privacy.sections}
     />

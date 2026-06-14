@@ -8,6 +8,7 @@ export function TermsOfServicePage() {
   return (
     <MarketingTextPage
       title={terms.title}
+      canonicalPath="/terms-of-service"
       lastUpdated={`${t("publicSite.lastUpdated")} ${terms.lastUpdated}`}
       sections={terms.sections}
     />

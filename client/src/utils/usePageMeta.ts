@@ -42,10 +42,15 @@ export function usePageMeta({ title, description, canonicalPath, ogImage }: Page
     const prevCanonical = canonicalEl?.getAttribute("href") ?? "";
 
     upsertMeta("name", "description", description);
+    upsertMeta("name", "robots", "index, follow, max-image-preview:large");
     upsertMeta("property", "og:title", title);
     upsertMeta("property", "og:description", description);
     upsertMeta("property", "og:image", ogImage ?? DEFAULT_OG_IMAGE);
     upsertMeta("property", "og:type", "website");
+    upsertMeta("name", "twitter:card", "summary_large_image");
+    upsertMeta("name", "twitter:title", title);
+    upsertMeta("name", "twitter:description", description);
+    upsertMeta("name", "twitter:image", ogImage ?? DEFAULT_OG_IMAGE);
     if (canonicalPath) {
       const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
       upsertMeta("property", "og:url", canonicalUrl);

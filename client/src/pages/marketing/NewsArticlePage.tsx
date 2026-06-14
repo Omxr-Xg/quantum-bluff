@@ -7,6 +7,15 @@ import { NewsArticleBody } from "../../components/marketing/NewsArticleBody";
 import { getNewsArticle, type NewsArticle } from "../../content/marketing/siteContent";
 import { getAllLandings, getFeaturedGuides } from "../../content/marketing/marketingInternalLinks";
 import { apiUrl } from "../../utils/apiBase";
+import { usePageMeta } from "../../utils/usePageMeta";
+
+const SITE_ORIGIN = "https://www.quantum-bluff.com";
+
+function resolveOgImage(url?: string): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("http")) return url;
+  return `${SITE_ORIGIN}${url.startsWith("/") ? url : `/${url}`}`;
+}
 
 export function NewsArticlePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -44,6 +53,13 @@ export function NewsArticlePage() {
   const featuredGuides = getFeaturedGuides(i18n.language).filter((g) => g.to !== `/news/${slug}`);
   const allLandings = getAllLandings(i18n.language);
 
+  usePageMeta({
+    title: article ? `${article.title} — Quantum Bluff` : `${t("publicSite.backToNews")} — Quantum Bluff`,
+    description: article?.excerpt ?? t("publicSite.articleNotFoundBody"),
+    canonicalPath: slug && article ? `/news/${slug}` : undefined,
+    ogImage: resolveOgImage(article?.imageUrls?.[0]),
+  });
+
   if (loading) {
     return (
       <PublicSiteShell pageTitle={t("publicSite.backToNews")}>
@@ -67,8 +83,29 @@ export function NewsArticlePage() {
     );
   }
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.excerpt,
+    datePublished: article.date,
+    dateModified: article.date,
+    author: { "@type": "Organization", name: "Quantum Bluff", url: SITE_ORIGIN },
+    publisher: {
+      "@type": "Organization",
+      name: "Quantum Bluff",
+      logo: { "@type": "ImageObject", url: `${SITE_ORIGIN}/logo-512.webp` },
+    },
+    mainEntityOfPage: `${SITE_ORIGIN}/news/${article.slug}`,
+    image: resolveOgImage(article.imageUrls?.[0]),
+  };
+
   return (
     <PublicSiteShell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
         <Link
           to="/news"

@@ -4,12 +4,19 @@ import { ChevronRight, Sparkles } from "lucide-react";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
 import { getSiteContent } from "../../content/marketing/siteContent";
 import { getAllLandings, getFeaturedGuides } from "../../content/marketing/marketingInternalLinks";
+import { usePageMeta } from "../../utils/usePageMeta";
 
 export function DiscoverPage() {
   const { i18n, t } = useTranslation();
   const content = getSiteContent(i18n.language).discover;
   const featuredGuides = getFeaturedGuides(i18n.language);
   const allLandings = getAllLandings(i18n.language);
+
+  usePageMeta({
+    title: `${content.metaTitle} — Quantum Bluff`,
+    description: content.heroSubtitle,
+    canonicalPath: "/discover",
+  });
 
   return (
     <PublicSiteShell>

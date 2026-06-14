@@ -2,10 +2,17 @@ import { useTranslation } from "react-i18next";
 import { Mail } from "lucide-react";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
 import { getSiteContent } from "../../content/marketing/siteContent";
+import { usePageMeta } from "../../utils/usePageMeta";
 
 export function ContactPage() {
   const { i18n } = useTranslation();
   const contact = getSiteContent(i18n.language).contact;
+
+  usePageMeta({
+    title: `${contact.title} — Quantum Bluff`,
+    description: contact.intro[0] ?? contact.email,
+    canonicalPath: "/contact",
+  });
 
   return (
     <PublicSiteShell pageTitle={contact.title}>

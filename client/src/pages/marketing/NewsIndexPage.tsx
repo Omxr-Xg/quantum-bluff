@@ -5,6 +5,7 @@ import { Clock } from "lucide-react";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
 import { getSiteContent, type NewsArticle } from "../../content/marketing/siteContent";
 import { apiUrl } from "../../utils/apiBase";
+import { usePageMeta } from "../../utils/usePageMeta";
 
 function resolveNewsThumb(url: string): string {
   if (url.startsWith("/api/")) return apiUrl(url);
@@ -43,6 +44,12 @@ export function NewsIndexPage() {
     ];
     return merged.sort((a, b) => b.date.localeCompare(a.date));
   }, [news.articles, published]);
+
+  usePageMeta({
+    title: `${news.title} — Quantum Bluff`,
+    description: news.subtitle,
+    canonicalPath: "/news",
+  });
 
   return (
     <PublicSiteShell pageTitle={news.title}>
