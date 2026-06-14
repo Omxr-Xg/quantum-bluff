@@ -24,6 +24,7 @@ const NAV = [
 
 const FOOTER_LEGAL = [
   { to: "/downloads", key: "downloads" },
+  { to: "/responsible-gaming", key: "responsibleGaming" },
   { to: "/privacy-policy", key: "privacy" },
   { to: "/terms-of-service", key: "terms" },
   { to: "/about", key: "about" },

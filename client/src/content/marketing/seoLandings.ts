@@ -7,6 +7,7 @@ import rouletteImg from "../../assets/games/roulette.webp";
 import slotImg from "../../assets/games/slot.webp";
 import crashImg from "../../assets/games/crash.webp";
 import minesImg from "../../assets/games/mines.webp";
+import luckyImg from "../../assets/games/lucky.webp";
 
 export type SeoGameSlug =
   | "poker"
@@ -15,7 +16,9 @@ export type SeoGameSlug =
   | "roulette"
   | "slots"
   | "crash"
-  | "mines";
+  | "mines"
+  | "luckyNumber"
+  | "wheel";
 
 export type SeoLandingContent = {
   path: string;
@@ -50,9 +53,12 @@ const fr: SeoLandingsByLocale = {
       "Texas Hold'em no-limit multijoueur dans un salon social premium — bluffez, lisez vos adversaires et grimpez les classements sans miser d'argent réel.",
     descriptionTitle: "Pourquoi jouer au poker sur Quantum Bluff ?",
     description: [
-      "Quantum Bluff propose du Texas Hold'em no-limit pensé pour le jeu social : tables de deux à cinq joueurs, salles d'attente avec invitations d'amis, mode spectateur et tournois structurés. Chaque action est validée côté serveur pour garantir l'équité des mains, des blinds et des tapis.",
-      "Que vous soyez débutant ou habitué des salles live, vous pouvez vous entraîner contre des bots configurables, rejoindre une table publique en un clic ou créer une partie privée entre amis. Le lobby unifié, les classements saisonniers et les récompenses quotidiennes transforment chaque session en progression mesurable.",
-      "La plateforme intègre messagerie, présence en temps réel et appels vocaux WebRTC : idéal pour retrouver l'ambiance d'une vraie table sans quitter le navigateur. Les jetons sont une monnaie virtuelle interne, sans valeur monétaire — le plaisir du bluff, pas le gambling réglementé.",
+      "Quantum Bluff propose du Texas Hold'em no-limit pensé pour le jeu social : tables de deux à cinq joueurs, salles d'attente avec invitations d'amis, mode spectateur et tournois structurés. Chaque action est validée côté serveur pour garantir l'équité des mains, des blinds et des tapis. Le moteur gère automatiquement les side pots lors des all-in multiples, la rotation du bouton dealer et le chronomètre des décisions, afin que vous puissiez vous concentrer sur la lecture des adversaires plutôt que sur la mécanique technique. Que vous jouiez une main rapide en pause déjeuner ou une session marathon le week-end, la table reste fluide et réactive sur desktop comme sur mobile.",
+      "Que vous soyez débutant ou habitué des salles live, vous pouvez vous entraîner contre des bots configurables, rejoindre une table publique en un clic ou créer une partie privée entre amis. Le lobby unifié, les classements saisonniers et les récompenses quotidiennes transforment chaque session en progression mesurable. Les défis hebdomadaires et les succès débloquables récompensent les styles de jeu variés : volume de mains, victoires en heads-up ou participation aux tournois communautaires. Votre profil public affiche vos statistiques agrégées, vos badges et votre présence en ligne pour retrouver facilement vos partenaires habituels.",
+      "La plateforme intègre messagerie instantanée, présence en temps réel et appels vocaux WebRTC : idéal pour retrouver l'ambiance d'une vraie table sans quitter le navigateur. En salle d'attente, vous préparez la stratégie avec vos amis ; à table, la voix remplace le chat texte pour des bluffs plus immersifs. Le mode spectateur permet d'observer une partie en cours avant de prendre un siège, parfait pour apprendre les timings et les sizing d'enchères des joueurs expérimentés. Toutes ces fonctionnalités sociales sont natives à Quantum Bluff — pas de plugins tiers ni de salons Discord obligatoires.",
+      "Les jetons sont une monnaie virtuelle interne, sans valeur monétaire : le plaisir du bluff et de la compétition amicale, pas le gambling réglementé. Vous recevez un solde de départ à l'inscription, des bonus de connexion quotidienne et des récompenses via les missions et tournois. Aucun dépôt bancaire, aucun retrait, aucune conversion en argent réel n'est possible. Quantum Bluff se positionne clairement comme casino social et salon de cartes en ligne, avec une charte de jeu responsable accessible depuis le site. Le divertissement reste au centre : gagner des jetons virtuels, monter au classement, s'amuser entre amis.",
+      "Côté technique, le poker Quantum Bluff repose sur une architecture serveur autoritaire : cartes distribuées, mélanges et résolutions de mains côté backend, avec affichage synchronisé chez chaque client. Cela empêche toute triche locale et garantit que deux joueurs voient exactement le même état de table. Les reconnexions après coupure réseau restituent votre siège et votre tapis sans perte de main en cours. L'interface tactile sur mobile reprend les mêmes actions — check, raise, fold — avec des boutons dimensionnés pour le pouce et un historique de main consultable après chaque showdown.",
+      "Rejoindre une table prend quelques secondes après création de compte gratuit. Depuis le lobby, filtrez les salles publiques par nombre de joueurs ou lancez une room privée avec mot de passe optionnel. Les tournois annoncés dans le fil d'actualité communautaire proposent des structures de blinds progressives et des prix en jetons pour les finalistes. Entre deux tournois, entraînez-vous contre des bots dont vous réglez le nombre et la difficulté pour tester des lignes agressives ou tight sans pression sociale. Quantum Bluff réunit ainsi l'accessibilité d'un jeu gratuit, la profondeur stratégique du Hold'em et une couche sociale premium rarement vue sur les plateformes similaires. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel.",
     ],
     rulesTitle: "Règles du Texas Hold'em sur Quantum Bluff",
     rules: [
@@ -85,6 +91,18 @@ const fr: SeoLandingsByLocale = {
         q: "Quantum Bluff est-il un site de jeu d'argent ?",
         a: "Non. Quantum Bluff est une plateforme de jeu social. Les jetons n'ont aucune valeur monétaire et ne peuvent pas être échangés contre de l'argent réel.",
       },
+      {
+        q: "Combien de joueurs par table ?",
+        a: "Les tables Texas Hold'em accueillent entre deux et cinq joueurs. Le nombre exact est visible dans le lobby avant de rejoindre une salle.",
+      },
+      {
+        q: "Que se passe-t-il si je me déconnecte en cours de main ?",
+        a: "Le serveur conserve votre siège et votre tapis. À la reconnexion, vous retrouvez la main en cours si elle n'est pas terminée.",
+      },
+      {
+        q: "Le poker fonctionne-t-il sur mobile ?",
+        a: "Oui. L'interface poker est responsive et optimisée tactile sur navigateur mobile et application Quantum Bluff.",
+      },
     ],
     ctaTitle: "La table vous attend",
     ctaBody: "Créez votre compte gratuitement et rejoignez une table de Texas Hold'em en quelques secondes.",
@@ -101,9 +119,12 @@ const fr: SeoLandingsByLocale = {
       "Retrouvez l'esprit des parties entre amis : Belote classique à quatre joueurs, en équipes, avec annonces, belote/rebelote et ambiance vocale intégrée.",
     descriptionTitle: "La Belote social sur Quantum Bluff",
     description: [
-      "Quantum Bluff recrée l'expérience d'une Belote conviviale en ligne : quatre joueurs, deux équipes de deux, distribution automatique et calcul des scores conforme aux règles classiques. La salle d'attente permet de former une table entre amis ou de rejoindre une partie publique.",
-      "Les enchères (prises), les annonces et le déroulement des plis sont gérés par le serveur pour éviter les erreurs de comptage. Vous vous concentrez sur le jeu : quel atout choisir, quand couper, comment maximiser les points de votre équipe.",
-      "Comme sur le reste de la plateforme, la couche sociale est native : invitations, messagerie, présence et appels vocaux pour retrouver la convivialité d'une vraie partie de cartes, depuis mobile ou navigateur.",
+      "Quantum Bluff recrée l'expérience d'une Belote conviviale en ligne : quatre joueurs, deux équipes de deux, distribution automatique et calcul des scores conforme aux règles classiques. La salle d'attente permet de former une table entre amis ou de rejoindre une partie publique. Le moteur Belote V1 gère enchères, plis et annonces sans erreur de comptage manuel.",
+      "Les enchères (prises), les annonces et le déroulement des plis sont gérés par le serveur pour éviter les erreurs de comptage. Vous vous concentrez sur le jeu : quel atout choisir, quand couper, comment maximiser les points de votre équipe. Les timers de tour maintiennent un rythme fluide comparable à une vraie partie autour d'une table.",
+      "Comme sur le reste de la plateforme, la couche sociale est native : invitations, messagerie, présence et appels vocaux pour retrouver la convivialité d'une vraie partie de cartes, depuis mobile ou navigateur. Formez votre équipe en salle d'attente, discutez stratégie à voix haute puis enchaînez les manches sans quitter Quantum Bluff.",
+      "Plusieurs variantes sont disponibles — Classique, Coinchée, Contrée et Moderne — partageant le même moteur serveur et les mêmes garanties d'équité. Chaque mode conserve les usages français que les joueurs connaissent : distribution 32 cartes, belote/rebelote, annonces tierces et carrés, comptage des points de levées. Le score s'affiche en temps réel à la fin de chaque pli et de chaque manche, avec récapitulatif des contrats réussis ou chutés pour éviter toute dispute.",
+      "Quantum Bluff est avant tout un salon social : liste d'amis, présence en ligne, messagerie privée et appels vocaux WebRTC intégrés au lobby et aux salles d'attente. Vous coordonnez une soirée Belote ou une session blackjack sans quitter l'application, en parlant directement à vos partenaires comme autour d'une vraie table. Les notifications de présence indiquent qui est disponible pour une partie rapide ; les invitations ciblées évitent les salons publics bruyants. Cette couche sociale native distingue Quantum Bluff des simulateurs isolés où l'on joue seul contre une interface froide.",
+      "Toutes les mises utilisent des jetons virtuels sans valeur monétaire réelle. Vous recevez un solde de départ à l'inscription, des bonus de connexion quotidienne et des récompenses via défis et classements. Aucun dépôt bancaire, retrait ou conversion en argent n'est possible : Quantum Bluff est un casino social et une plateforme de divertissement, pas un opérateur de jeu d'argent réglementé. La page Jeu responsable du site rappelle les bonnes pratiques. Le plaisir vient de la compétition amicale, de la progression cosmétique et du partage de sessions mémorables entre amis. Chaque résultat est validé côté serveur avant affichage : le client ne décide jamais seul du gain ou de la perte. Cette architecture autoritaire garantit l'équité entre joueurs et empêche toute manipulation locale. Les reconnexions après coupure réseau restituent votre session sans perte de mise en cours lorsque le round n'est pas terminé. L'historique portefeuille trace chaque transaction en jetons pour un suivi transparent. Les tests automatisés côté backend couvrent les cas limites de mise, de timing et de payout. Depuis le lobby unifié, basculez entre cartes multijoueur, hub casino rétro et mini-jeux Quick Solo sans recréer de compte. Les classements saisonniers, badges et défis quotidiens récompensent la régularité : jouer dix rounds, remporter une manche ou inviter un ami alimente votre progression. L'interface responsive fonctionne sur navigateur desktop, mobile et application Capacitor avec le même portefeuille de jetons. Créez votre compte gratuit en quelques secondes et explorez l'écosystème complet Quantum Bluff dès la première connexion. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel. La communauté Quantum Bluff s'organise autour du lobby unifié : fil d'actualité, notifications de tournois et page Découvrir pour présenter chaque titre aux nouveaux joueurs. Les guides long format détaillent stratégies, mises à jour serveur et bonnes pratiques de jeu responsable. Profil public, badges et messagerie privée renforcent les liens entre joueurs sans quitter la plateforme — idéal pour planifier une soirée entre amis ou reprendre contact avec un partenaire habituel de Belote ou de poker.",
     ],
     rulesTitle: "Règles de la Belote sur Quantum Bluff",
     rules: [
@@ -136,6 +157,18 @@ const fr: SeoLandingsByLocale = {
         q: "Sur quels appareils puis-je jouer ?",
         a: "Sur navigateur web (desktop et mobile) et via l'application mobile Quantum Bluff. L'interface est responsive et optimisée tactile.",
       },
+      {
+        q: "Quelles variantes de Belote sont proposées ?",
+        a: "Classique, Coinchée, Contrée et Moderne sont disponibles depuis le lobby Belote, avec les mêmes règles de base et des spécificités d'enchères selon le mode.",
+      },
+      {
+        q: "Le score est-il calculé automatiquement ?",
+        a: "Oui. Le serveur comptabilise levées, annonces et contrats en temps réel ; le client affiche le récapitulatif sans saisie manuelle.",
+      },
+      {
+        q: "Y a-t-il un mode spectateur ?",
+        a: "Oui. Vous pouvez observer une table en cours avant de rejoindre, utile pour apprendre ou attendre un siège libre.",
+      },
     ],
     ctaTitle: "Formez votre équipe",
     ctaBody: "Inscrivez-vous gratuitement et lancez une partie de Belote avec vos amis dès maintenant.",
@@ -155,6 +188,9 @@ const fr: SeoLandingsByLocale = {
       "Quantum Bluff propose le blackjack dans deux formats : une table solo rapide pour s'entraîner et des tables multijoueur où plusieurs joueurs affrontent le croupier simultanément. Les règles classiques du 21 s'appliquent : battre le croupier sans dépasser 21, avec les options split, double down et insurance.",
       "Chaque tirage de carte est validé côté serveur. Le moteur gère automatiquement les mains du croupier (stand on 17), les side bets éventuels et le calcul des gains en jetons virtuels.",
       "Intégré au lobby Quantum Bluff, le blackjack bénéficie du même écosystème social : amis, classements, récompenses quotidiennes et sessions express entre deux parties de poker ou de Belote.",
+      "Le mode solo convient aux débutants qui apprennent la stratégie de base : quand tirer, doubler ou split selon la carte visible du croupier. Le multijoueur recrée l'ambiance d'une table de casino où plusieurs joueurs agissent en parallèle contre le même croupier virtuel, avec timer collectif pour garder le rythme. Les payouts blackjack 3:2, push sur égalité de naturals et règles stand-on-17 du croupier suivent les standards que les joueurs attendent.",
+      "Votre portefeuille de jetons virtuels se met à jour instantanément après chaque main. L'historique wallet permet d'auditer vos sessions solo et multijoueur. Aucun dépôt ni retrait d'argent réel : le blackjack Quantum Bluff reste un divertissement social intégré au salon, pas un casino réglementé.",
+      "Quantum Bluff est avant tout un salon social : liste d'amis, présence en ligne, messagerie privée et appels vocaux WebRTC intégrés au lobby et aux salles d'attente. Vous coordonnez une soirée Belote ou une session blackjack sans quitter l'application, en parlant directement à vos partenaires comme autour d'une vraie table. Les notifications de présence indiquent qui est disponible pour une partie rapide ; les invitations ciblées évitent les salons publics bruyants. Cette couche sociale native distingue Quantum Bluff des simulateurs isolés où l'on joue seul contre une interface froide. Chaque résultat est validé côté serveur avant affichage : le client ne décide jamais seul du gain ou de la perte. Cette architecture autoritaire garantit l'équité entre joueurs et empêche toute manipulation locale. Les reconnexions après coupure réseau restituent votre session sans perte de mise en cours lorsque le round n'est pas terminé. L'historique portefeuille trace chaque transaction en jetons pour un suivi transparent. Les tests automatisés côté backend couvrent les cas limites de mise, de timing et de payout. Depuis le lobby unifié, basculez entre cartes multijoueur, hub casino rétro et mini-jeux Quick Solo sans recréer de compte. Les classements saisonniers, badges et défis quotidiens récompensent la régularité : jouer dix rounds, remporter une manche ou inviter un ami alimente votre progression. L'interface responsive fonctionne sur navigateur desktop, mobile et application Capacitor avec le même portefeuille de jetons. Créez votre compte gratuit en quelques secondes et explorez l'écosystème complet Quantum Bluff dès la première connexion. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel. La communauté Quantum Bluff s'organise autour du lobby unifié : fil d'actualité, notifications de tournois et page Découvrir pour présenter chaque titre aux nouveaux joueurs. Les guides long format détaillent stratégies, mises à jour serveur et bonnes pratiques de jeu responsable. Profil public, badges et messagerie privée renforcent les liens entre joueurs sans quitter la plateforme — idéal pour planifier une soirée entre amis ou reprendre contact avec un partenaire habituel de Belote ou de poker. Créez un compte gratuit en quelques secondes via e-mail ou Google : aucune carte bancaire, aucun abonnement. Le portefeuille de jetons virtuels est partagé entre poker, Belote, blackjack, hub casino rétro et mini-jeux Quick Solo. Consultez Quantum Bluff News pour suivre les nouveautés serveur, les tournois à venir et les guides stratégiques publiés par l'équipe.",
     ],
     rulesTitle: "Règles du blackjack sur Quantum Bluff",
     rules: [
@@ -187,6 +223,18 @@ const fr: SeoLandingsByLocale = {
         q: "Puis-je jouer sur mobile ?",
         a: "Oui. Le blackjack est accessible depuis le navigateur mobile et l'application Quantum Bluff avec une interface tactile optimisée.",
       },
+      {
+        q: "Le croupier joue-t-il automatiquement ?",
+        a: "Oui. Le serveur applique stand on 17 et hit on 16 ou moins sans intervention manuelle.",
+      },
+      {
+        q: "Puis-je consulter l'historique de mes mains ?",
+        a: "Oui. L'historique portefeuille enregistre mises et gains en jetons pour chaque session blackjack.",
+      },
+      {
+        q: "Le split et le double sont-ils gérés serveur ?",
+        a: "Oui. Toutes les actions et tirages sont validés côté backend avant affichage.",
+      },
     ],
     ctaTitle: "Tentez le 21",
     ctaBody: "Créez votre compte et lancez une partie de blackjack solo ou multijoueur en un clic.",
@@ -206,6 +254,9 @@ const fr: SeoLandingsByLocale = {
       "Quantum Bluff propose une roulette européenne intégrée au hub casino rétro : ambiance vintage, animation fluide et retour instantané vers le lobby. Les mises intérieures (numéro plein, cheval, transversale) et extérieures (rouge/noir, pair/impair, douzaines) sont toutes disponibles.",
       "Chaque spin est généré et validé côté serveur avant d'être affiché. Les gains en jetons virtuels sont crédités automatiquement sur votre portefeuille, avec historique des parties pour suivre vos sessions.",
       "Un mode tutoriel guidé depuis le lobby vous aide à découvrir les types de paris. Idéal pour une pause rapide entre deux parties de poker ou de Belote, sans quitter l'univers Quantum Bluff.",
+      "La roue européenne à 37 cases (0–36) offre un seul zéro, avec payouts standards : plein 35:1, cheval 17:1, rouge/noir 1:1. Le tapis rétro reprend l'esthétique néon du hub casino, cohérente avec la machine à sous et Lucky Number du même salon. Les limites de mise en jetons (pas de 10) sont affichées clairement avant chaque spin.",
+      "Le tutoriel /tutorial/roulette depuis le lobby détaille chaque type de pari pour les débutants. Les joueurs expérimentés enchaînent les spins entre deux tournois poker grâce au bouton retour vers le hub sans perdre leur solde global.",
+      "Toutes les mises utilisent des jetons virtuels sans valeur monétaire réelle. Vous recevez un solde de départ à l'inscription, des bonus de connexion quotidienne et des récompenses via défis et classements. Aucun dépôt bancaire, retrait ou conversion en argent n'est possible : Quantum Bluff est un casino social et une plateforme de divertissement, pas un opérateur de jeu d'argent réglementé. La page Jeu responsable du site rappelle les bonnes pratiques. Le plaisir vient de la compétition amicale, de la progression cosmétique et du partage de sessions mémorables entre amis. Chaque résultat est validé côté serveur avant affichage : le client ne décide jamais seul du gain ou de la perte. Cette architecture autoritaire garantit l'équité entre joueurs et empêche toute manipulation locale. Les reconnexions après coupure réseau restituent votre session sans perte de mise en cours lorsque le round n'est pas terminé. L'historique portefeuille trace chaque transaction en jetons pour un suivi transparent. Les tests automatisés côté backend couvrent les cas limites de mise, de timing et de payout. Depuis le lobby unifié, basculez entre cartes multijoueur, hub casino rétro et mini-jeux Quick Solo sans recréer de compte. Les classements saisonniers, badges et défis quotidiens récompensent la régularité : jouer dix rounds, remporter une manche ou inviter un ami alimente votre progression. L'interface responsive fonctionne sur navigateur desktop, mobile et application Capacitor avec le même portefeuille de jetons. Créez votre compte gratuit en quelques secondes et explorez l'écosystème complet Quantum Bluff dès la première connexion. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel. La communauté Quantum Bluff s'organise autour du lobby unifié : fil d'actualité, notifications de tournois et page Découvrir pour présenter chaque titre aux nouveaux joueurs. Les guides long format détaillent stratégies, mises à jour serveur et bonnes pratiques de jeu responsable. Profil public, badges et messagerie privée renforcent les liens entre joueurs sans quitter la plateforme — idéal pour planifier une soirée entre amis ou reprendre contact avec un partenaire habituel de Belote ou de poker. Créez un compte gratuit en quelques secondes via e-mail ou Google : aucune carte bancaire, aucun abonnement. Le portefeuille de jetons virtuels est partagé entre poker, Belote, blackjack, hub casino rétro et mini-jeux Quick Solo. Consultez Quantum Bluff News pour suivre les nouveautés serveur, les tournois à venir et les guides stratégiques publiés par l'équipe. Quantum Bluff est avant tout un salon social : liste d'amis, présence en ligne, messagerie privée et appels vocaux WebRTC intégrés au lobby et aux salles d'attente. Vous coordonnez une soirée Belote ou une session blackjack sans quitter l'application, en parlant directement à vos partenaires comme autour d'une vraie table. Les notifications de présence indiquent qui est disponible pour une partie rapide ; les invitations ciblées évitent les salons publics bruyants. Cette couche sociale native distingue Quantum Bluff des simulateurs isolés où l'on joue seul contre une interface froide.",
     ],
     rulesTitle: "Règles de la roulette sur Quantum Bluff",
     rules: [
@@ -238,6 +289,18 @@ const fr: SeoLandingsByLocale = {
         q: "Puis-je jouer sur mobile ?",
         a: "Oui. La roulette est responsive et optimisée pour le tactile sur navigateur et application mobile.",
       },
+      {
+        q: "Quelles mises intérieures puis-je placer ?",
+        a: "Plein, cheval, transversale, carré et sixain sont disponibles sur le tapis avec payouts affichés.",
+      },
+      {
+        q: "Où voir mon historique de spins ?",
+        a: "L'historique portefeuille enregistre chaque mise et gain en jetons virtuels après validation serveur.",
+      },
+      {
+        q: "La roulette partage-t-elle le solde du lobby ?",
+        a: "Oui. Le même portefeuille de jetons s'applique à toute la plateforme Quantum Bluff.",
+      },
     ],
     ctaTitle: "Faites tourner la roue",
     ctaBody: "Créez votre compte gratuitement et lancez un spin à la roulette européenne.",
@@ -257,6 +320,9 @@ const fr: SeoLandingsByLocale = {
       "Quantum Bluff propose une machine à sous au style casino vintage : symboles classiques, effets lumineux et interface immersive dans le hub rétro. Chaque spin est validé côté serveur pour garantir des résultats équitables.",
       "Les gains en jetons virtuels sont calculés automatiquement selon les combinaisons alignées. L'historique portefeuille trace chaque partie pour un suivi transparent de vos sessions.",
       "Parfait pour une pause rapide : quelques spins entre deux mains de poker, sans quitter l'écosystème Quantum Bluff ni miser d'argent réel.",
+      "Les symboles vintage et effets néon recréent l'ambiance des salles classiques dans une interface moderne. Le tableau des payouts est visible avant chaque spin ; les alignements gagnants déclenchent des crédits instantanés sur votre portefeuille. Chaque tirage est indépendant côté serveur — aucun cycle « chaud » ou « froid » n'existe.",
+      "Les défis quotidiens peuvent inclure des objectifs sur les mini-jeux casino : enchaîner dix spins à mise modérée contribue à vos récompenses sans épuiser votre solde. Fixez un budget virtuel de session comme en poker pour garder le divertissement maîtrisé.",
+      "Toutes les mises utilisent des jetons virtuels sans valeur monétaire réelle. Vous recevez un solde de départ à l'inscription, des bonus de connexion quotidienne et des récompenses via défis et classements. Aucun dépôt bancaire, retrait ou conversion en argent n'est possible : Quantum Bluff est un casino social et une plateforme de divertissement, pas un opérateur de jeu d'argent réglementé. La page Jeu responsable du site rappelle les bonnes pratiques. Le plaisir vient de la compétition amicale, de la progression cosmétique et du partage de sessions mémorables entre amis. Chaque résultat est validé côté serveur avant affichage : le client ne décide jamais seul du gain ou de la perte. Cette architecture autoritaire garantit l'équité entre joueurs et empêche toute manipulation locale. Les reconnexions après coupure réseau restituent votre session sans perte de mise en cours lorsque le round n'est pas terminé. L'historique portefeuille trace chaque transaction en jetons pour un suivi transparent. Les tests automatisés côté backend couvrent les cas limites de mise, de timing et de payout. Depuis le lobby unifié, basculez entre cartes multijoueur, hub casino rétro et mini-jeux Quick Solo sans recréer de compte. Les classements saisonniers, badges et défis quotidiens récompensent la régularité : jouer dix rounds, remporter une manche ou inviter un ami alimente votre progression. L'interface responsive fonctionne sur navigateur desktop, mobile et application Capacitor avec le même portefeuille de jetons. Créez votre compte gratuit en quelques secondes et explorez l'écosystème complet Quantum Bluff dès la première connexion. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel. La communauté Quantum Bluff s'organise autour du lobby unifié : fil d'actualité, notifications de tournois et page Découvrir pour présenter chaque titre aux nouveaux joueurs. Les guides long format détaillent stratégies, mises à jour serveur et bonnes pratiques de jeu responsable. Profil public, badges et messagerie privée renforcent les liens entre joueurs sans quitter la plateforme — idéal pour planifier une soirée entre amis ou reprendre contact avec un partenaire habituel de Belote ou de poker. Créez un compte gratuit en quelques secondes via e-mail ou Google : aucune carte bancaire, aucun abonnement. Le portefeuille de jetons virtuels est partagé entre poker, Belote, blackjack, hub casino rétro et mini-jeux Quick Solo. Consultez Quantum Bluff News pour suivre les nouveautés serveur, les tournois à venir et les guides stratégiques publiés par l'équipe. Quantum Bluff est avant tout un salon social : liste d'amis, présence en ligne, messagerie privée et appels vocaux WebRTC intégrés au lobby et aux salles d'attente. Vous coordonnez une soirée Belote ou une session blackjack sans quitter l'application, en parlant directement à vos partenaires comme autour d'une vraie table. Les notifications de présence indiquent qui est disponible pour une partie rapide ; les invitations ciblées évitent les salons publics bruyants. Cette couche sociale native distingue Quantum Bluff des simulateurs isolés où l'on joue seul contre une interface froide.",
     ],
     rulesTitle: "Comment jouer aux slots sur Quantum Bluff",
     rules: [
@@ -289,6 +355,18 @@ const fr: SeoLandingsByLocale = {
         q: "Quantum Bluff est-il un casino réglementé ?",
         a: "Non. C'est une plateforme de divertissement social. Aucun gain d'argent réel n'est possible.",
       },
+      {
+        q: "Où voir le tableau des gains ?",
+        a: "Le paytable est affiché dans l'interface slot avant de lancer un spin.",
+      },
+      {
+        q: "Les spins comptent-ils pour les défis quotidiens ?",
+        a: "Oui. Certaines missions quotidiennes ciblent les mini-jeux casino dont les slots.",
+      },
+      {
+        q: "Quelle mise minimale ?",
+        a: "Les limites affichées à l'écran suivent le contrat jetons de la plateforme, généralement par pas de 10.",
+      },
     ],
     ctaTitle: "Tentez votre chance",
     ctaBody: "Inscrivez-vous et lancez vos premiers spins sur la machine à sous vintage.",
@@ -308,6 +386,9 @@ const fr: SeoLandingsByLocale = {
       "Le Crash est un mini-jeu solo où un multiplicateur grimpe en continu jusqu'à un point de crash imprévisible. Placez votre mise, suivez la courbe et encaissez (cash out) avant que le multiplicateur ne s'effondre.",
       "Chaque round est entièrement géré côté serveur : point de crash, timing et payouts calculés avant affichage. Les mises vont de 10 à 500 jetons virtuels, avec historique portefeuille pour chaque session.",
       "Intégré au hub Quick Solo du lobby, le Crash offre des sessions express entre deux parties de cartes — fun, rapide et sans argent réel.",
+      "La courbe monte de 1,00× jusqu'au crash ; votre gain potentiel est mise × multiplicateur au moment du cash out. Le point de crash est fixé serveur avant le round — le client anime le résultat sans influence sur l'issue. Un historique des rounds récents aide à analyser vos sessions sans promettre de pattern prédictible.",
+      "Stratégie responsable : fixez une cible de cash out avant le départ (ex. 2,0×) plutôt que de courir après le multiplicateur en cours de round. Les jetons perdus restent virtuels ; le plaisir vient du timing et de la gestion du risque social entre amis qui comparent leurs scores.",
+      "Toutes les mises utilisent des jetons virtuels sans valeur monétaire réelle. Vous recevez un solde de départ à l'inscription, des bonus de connexion quotidienne et des récompenses via défis et classements. Aucun dépôt bancaire, retrait ou conversion en argent n'est possible : Quantum Bluff est un casino social et une plateforme de divertissement, pas un opérateur de jeu d'argent réglementé. La page Jeu responsable du site rappelle les bonnes pratiques. Le plaisir vient de la compétition amicale, de la progression cosmétique et du partage de sessions mémorables entre amis. Chaque résultat est validé côté serveur avant affichage : le client ne décide jamais seul du gain ou de la perte. Cette architecture autoritaire garantit l'équité entre joueurs et empêche toute manipulation locale. Les reconnexions après coupure réseau restituent votre session sans perte de mise en cours lorsque le round n'est pas terminé. L'historique portefeuille trace chaque transaction en jetons pour un suivi transparent. Les tests automatisés côté backend couvrent les cas limites de mise, de timing et de payout. Depuis le lobby unifié, basculez entre cartes multijoueur, hub casino rétro et mini-jeux Quick Solo sans recréer de compte. Les classements saisonniers, badges et défis quotidiens récompensent la régularité : jouer dix rounds, remporter une manche ou inviter un ami alimente votre progression. L'interface responsive fonctionne sur navigateur desktop, mobile et application Capacitor avec le même portefeuille de jetons. Créez votre compte gratuit en quelques secondes et explorez l'écosystème complet Quantum Bluff dès la première connexion. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel. La communauté Quantum Bluff s'organise autour du lobby unifié : fil d'actualité, notifications de tournois et page Découvrir pour présenter chaque titre aux nouveaux joueurs. Les guides long format détaillent stratégies, mises à jour serveur et bonnes pratiques de jeu responsable. Profil public, badges et messagerie privée renforcent les liens entre joueurs sans quitter la plateforme — idéal pour planifier une soirée entre amis ou reprendre contact avec un partenaire habituel de Belote ou de poker. Créez un compte gratuit en quelques secondes via e-mail ou Google : aucune carte bancaire, aucun abonnement. Le portefeuille de jetons virtuels est partagé entre poker, Belote, blackjack, hub casino rétro et mini-jeux Quick Solo. Consultez Quantum Bluff News pour suivre les nouveautés serveur, les tournois à venir et les guides stratégiques publiés par l'équipe. Quantum Bluff est avant tout un salon social : liste d'amis, présence en ligne, messagerie privée et appels vocaux WebRTC intégrés au lobby et aux salles d'attente. Vous coordonnez une soirée Belote ou une session blackjack sans quitter l'application, en parlant directement à vos partenaires comme autour d'une vraie table. Les notifications de présence indiquent qui est disponible pour une partie rapide ; les invitations ciblées évitent les salons publics bruyants. Cette couche sociale native distingue Quantum Bluff des simulateurs isolés où l'on joue seul contre une interface froide.",
     ],
     rulesTitle: "Règles du Crash sur Quantum Bluff",
     rules: [
@@ -340,6 +421,18 @@ const fr: SeoLandingsByLocale = {
         q: "Où accéder au Crash ?",
         a: "Depuis le hub Quick Solo du lobby, après connexion à votre compte Quantum Bluff.",
       },
+      {
+        q: "Puis-je cash out à tout moment ?",
+        a: "Oui, tant que le multiplicateur n'a pas crashé. Le payout est calculé serveur au clic.",
+      },
+      {
+        q: "Y a-t-il un historique des rounds ?",
+        a: "Oui. Les rounds récents et l'historique portefeuille tracent vos sessions.",
+      },
+      {
+        q: "Le Crash fonctionne-t-il sur mobile ?",
+        a: "Oui. L'interface Quick Solo est responsive et optimisée tactile.",
+      },
     ],
     ctaTitle: "Visez le cash out",
     ctaBody: "Créez votre compte et testez le Crash — encaissez au bon moment avant l'effondrement.",
@@ -359,6 +452,9 @@ const fr: SeoLandingsByLocale = {
       "Mines est un mini-jeu de grille où vous choisissez le nombre de mines cachées, placez votre mise et révélez des cases une par une. Chaque case sûre augmente le multiplicateur ; touchez une mine et vous perdez la mise.",
       "Le placement des mines et les payouts sont entièrement calculés côté serveur. Le client illustre l'état de la grille et les gains potentiels, sans influencer le résultat.",
       "Accessible depuis le hub Quick Solo, Mines complète l'offre casino express de Quantum Bluff — sessions courtes, stratégie risque/récompense et jetons virtuels uniquement.",
+      "Plus vous choisissez de mines sur la grille, plus le multiplicateur potentiel monte — mais le risque de tout perdre augmente aussi. Après plusieurs gemmes sûres, encaisser (Cash Out) sécurise le gain serveur sans tenter le board complet. Le layout responsive mobile aligne les types de payout avec le backend pour une expérience cohérente.",
+      "Mines partage le contrat de mise unifié Quick Solo : 10 à 500 jetons, pas de 10, anti double-clic et crédit wallet atomique. Idéal entre deux mains de Belote ou après une session Crash pour varier le rythme.",
+      "Toutes les mises utilisent des jetons virtuels sans valeur monétaire réelle. Vous recevez un solde de départ à l'inscription, des bonus de connexion quotidienne et des récompenses via défis et classements. Aucun dépôt bancaire, retrait ou conversion en argent n'est possible : Quantum Bluff est un casino social et une plateforme de divertissement, pas un opérateur de jeu d'argent réglementé. La page Jeu responsable du site rappelle les bonnes pratiques. Le plaisir vient de la compétition amicale, de la progression cosmétique et du partage de sessions mémorables entre amis. Chaque résultat est validé côté serveur avant affichage : le client ne décide jamais seul du gain ou de la perte. Cette architecture autoritaire garantit l'équité entre joueurs et empêche toute manipulation locale. Les reconnexions après coupure réseau restituent votre session sans perte de mise en cours lorsque le round n'est pas terminé. L'historique portefeuille trace chaque transaction en jetons pour un suivi transparent. Les tests automatisés côté backend couvrent les cas limites de mise, de timing et de payout. Depuis le lobby unifié, basculez entre cartes multijoueur, hub casino rétro et mini-jeux Quick Solo sans recréer de compte. Les classements saisonniers, badges et défis quotidiens récompensent la régularité : jouer dix rounds, remporter une manche ou inviter un ami alimente votre progression. L'interface responsive fonctionne sur navigateur desktop, mobile et application Capacitor avec le même portefeuille de jetons. Créez votre compte gratuit en quelques secondes et explorez l'écosystème complet Quantum Bluff dès la première connexion. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel. La communauté Quantum Bluff s'organise autour du lobby unifié : fil d'actualité, notifications de tournois et page Découvrir pour présenter chaque titre aux nouveaux joueurs. Les guides long format détaillent stratégies, mises à jour serveur et bonnes pratiques de jeu responsable. Profil public, badges et messagerie privée renforcent les liens entre joueurs sans quitter la plateforme — idéal pour planifier une soirée entre amis ou reprendre contact avec un partenaire habituel de Belote ou de poker. Créez un compte gratuit en quelques secondes via e-mail ou Google : aucune carte bancaire, aucun abonnement. Le portefeuille de jetons virtuels est partagé entre poker, Belote, blackjack, hub casino rétro et mini-jeux Quick Solo. Consultez Quantum Bluff News pour suivre les nouveautés serveur, les tournois à venir et les guides stratégiques publiés par l'équipe. Quantum Bluff est avant tout un salon social : liste d'amis, présence en ligne, messagerie privée et appels vocaux WebRTC intégrés au lobby et aux salles d'attente. Vous coordonnez une soirée Belote ou une session blackjack sans quitter l'application, en parlant directement à vos partenaires comme autour d'une vraie table. Les notifications de présence indiquent qui est disponible pour une partie rapide ; les invitations ciblées évitent les salons publics bruyants. Cette couche sociale native distingue Quantum Bluff des simulateurs isolés où l'on joue seul contre une interface froide.",
     ],
     rulesTitle: "Règles du Mines sur Quantum Bluff",
     rules: [
@@ -391,9 +487,153 @@ const fr: SeoLandingsByLocale = {
         q: "Mines fonctionne-t-il sur mobile ?",
         a: "Oui. La grille est responsive et optimisée pour le tactile.",
       },
+      {
+        q: "Quand puis-je encaisser ?",
+        a: "À tout moment après au moins une case sûre révélée, via Cash Out serveur-validé.",
+      },
+      {
+        q: "Que se passe-t-il si je touche une mine ?",
+        a: "Le round est perdu et la mise est déduite ; une nouvelle grille peut être lancée.",
+      },
+      {
+        q: "Où accéder au Mines ?",
+        a: "Depuis le hub Quick Solo du lobby Quantum Bluff après connexion.",
+      },
     ],
     ctaTitle: "Évitez les mines",
     ctaBody: "Inscrivez-vous et lancez votre première grille Mines depuis le lobby.",
+  },
+  luckyNumber: {
+    path: "/online-lucky-number",
+    image: luckyImg,
+    imageAlt: "Jeu Lucky Number sur Quantum Bluff",
+    metaTitle: "Lucky Number en ligne gratuit | Numéro porte-bonheur — Quantum Bluff",
+    metaDescription:
+      "Jouez à Lucky Number sur Quantum Bluff : choisissez un chiffre de 1 à 10, tirage serveur, gain x8 et jetons virtuels. Casino rétro gratuit, sans argent réel.",
+    heroTitle: "Lucky Number en ligne",
+    heroSubtitle:
+      "Choisissez votre numéro porte-bonheur de 1 à 10 — la maison tire, vous gagnez x8 en cas de match, avec mises de 10 à 500 jetons validées serveur.",
+    descriptionTitle: "Lucky Number dans le casino rétro Quantum Bluff",
+    description: [
+      "Lucky Number est un mini-jeu instantané du hub casino rétro : vous sélectionnez un entier entre 1 et 10, placez votre mise en jetons virtuels, puis le serveur tire un numéro gagnant via POST /api/lucky-number/play. Si votre choix correspond, vous encaissez huit fois votre mise (coefficient x8) ; sinon la mise est perdue pour ce round.",
+      "Les mises acceptées vont de 10 à 500 jetons, par pas de 10, avec validation serveur du solde avant chaque tirage. Un verrou anti double-clic empêche les requêtes parallèles sur le même compte. L'animation client illustre le tirage sans décider du résultat.",
+      "Intégré aux côtés de la roulette européenne et de la machine à sous vintage, Lucky Number complète la triade rétro pour des pauses d'une minute entre deux parties de cartes multijoueur.",
+      "Le tirage est uniforme entre 1 et 10 côté backend, testé par la suite Jest du serveur. L'historique portefeuille enregistre mise, numéro choisi, numéro tiré et payout pour auditer chaque session. Aucune valeur monétaire réelle n'est en jeu.",
+      "Les défis quotidiens peuvent inclure des objectifs Lucky Number (ex. dix rounds) pour gagner des jetons bonus. Fixez un budget virtuel de session comme sur les autres mini-jeux du hub.",
+      "Toutes les mises utilisent des jetons virtuels sans valeur monétaire réelle. Vous recevez un solde de départ à l'inscription, des bonus de connexion quotidienne et des récompenses via défis et classements. Aucun dépôt bancaire, retrait ou conversion en argent n'est possible : Quantum Bluff est un casino social et une plateforme de divertissement, pas un opérateur de jeu d'argent réglementé. La page Jeu responsable du site rappelle les bonnes pratiques. Le plaisir vient de la compétition amicale, de la progression cosmétique et du partage de sessions mémorables entre amis. Chaque résultat est validé côté serveur avant affichage : le client ne décide jamais seul du gain ou de la perte. Cette architecture autoritaire garantit l'équité entre joueurs et empêche toute manipulation locale. Les reconnexions après coupure réseau restituent votre session sans perte de mise en cours lorsque le round n'est pas terminé. L'historique portefeuille trace chaque transaction en jetons pour un suivi transparent. Les tests automatisés côté backend couvrent les cas limites de mise, de timing et de payout. Depuis le lobby unifié, basculez entre cartes multijoueur, hub casino rétro et mini-jeux Quick Solo sans recréer de compte. Les classements saisonniers, badges et défis quotidiens récompensent la régularité : jouer dix rounds, remporter une manche ou inviter un ami alimente votre progression. L'interface responsive fonctionne sur navigateur desktop, mobile et application Capacitor avec le même portefeuille de jetons. Créez votre compte gratuit en quelques secondes et explorez l'écosystème complet Quantum Bluff dès la première connexion. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel. La communauté Quantum Bluff s'organise autour du lobby unifié : fil d'actualité, notifications de tournois et page Découvrir pour présenter chaque titre aux nouveaux joueurs. Les guides long format détaillent stratégies, mises à jour serveur et bonnes pratiques de jeu responsable. Profil public, badges et messagerie privée renforcent les liens entre joueurs sans quitter la plateforme — idéal pour planifier une soirée entre amis ou reprendre contact avec un partenaire habituel de Belote ou de poker. Créez un compte gratuit en quelques secondes via e-mail ou Google : aucune carte bancaire, aucun abonnement. Le portefeuille de jetons virtuels est partagé entre poker, Belote, blackjack, hub casino rétro et mini-jeux Quick Solo. Consultez Quantum Bluff News pour suivre les nouveautés serveur, les tournois à venir et les guides stratégiques publiés par l'équipe. Quantum Bluff est avant tout un salon social : liste d'amis, présence en ligne, messagerie privée et appels vocaux WebRTC intégrés au lobby et aux salles d'attente. Vous coordonnez une soirée Belote ou une session blackjack sans quitter l'application, en parlant directement à vos partenaires comme autour d'une vraie table. Les notifications de présence indiquent qui est disponible pour une partie rapide ; les invitations ciblées évitent les salons publics bruyants. Cette couche sociale native distingue Quantum Bluff des simulateurs isolés où l'on joue seul contre une interface froide.",
+    ],
+    rulesTitle: "Règles du Lucky Number sur Quantum Bluff",
+    rules: [
+      "Choisissez un numéro entier entre 1 et 10 inclus.",
+      "Placez votre mise en jetons virtuels (10 à 500, pas de 10).",
+      "Le serveur tire un numéro gagnant uniformément entre 1 et 10.",
+      "Si votre numéro correspond au tirage, vous gagnez mise × 8 (coefficient x8).",
+      "En cas de non-correspondance, la mise du round est perdue.",
+      "Chaque round est validé via POST /api/lucky-number/play — le client affiche le résultat serveur.",
+    ],
+    faqTitle: "FAQ — Lucky Number sur Quantum Bluff",
+    faq: [
+      {
+        q: "Comment jouer à Lucky Number ?",
+        a: "Choisissez un chiffre de 1 à 10, misez 10–500 jetons, le serveur tire ; match = gain x8.",
+      },
+      {
+        q: "Le jeu est-il gratuit ?",
+        a: "Oui. Mises en jetons virtuels sans valeur monétaire.",
+      },
+      {
+        q: "Le tirage est-il équitable ?",
+        a: "Oui. Le numéro est tiré uniformément côté serveur avant affichage.",
+      },
+      {
+        q: "Quel est le payout en cas de gain ?",
+        a: "Huit fois votre mise (coefficient x8) crédité sur le portefeuille virtuel.",
+      },
+      {
+        q: "Où accéder au jeu ?",
+        a: "Depuis le hub casino rétro du lobby Quantum Bluff.",
+      },
+      {
+        q: "Quelle mise minimale et maximale ?",
+        a: "10 jetons minimum, 500 maximum, par pas de 10.",
+      },
+      {
+        q: "Puis-je enchaîner plusieurs tirages ?",
+        a: "Oui, un verrou serveur évite les double-clics pendant le traitement.",
+      },
+      {
+        q: "Lucky Number fonctionne-t-il sur mobile ?",
+        a: "Oui. L'interface rétro est responsive et optimisée tactile.",
+      },
+    ],
+    ctaTitle: "Tentez votre numéro",
+    ctaBody: "Créez votre compte et lancez votre premier tirage Lucky Number depuis le casino rétro.",
+  },
+  wheel: {
+    path: "/online-wheel-of-fortune",
+    image: slotImg,
+    imageAlt: "Roue de la fortune sur Quantum Bluff",
+    metaTitle: "Roue de la fortune en ligne gratuite | Wheel x20 — Quantum Bluff",
+    metaDescription:
+      "Jouez à la Roue de la fortune sur Quantum Bluff : 12 segments, multiplicateurs x0 à x20 JACKPOT, mises 10–500 jetons, spin validé serveur. Quick Solo gratuit.",
+    heroTitle: "Roue de la fortune en ligne",
+    heroSubtitle:
+      "Douze segments, multiplicateurs de x0 à JACKPOT x20 — tournez la roue dans le hub Quick Solo avec mises de 10 à 500 jetons validées côté serveur.",
+    descriptionTitle: "Wheel of Fortune sur Quantum Bluff",
+    description: [
+      "La Roue de la fortune est un mini-jeu Quick Solo à douze segments : x0, x0.5, x1, x1.5, x2, x3, x5 et JACKPOT x20. Vous misez entre 10 et 500 jetons virtuels, le serveur tire le segment gagnant et calcule le payout (mise × coefficient) avant l'animation.",
+      "Le pointeur fixe en haut et la rotation finale sont synchronisées avec le résultat API — le client ne choisit jamais le segment. La légende des coefficients est visible avant le premier spin pour comprendre la distribution des segments.",
+      "Accessible depuis le hub Quick Solo aux côtés de Crash et Mines, la roue offre des sessions express sans quitter le portefeuille unifié Quantum Bluff.",
+      "Trois segments x0, deux x0.5, deux x1, un x1.5, un x2, un x3, un x5 et un JACKPOT x20 composent la roue — chaque spin est indépendant et testé côté serveur (wheelMath.ts). L'historique wallet trace mises et gains.",
+      "Stratégie responsable : la roue reste un divertissement à variance élevée ; fixez un plafond de jetons par session. Les défis quotidiens peuvent compter les spins wheel vers vos récompenses.",
+      "Toutes les mises utilisent des jetons virtuels sans valeur monétaire réelle. Vous recevez un solde de départ à l'inscription, des bonus de connexion quotidienne et des récompenses via défis et classements. Aucun dépôt bancaire, retrait ou conversion en argent n'est possible : Quantum Bluff est un casino social et une plateforme de divertissement, pas un opérateur de jeu d'argent réglementé. La page Jeu responsable du site rappelle les bonnes pratiques. Le plaisir vient de la compétition amicale, de la progression cosmétique et du partage de sessions mémorables entre amis. Chaque résultat est validé côté serveur avant affichage : le client ne décide jamais seul du gain ou de la perte. Cette architecture autoritaire garantit l'équité entre joueurs et empêche toute manipulation locale. Les reconnexions après coupure réseau restituent votre session sans perte de mise en cours lorsque le round n'est pas terminé. L'historique portefeuille trace chaque transaction en jetons pour un suivi transparent. Les tests automatisés côté backend couvrent les cas limites de mise, de timing et de payout. Depuis le lobby unifié, basculez entre cartes multijoueur, hub casino rétro et mini-jeux Quick Solo sans recréer de compte. Les classements saisonniers, badges et défis quotidiens récompensent la régularité : jouer dix rounds, remporter une manche ou inviter un ami alimente votre progression. L'interface responsive fonctionne sur navigateur desktop, mobile et application Capacitor avec le même portefeuille de jetons. Créez votre compte gratuit en quelques secondes et explorez l'écosystème complet Quantum Bluff dès la première connexion. Le blog Quantum Bluff News, la page Découvrir et les guides long format documentent chaque titre du lobby : règles détaillées, stratégies responsables et changelog des mises à jour serveur. L'authentification Google, le profil public avec badges et la messagerie privée structurent une communauté francophone et internationale autour du jeu social. Les tournois annoncés après inscription gratuite proposent des structures adaptées aux soirées entre amis comme aux sessions solo d'entraînement. Aucune pression financière : seuls comptent le plaisir de jouer, l'amélioration de votre niveau et le lien social maintenu par la voix WebRTC native. Consultez aussi la page Jeu responsable pour des repères sur le temps de jeu et la gestion de votre solde virtuel. La communauté Quantum Bluff s'organise autour du lobby unifié : fil d'actualité, notifications de tournois et page Découvrir pour présenter chaque titre aux nouveaux joueurs. Les guides long format détaillent stratégies, mises à jour serveur et bonnes pratiques de jeu responsable. Profil public, badges et messagerie privée renforcent les liens entre joueurs sans quitter la plateforme — idéal pour planifier une soirée entre amis ou reprendre contact avec un partenaire habituel de Belote ou de poker. Créez un compte gratuit en quelques secondes via e-mail ou Google : aucune carte bancaire, aucun abonnement. Le portefeuille de jetons virtuels est partagé entre poker, Belote, blackjack, hub casino rétro et mini-jeux Quick Solo. Consultez Quantum Bluff News pour suivre les nouveautés serveur, les tournois à venir et les guides stratégiques publiés par l'équipe. Quantum Bluff est avant tout un salon social : liste d'amis, présence en ligne, messagerie privée et appels vocaux WebRTC intégrés au lobby et aux salles d'attente. Vous coordonnez une soirée Belote ou une session blackjack sans quitter l'application, en parlant directement à vos partenaires comme autour d'une vraie table. Les notifications de présence indiquent qui est disponible pour une partie rapide ; les invitations ciblées évitent les salons publics bruyants. Cette couche sociale native distingue Quantum Bluff des simulateurs isolés où l'on joue seul contre une interface froide.",
+    ],
+    rulesTitle: "Règles de la Roue sur Quantum Bluff",
+    rules: [
+      "La roue comporte 12 segments avec multiplicateurs : x0, x0.5, x1, x1.5, x2, x3, x5 et JACKPOT x20.",
+      "Placez votre mise en jetons virtuels (10 à 500, pas de 10) avant de lancer le spin.",
+      "Le serveur tire le segment gagnant et calcule gain = mise × multiplicateur.",
+      "L'animation de rotation est synchronisée avec le résultat serveur — le client n'influence pas l'issue.",
+      "Un segment x0 signifie perte de la mise ; JACKPOT x20 crédite vingt fois la mise.",
+      "Chaque spin est indépendant ; l'historique portefeuille enregistre le résultat.",
+    ],
+    faqTitle: "FAQ — Roue de la fortune sur Quantum Bluff",
+    faq: [
+      {
+        q: "Combien de segments a la roue ?",
+        a: "Douze segments avec coefficients x0, x0.5, x1, x1.5, x2, x3, x5 et JACKPOT x20.",
+      },
+      {
+        q: "Le jeu est-il gratuit ?",
+        a: "Oui. Mises en jetons virtuels sans argent réel.",
+      },
+      {
+        q: "Le spin est-il truqué ?",
+        a: "Non. Le segment est tiré et validé côté serveur avant l'animation.",
+      },
+      {
+        q: "Quelle est la mise maximale ?",
+        a: "500 jetons virtuels, minimum 10, pas de 10.",
+      },
+      {
+        q: "Où accéder à la roue ?",
+        a: "Depuis le hub Quick Solo du lobby Quantum Bluff.",
+      },
+      {
+        q: "Que signifie JACKPOT x20 ?",
+        a: "Vingt fois votre mise est créditée si le pointeur s'arrête sur le segment JACKPOT.",
+      },
+      {
+        q: "Puis-je voir les coefficients avant de jouer ?",
+        a: "Oui. La légende des segments est affichée dans l'interface.",
+      },
+      {
+        q: "La roue fonctionne-t-elle sur mobile ?",
+        a: "Oui. Interface responsive avec animation synchronisée au résultat serveur.",
+      },
+    ],
+    ctaTitle: "Tournez la roue",
+    ctaBody: "Inscrivez-vous et lancez votre premier spin sur la Roue de la fortune.",
   },
 };
 
@@ -410,9 +650,12 @@ const en: SeoLandingsByLocale = {
       "No-limit Texas Hold'em multiplayer in a premium social lounge — bluff, read your opponents and climb the rankings without wagering real money.",
     descriptionTitle: "Why play poker on Quantum Bluff?",
     description: [
-      "Quantum Bluff offers no-limit Texas Hold'em built for social play: two to five player tables, waiting rooms with friend invites, spectator mode and structured tournaments. Every action is server-validated to keep hands, blinds and stacks fair.",
-      "Whether you are new to poker or a live-room regular, train against configurable bots, join a public table in one click or host a private game with friends. The unified lobby, seasonal leaderboards and daily rewards turn every session into measurable progress.",
-      "The platform includes messaging, real-time presence and WebRTC voice calls — recreating a real table atmosphere from your browser. Chips are virtual in-game currency with no monetary value — the thrill of the bluff, not regulated gambling.",
+      "Quantum Bluff offers no-limit Texas Hold'em built for social play: two to five player tables, waiting rooms with friend invites, spectator mode and structured tournaments. Every action is server-validated to keep hands, blinds and stacks fair. The engine handles side pots on multi-way all-ins, dealer button rotation and action timers automatically so you focus on reads rather than mechanics. Lunch-break hands and weekend marathons stay smooth on desktop and mobile.",
+      "Whether you are new to poker or a live-room regular, train against configurable bots, join a public table in one click or host a private game with friends. The unified lobby, seasonal leaderboards and daily rewards turn every session into measurable progress. Weekly challenges and unlockable achievements reward varied play styles: hand volume, heads-up wins or community tournament entries. Your public profile shows aggregated stats, badges and online presence so regular partners are easy to find.",
+      "The platform includes messaging, real-time presence and WebRTC voice calls — recreating a real table atmosphere from your browser. Waiting rooms let you strategize with friends before seating; at the table, voice replaces text for immersive bluffs. Spectator mode lets you watch a hand before joining — ideal for learning bet sizing from experienced players. These social features are native to Quantum Bluff — no third-party plugins or mandatory Discord servers.",
+      "Chips are virtual in-game currency with no monetary value — the thrill of the bluff and friendly competition, not regulated gambling. You receive a starting balance at signup, daily login bonuses and rewards through missions and tournaments. No bank deposits, withdrawals or cash conversion are possible. Quantum Bluff is clearly positioned as a social casino and online card room with a responsible gaming charter on the site. Entertainment stays central: win virtual chips, climb rankings and have fun with friends.",
+      "Technically, Quantum Bluff poker uses a server-authoritative architecture: cards dealt, shuffles and hand resolution on the backend with synchronized display on every client. That prevents local cheating and ensures two players see exactly the same table state. Reconnections after network drops restore your seat and stack without losing an in-progress hand. The mobile touch interface offers the same actions — check, raise, fold — with thumb-sized buttons and hand history after each showdown.",
+      "Joining a table takes seconds after free account creation. From the lobby, filter public rooms by player count or launch a private room with optional password. Community tournaments announced in the news feed offer progressive blind structures and virtual chip prizes for finalists. Between tournaments, train against bots whose count and difficulty you set to test aggressive or tight lines without social pressure. Quantum Bluff combines free accessibility, Hold'em strategic depth and a premium social layer rarely seen on similar platforms. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login.",
     ],
     rulesTitle: "Texas Hold'em rules on Quantum Bluff",
     rules: [
@@ -445,6 +688,18 @@ const en: SeoLandingsByLocale = {
         q: "Is Quantum Bluff a real-money gambling site?",
         a: "No. Quantum Bluff is a social gaming platform. Chips have no cash value and cannot be exchanged for real money.",
       },
+      {
+        q: "How many players per table?",
+        a: "Texas Hold'em tables seat two to five players. The exact count is shown in the lobby before you join.",
+      },
+      {
+        q: "What happens if I disconnect mid-hand?",
+        a: "The server keeps your seat and stack. On reconnect you rejoin the current hand if it is still in progress.",
+      },
+      {
+        q: "Does poker work on mobile?",
+        a: "Yes. The poker UI is responsive and touch-optimized in mobile browsers and the Quantum Bluff app.",
+      },
     ],
     ctaTitle: "The table is waiting",
     ctaBody: "Create your free account and join a Texas Hold'em table in seconds.",
@@ -464,6 +719,9 @@ const en: SeoLandingsByLocale = {
       "Quantum Bluff recreates a friendly Belote experience online: four players, two teams of two, automatic dealing and standard scoring. The waiting room lets you gather friends or join a public game.",
       "Bids, announcements and trick play are handled server-side to prevent scoring mistakes. You focus on strategy: which trump to choose, when to cut and how to maximize your team's points.",
       "Like the rest of the platform, social features are built in: invites, messaging, presence and voice calls to capture the feel of a real card game on mobile or desktop.",
+      "Classic, Coinched, Contree and Modern variants share the same server engine and fairness guarantees. Each mode follows French conventions: 32-card deal, belote/rebelote, sequence announcements and trick scoring. Live scoreboards update after every trick and round.",
+      "Quantum Bluff is built as a social lounge first: friends list, online presence, private messaging and WebRTC voice calls integrated into the lobby and waiting rooms. Coordinate a Belote night or a blackjack session without leaving the app, talking to partners as you would at a real table. Presence notifications show who is available for a quick game; targeted invites avoid noisy public rooms. This native social layer sets Quantum Bluff apart from isolated simulators where you play alone against a cold interface.",
+      "All bets use virtual chips with no real monetary value. You receive a starting balance at signup, daily login bonuses and rewards through challenges and leaderboards. No bank deposits, withdrawals or cash conversion are possible: Quantum Bluff is a social casino and entertainment platform, not a regulated real-money gambling operator. The responsible gaming page outlines best practices. The fun comes from friendly competition, cosmetic progression and sharing memorable sessions with friends. Every outcome is validated server-side before display: the client never decides wins or losses alone. This authoritative architecture ensures fairness and prevents local manipulation. Reconnections after network drops restore your session without losing an in-progress bet when the round is not finished. Wallet history logs every chip transaction for transparent tracking. Automated backend tests cover edge cases for bets, timing and payouts. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. Free signup, no bank card required. Quantum Bluff brings together multiplayer poker, four-player Belote, solo and multiplayer blackjack, European roulette, vintage slots, Lucky Number, Wheel of Fortune, Crash and Mines in one virtual chip wallet. WebRTC voice, messaging and seasonal leaderboards turn every session into a social moment, whether you play ten minutes or a full friends' night — always with no real money or financial commitment. Create your free account and explore the lobby today. No download required in desktop or mobile browsers.",
     ],
     rulesTitle: "Belote rules on Quantum Bluff",
     rules: [
@@ -496,6 +754,18 @@ const en: SeoLandingsByLocale = {
         q: "Which devices are supported?",
         a: "Web browser (desktop and mobile) and the Quantum Bluff mobile app. The UI is responsive and touch-friendly.",
       },
+      {
+        q: "Which Belote variants are available?",
+        a: "Classic, Coinched, Contree and Modern are available from the Belote lobby.",
+      },
+      {
+        q: "Is scoring automatic?",
+        a: "Yes. The server counts tricks, announcements and contracts in real time.",
+      },
+      {
+        q: "Is there a spectator mode?",
+        a: "Yes. You can watch a table before joining to learn or wait for a seat.",
+      },
     ],
     ctaTitle: "Build your team",
     ctaBody: "Sign up for free and start a Belote game with your friends now.",
@@ -515,6 +785,9 @@ const en: SeoLandingsByLocale = {
       "Quantum Bluff offers blackjack in two formats: a quick solo table for practice and multiplayer tables where several players face the dealer at once. Classic 21 rules apply: beat the dealer without busting, with split, double down and insurance options.",
       "Every card draw is server-validated. The engine handles dealer rules (stand on 17), optional side bets and virtual chip payouts automatically.",
       "Integrated into the Quantum Bluff lobby, blackjack shares the same social ecosystem: friends, leaderboards, daily rewards and quick sessions between poker or Belote games.",
+      "Solo mode suits beginners learning basic strategy: when to hit, double or split against the dealer upcard. Multiplayer recreates a casino table where several players act in parallel with a shared timer. 3:2 blackjack payouts and dealer stand-on-17 follow expected standards.",
+      "Your virtual chip wallet updates instantly after each hand. Wallet history audits solo and multiplayer sessions. No real-money deposits or withdrawals — social entertainment only.",
+      "Quantum Bluff is built as a social lounge first: friends list, online presence, private messaging and WebRTC voice calls integrated into the lobby and waiting rooms. Coordinate a Belote night or a blackjack session without leaving the app, talking to partners as you would at a real table. Presence notifications show who is available for a quick game; targeted invites avoid noisy public rooms. This native social layer sets Quantum Bluff apart from isolated simulators where you play alone against a cold interface. Every outcome is validated server-side before display: the client never decides wins or losses alone. This authoritative architecture ensures fairness and prevents local manipulation. Reconnections after network drops restore your session without losing an in-progress bet when the round is not finished. Wallet history logs every chip transaction for transparent tracking. Automated backend tests cover edge cases for bets, timing and payouts. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. All bets use virtual chips with no real monetary value. You receive a starting balance at signup, daily login bonuses and rewards through challenges and leaderboards. No bank deposits, withdrawals or cash conversion are possible: Quantum Bluff is a social casino and entertainment platform, not a regulated real-money gambling operator. The responsible gaming page outlines best practices. The fun comes from friendly competition, cosmetic progression and sharing memorable sessions with friends. Free signup, no bank card required. Quantum Bluff brings together multiplayer poker, four-player Belote, solo and multiplayer blackjack, European roulette, vintage slots, Lucky Number, Wheel of Fortune, Crash and Mines in one virtual chip wallet. WebRTC voice, messaging and seasonal leaderboards turn every session into a social moment, whether you play ten minutes or a full friends' night — always with no real money or financial commitment. Create your free account and explore the lobby today. No download required in desktop or mobile browsers.",
     ],
     rulesTitle: "Blackjack rules on Quantum Bluff",
     rules: [
@@ -547,6 +820,18 @@ const en: SeoLandingsByLocale = {
         q: "Can I play on mobile?",
         a: "Yes. Blackjack is available in mobile browsers and the Quantum Bluff app with a touch-optimized interface.",
       },
+      {
+        q: "Does the dealer play automatically?",
+        a: "Yes. The server applies stand on 17 and hit on 16 or less.",
+      },
+      {
+        q: "Can I review hand history?",
+        a: "Yes. Wallet history logs bets and virtual chip wins for each blackjack session.",
+      },
+      {
+        q: "Are split and double server-managed?",
+        a: "Yes. All actions and draws are validated on the backend before display.",
+      },
     ],
     ctaTitle: "Go for 21",
     ctaBody: "Create your account and start a solo or multiplayer blackjack game in one click.",
@@ -566,6 +851,9 @@ const en: SeoLandingsByLocale = {
       "Quantum Bluff offers European roulette in the retro casino hub: vintage atmosphere, smooth animation and instant return to the lobby. Inside bets (straight, split, street) and outside bets (red/black, odd/even, dozens) are all available.",
       "Every spin is generated and validated server-side before display. Virtual chip winnings are credited automatically to your wallet, with game history to track your sessions.",
       "A guided tutorial from the lobby helps you learn bet types. Perfect for a quick break between poker or Belote games without leaving the Quantum Bluff universe.",
+      "The 37-pocket European wheel (0–36) offers standard payouts: straight 35:1, split 17:1, red/black 1:1. The retro layout matches the neon aesthetic of slots and Lucky Number in the same hub. Bet limits in chip steps of 10 are shown before each spin.",
+      "The /tutorial/roulette guide from the lobby explains every bet type for beginners. Experienced players chain spins between poker tournaments via the hub back button without losing their global balance.",
+      "All bets use virtual chips with no real monetary value. You receive a starting balance at signup, daily login bonuses and rewards through challenges and leaderboards. No bank deposits, withdrawals or cash conversion are possible: Quantum Bluff is a social casino and entertainment platform, not a regulated real-money gambling operator. The responsible gaming page outlines best practices. The fun comes from friendly competition, cosmetic progression and sharing memorable sessions with friends. Every outcome is validated server-side before display: the client never decides wins or losses alone. This authoritative architecture ensures fairness and prevents local manipulation. Reconnections after network drops restore your session without losing an in-progress bet when the round is not finished. Wallet history logs every chip transaction for transparent tracking. Automated backend tests cover edge cases for bets, timing and payouts. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. Quantum Bluff is built as a social lounge first: friends list, online presence, private messaging and WebRTC voice calls integrated into the lobby and waiting rooms. Coordinate a Belote night or a blackjack session without leaving the app, talking to partners as you would at a real table. Presence notifications show who is available for a quick game; targeted invites avoid noisy public rooms. This native social layer sets Quantum Bluff apart from isolated simulators where you play alone against a cold interface. Free signup, no bank card required. Quantum Bluff brings together multiplayer poker, four-player Belote, solo and multiplayer blackjack, European roulette, vintage slots, Lucky Number, Wheel of Fortune, Crash and Mines in one virtual chip wallet. WebRTC voice, messaging and seasonal leaderboards turn every session into a social moment, whether you play ten minutes or a full friends' night — always with no real money or financial commitment. Create your free account and explore the lobby today. No download required in desktop or mobile browsers.",
     ],
     rulesTitle: "Roulette rules on Quantum Bluff",
     rules: [
@@ -598,6 +886,18 @@ const en: SeoLandingsByLocale = {
         q: "Can I play on mobile?",
         a: "Yes. Roulette is responsive and touch-optimized on browser and mobile app.",
       },
+      {
+        q: "Which inside bets can I place?",
+        a: "Straight, split, street, corner and six-line are available with displayed payouts.",
+      },
+      {
+        q: "Where is spin history?",
+        a: "Wallet history logs every bet and virtual chip win after server validation.",
+      },
+      {
+        q: "Does roulette share the lobby balance?",
+        a: "Yes. The same chip wallet applies across the Quantum Bluff platform.",
+      },
     ],
     ctaTitle: "Spin the wheel",
     ctaBody: "Create your free account and launch a European roulette spin.",
@@ -617,6 +917,9 @@ const en: SeoLandingsByLocale = {
       "Quantum Bluff features a vintage-style slot machine: classic symbols, light effects and an immersive interface in the retro hub. Every spin is server-validated for fair outcomes.",
       "Virtual chip winnings are calculated automatically based on aligned combinations. Wallet history tracks every game for transparent session monitoring.",
       "Perfect for a quick break: a few spins between poker hands without leaving the Quantum Bluff ecosystem or wagering real money.",
+      "Vintage symbols and neon effects recreate classic casino atmosphere in a modern UI. The paytable is visible before each spin; winning alignments credit your wallet instantly. Every draw is independent server-side — no hot or cold cycles exist.",
+      "Daily challenges may target casino mini-games: ten moderate spins can progress rewards without draining your balance. Set a virtual session budget as in poker for controlled fun.",
+      "All bets use virtual chips with no real monetary value. You receive a starting balance at signup, daily login bonuses and rewards through challenges and leaderboards. No bank deposits, withdrawals or cash conversion are possible: Quantum Bluff is a social casino and entertainment platform, not a regulated real-money gambling operator. The responsible gaming page outlines best practices. The fun comes from friendly competition, cosmetic progression and sharing memorable sessions with friends. Every outcome is validated server-side before display: the client never decides wins or losses alone. This authoritative architecture ensures fairness and prevents local manipulation. Reconnections after network drops restore your session without losing an in-progress bet when the round is not finished. Wallet history logs every chip transaction for transparent tracking. Automated backend tests cover edge cases for bets, timing and payouts. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. Quantum Bluff is built as a social lounge first: friends list, online presence, private messaging and WebRTC voice calls integrated into the lobby and waiting rooms. Coordinate a Belote night or a blackjack session without leaving the app, talking to partners as you would at a real table. Presence notifications show who is available for a quick game; targeted invites avoid noisy public rooms. This native social layer sets Quantum Bluff apart from isolated simulators where you play alone against a cold interface. Free signup, no bank card required. Quantum Bluff brings together multiplayer poker, four-player Belote, solo and multiplayer blackjack, European roulette, vintage slots, Lucky Number, Wheel of Fortune, Crash and Mines in one virtual chip wallet. WebRTC voice, messaging and seasonal leaderboards turn every session into a social moment, whether you play ten minutes or a full friends' night — always with no real money or financial commitment. Create your free account and explore the lobby today. No download required in desktop or mobile browsers.",
     ],
     rulesTitle: "How to play slots on Quantum Bluff",
     rules: [
@@ -649,6 +952,18 @@ const en: SeoLandingsByLocale = {
         q: "Is Quantum Bluff a regulated casino?",
         a: "No. It is a social entertainment platform. No real-money prizes are possible.",
       },
+      {
+        q: "Where is the paytable?",
+        a: "Displayed in the slot interface before you spin.",
+      },
+      {
+        q: "Do spins count for daily challenges?",
+        a: "Yes. Some daily missions target casino mini-games including slots.",
+      },
+      {
+        q: "What is the minimum bet?",
+        a: "On-screen limits follow the platform chip contract, typically in steps of 10.",
+      },
     ],
     ctaTitle: "Try your luck",
     ctaBody: "Sign up and launch your first spins on the vintage slot machine.",
@@ -668,6 +983,9 @@ const en: SeoLandingsByLocale = {
       "Crash is a solo mini-game where a multiplier climbs continuously until an unpredictable crash point. Place your bet, watch the curve and cash out before the multiplier collapses.",
       "Every round is fully server-managed: crash point, timing and payouts calculated before display. Bets range from 10 to 500 virtual chips, with wallet history for each session.",
       "Integrated into the Quick Solo hub in the lobby, Crash offers express sessions between card games — fun, fast and no real money.",
+      "The curve rises from 1.00× until crash; potential winnings are bet × multiplier at cash-out moment. Crash point is fixed server-side before the round — the client animates without influencing outcome. Recent round history helps review sessions without implying predictable patterns.",
+      "Responsible play: set a cash-out target before launch (e.g. 2.0×) rather than chasing the live multiplier. Lost chips stay virtual; fun comes from timing and comparing scores with friends.",
+      "All bets use virtual chips with no real monetary value. You receive a starting balance at signup, daily login bonuses and rewards through challenges and leaderboards. No bank deposits, withdrawals or cash conversion are possible: Quantum Bluff is a social casino and entertainment platform, not a regulated real-money gambling operator. The responsible gaming page outlines best practices. The fun comes from friendly competition, cosmetic progression and sharing memorable sessions with friends. Every outcome is validated server-side before display: the client never decides wins or losses alone. This authoritative architecture ensures fairness and prevents local manipulation. Reconnections after network drops restore your session without losing an in-progress bet when the round is not finished. Wallet history logs every chip transaction for transparent tracking. Automated backend tests cover edge cases for bets, timing and payouts. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. Quantum Bluff is built as a social lounge first: friends list, online presence, private messaging and WebRTC voice calls integrated into the lobby and waiting rooms. Coordinate a Belote night or a blackjack session without leaving the app, talking to partners as you would at a real table. Presence notifications show who is available for a quick game; targeted invites avoid noisy public rooms. This native social layer sets Quantum Bluff apart from isolated simulators where you play alone against a cold interface. Free signup, no bank card required. Quantum Bluff brings together multiplayer poker, four-player Belote, solo and multiplayer blackjack, European roulette, vintage slots, Lucky Number, Wheel of Fortune, Crash and Mines in one virtual chip wallet. WebRTC voice, messaging and seasonal leaderboards turn every session into a social moment, whether you play ten minutes or a full friends' night — always with no real money or financial commitment. Create your free account and explore the lobby today. No download required in desktop or mobile browsers.",
     ],
     rulesTitle: "Crash rules on Quantum Bluff",
     rules: [
@@ -700,6 +1018,18 @@ const en: SeoLandingsByLocale = {
         q: "Where do I access Crash?",
         a: "From the Quick Solo hub in the lobby, after signing into your Quantum Bluff account.",
       },
+      {
+        q: "Can I cash out anytime?",
+        a: "Yes, until the multiplier crashes. Payout is calculated server-side on click.",
+      },
+      {
+        q: "Is there round history?",
+        a: "Yes. Recent rounds and wallet history track your sessions.",
+      },
+      {
+        q: "Does Crash work on mobile?",
+        a: "Yes. The Quick Solo UI is responsive and touch-optimized.",
+      },
     ],
     ctaTitle: "Aim for cash out",
     ctaBody: "Create your account and try Crash — cash out at the right moment before the drop.",
@@ -719,6 +1049,9 @@ const en: SeoLandingsByLocale = {
       "Mines is a grid mini-game where you choose the number of hidden mines, place your bet and reveal tiles one by one. Each safe tile raises the multiplier; hit a mine and you lose the bet.",
       "Mine placement and payouts are fully calculated server-side. The client shows grid state and potential winnings without influencing the outcome.",
       "Available from the Quick Solo hub, Mines completes Quantum Bluff's express casino offer — short sessions, risk/reward strategy and virtual chips only.",
+      "More mines on the grid raise potential multipliers but increase loss risk. After several safe gems, Cash Out secures server-validated winnings without clearing the entire board. Responsive mobile layout aligns payout types with the backend.",
+      "Mines shares the unified Quick Solo bet contract: 10–500 chips, steps of 10, anti double-click and atomic wallet credit. Ideal between Belote hands or after a Crash session.",
+      "All bets use virtual chips with no real monetary value. You receive a starting balance at signup, daily login bonuses and rewards through challenges and leaderboards. No bank deposits, withdrawals or cash conversion are possible: Quantum Bluff is a social casino and entertainment platform, not a regulated real-money gambling operator. The responsible gaming page outlines best practices. The fun comes from friendly competition, cosmetic progression and sharing memorable sessions with friends. Every outcome is validated server-side before display: the client never decides wins or losses alone. This authoritative architecture ensures fairness and prevents local manipulation. Reconnections after network drops restore your session without losing an in-progress bet when the round is not finished. Wallet history logs every chip transaction for transparent tracking. Automated backend tests cover edge cases for bets, timing and payouts. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. Quantum Bluff is built as a social lounge first: friends list, online presence, private messaging and WebRTC voice calls integrated into the lobby and waiting rooms. Coordinate a Belote night or a blackjack session without leaving the app, talking to partners as you would at a real table. Presence notifications show who is available for a quick game; targeted invites avoid noisy public rooms. This native social layer sets Quantum Bluff apart from isolated simulators where you play alone against a cold interface. Free signup, no bank card required. Quantum Bluff brings together multiplayer poker, four-player Belote, solo and multiplayer blackjack, European roulette, vintage slots, Lucky Number, Wheel of Fortune, Crash and Mines in one virtual chip wallet. WebRTC voice, messaging and seasonal leaderboards turn every session into a social moment, whether you play ten minutes or a full friends' night — always with no real money or financial commitment. Create your free account and explore the lobby today. No download required in desktop or mobile browsers.",
     ],
     rulesTitle: "Mines rules on Quantum Bluff",
     rules: [
@@ -751,12 +1084,155 @@ const en: SeoLandingsByLocale = {
         q: "Does Mines work on mobile?",
         a: "Yes. The grid is responsive and touch-optimized.",
       },
+      {
+        q: "When can I cash out?",
+        a: "Anytime after at least one safe tile, via server-validated Cash Out.",
+      },
+      {
+        q: "What happens if I hit a mine?",
+        a: "The round is lost and the bet deducted; you can start a new grid.",
+      },
+      {
+        q: "Where do I access Mines?",
+        a: "From the Quick Solo hub in the Quantum Bluff lobby after login.",
+      },
     ],
     ctaTitle: "Avoid the mines",
     ctaBody: "Sign up and launch your first Mines grid from the lobby.",
   },
+  luckyNumber: {
+    path: "/online-lucky-number",
+    image: luckyImg,
+    imageAlt: "Lucky Number game on Quantum Bluff",
+    metaTitle: "Play Lucky Number Online Free | Pick 1–10 — Quantum Bluff",
+    metaDescription:
+      "Play Lucky Number on Quantum Bluff: pick a number 1–10, server draw, x8 win and virtual chips. Free retro casino, no real money.",
+    heroTitle: "Lucky Number online",
+    heroSubtitle:
+      "Pick your lucky number from 1 to 10 — the house draws, you win x8 on a match, with 10–500 chip bets validated server-side.",
+    descriptionTitle: "Lucky Number in the Quantum Bluff retro casino",
+    description: [
+      "Lucky Number is an instant mini-game in the retro casino hub: select an integer from 1 to 10, place your virtual chip bet, then the server draws a winning number via POST /api/lucky-number/play. On a match you collect eight times your bet (x8 multiplier); otherwise the round bet is lost.",
+      "Accepted bets range from 10 to 500 chips in steps of 10, with server balance validation before each draw. An anti double-click lock prevents parallel requests on the same account. Client animation illustrates the draw without deciding the outcome.",
+      "Alongside European roulette and the vintage slot machine, Lucky Number completes the retro trio for one-minute breaks between multiplayer card games.",
+      "The draw is uniform from 1 to 10 on the backend, covered by server Jest tests. Wallet history logs bet, chosen number, drawn number and payout. No real money is involved.",
+      "Daily challenges may include Lucky Number goals (e.g. ten rounds) for bonus chips. Set a virtual session budget like other hub mini-games.",
+      "All bets use virtual chips with no real monetary value. You receive a starting balance at signup, daily login bonuses and rewards through challenges and leaderboards. No bank deposits, withdrawals or cash conversion are possible: Quantum Bluff is a social casino and entertainment platform, not a regulated real-money gambling operator. The responsible gaming page outlines best practices. The fun comes from friendly competition, cosmetic progression and sharing memorable sessions with friends. Every outcome is validated server-side before display: the client never decides wins or losses alone. This authoritative architecture ensures fairness and prevents local manipulation. Reconnections after network drops restore your session without losing an in-progress bet when the round is not finished. Wallet history logs every chip transaction for transparent tracking. Automated backend tests cover edge cases for bets, timing and payouts. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. Quantum Bluff is built as a social lounge first: friends list, online presence, private messaging and WebRTC voice calls integrated into the lobby and waiting rooms. Coordinate a Belote night or a blackjack session without leaving the app, talking to partners as you would at a real table. Presence notifications show who is available for a quick game; targeted invites avoid noisy public rooms. This native social layer sets Quantum Bluff apart from isolated simulators where you play alone against a cold interface. Free signup, no bank card required. Quantum Bluff brings together multiplayer poker, four-player Belote, solo and multiplayer blackjack, European roulette, vintage slots, Lucky Number, Wheel of Fortune, Crash and Mines in one virtual chip wallet. WebRTC voice, messaging and seasonal leaderboards turn every session into a social moment, whether you play ten minutes or a full friends' night — always with no real money or financial commitment. Create your free account and explore the lobby today. No download required in desktop or mobile browsers.",
+    ],
+    rulesTitle: "Lucky Number rules on Quantum Bluff",
+    rules: [
+      "Choose an integer between 1 and 10 inclusive.",
+      "Place your virtual chip bet (10–500, in steps of 10).",
+      "The server draws a winning number uniformly between 1 and 10.",
+      "If your number matches the draw, you win bet × 8 (x8 multiplier).",
+      "On mismatch, the round bet is lost.",
+      "Each round is validated via POST /api/lucky-number/play — the client displays the server result.",
+    ],
+    faqTitle: "FAQ — Lucky Number on Quantum Bluff",
+    faq: [
+      {
+        q: "How do I play Lucky Number?",
+        a: "Pick a number 1–10, bet 10–500 chips, the server draws; match = x8 win.",
+      },
+      {
+        q: "Is the game free?",
+        a: "Yes. Bets use virtual chips with no monetary value.",
+      },
+      {
+        q: "Is the draw fair?",
+        a: "Yes. The number is drawn uniformly server-side before display.",
+      },
+      {
+        q: "What is the win payout?",
+        a: "Eight times your bet (x8 multiplier) credited to your virtual wallet.",
+      },
+      {
+        q: "Where do I access the game?",
+        a: "From the retro casino hub in the Quantum Bluff lobby.",
+      },
+      {
+        q: "What are min and max bets?",
+        a: "10 chips minimum, 500 maximum, in steps of 10.",
+      },
+      {
+        q: "Can I chain multiple draws?",
+        a: "Yes. A server lock prevents double-clicks during processing.",
+      },
+      {
+        q: "Does Lucky Number work on mobile?",
+        a: "Yes. The retro UI is responsive and touch-optimized.",
+      },
+    ],
+    ctaTitle: "Try your number",
+    ctaBody: "Create your account and launch your first Lucky Number draw from the retro casino.",
+  },
+  wheel: {
+    path: "/online-wheel-of-fortune",
+    image: slotImg,
+    imageAlt: "Wheel of Fortune on Quantum Bluff",
+    metaTitle: "Play Wheel of Fortune Online Free | x20 JACKPOT — Quantum Bluff",
+    metaDescription:
+      "Play Wheel of Fortune on Quantum Bluff: 12 segments, x0 to x20 JACKPOT multipliers, 10–500 chip bets, server-validated spin. Free Quick Solo.",
+    heroTitle: "Wheel of Fortune online",
+    heroSubtitle:
+      "Twelve segments, multipliers from x0 to JACKPOT x20 — spin the wheel in the Quick Solo hub with 10–500 chip bets validated server-side.",
+    descriptionTitle: "Wheel of Fortune on Quantum Bluff",
+    description: [
+      "Wheel of Fortune is a Quick Solo mini-game with twelve segments: x0, x0.5, x1, x1.5, x2, x3, x5 and JACKPOT x20. Bet 10–500 virtual chips; the server picks the winning segment and calculates payout (bet × multiplier) before animation.",
+      "The fixed top pointer and final rotation sync with the API result — the client never chooses the segment. Coefficient legend is visible before your first spin to understand segment distribution.",
+      "Available from the Quick Solo hub alongside Crash and Mines, the wheel offers express sessions without leaving the unified Quantum Bluff wallet.",
+      "Three x0 segments, two x0.5, two x1, one x1.5, one x2, one x3, one x5 and one JACKPOT x20 compose the wheel — each spin is independent and server-tested (wheelMath.ts). Wallet history logs bets and wins.",
+      "Responsible play: the wheel is high-variance entertainment; set a chip ceiling per session. Daily challenges may count wheel spins toward rewards.",
+      "All bets use virtual chips with no real monetary value. You receive a starting balance at signup, daily login bonuses and rewards through challenges and leaderboards. No bank deposits, withdrawals or cash conversion are possible: Quantum Bluff is a social casino and entertainment platform, not a regulated real-money gambling operator. The responsible gaming page outlines best practices. The fun comes from friendly competition, cosmetic progression and sharing memorable sessions with friends. Every outcome is validated server-side before display: the client never decides wins or losses alone. This authoritative architecture ensures fairness and prevents local manipulation. Reconnections after network drops restore your session without losing an in-progress bet when the round is not finished. Wallet history logs every chip transaction for transparent tracking. Automated backend tests cover edge cases for bets, timing and payouts. From the unified lobby, switch between multiplayer card games, the retro casino hub and Quick Solo mini-games without creating a new account. Seasonal leaderboards, badges and daily challenges reward regular play: complete ten rounds, win a hand or invite a friend to advance your profile. The responsive interface works on desktop browsers, mobile and the Capacitor app with the same chip wallet. Create your free account in seconds and explore the full Quantum Bluff ecosystem on first login. The Quantum Bluff News blog, Discover page and long-form guides document every lobby title: detailed rules, responsible strategies and server update changelogs. Google sign-in, public profiles with badges and private messaging build a French and international community around social play. Tournaments announced after free signup offer structures suited to friend nights and solo practice alike. No financial pressure: only the fun of playing, skill improvement and social connection via native WebRTC voice matter here. See the responsible gaming page for play-time tips and virtual balance management. The Quantum Bluff community revolves around the unified lobby: news feed, tournament notifications and the Discover page to introduce every title to new players. Long-form guides cover strategies, server updates and responsible play tips. Public profiles, badges and private messaging strengthen connections without leaving the platform — ideal for planning a friends' night or reconnecting with a regular Belote or poker partner. Create a free account in seconds via email or Google: no bank card, no subscription. The virtual chip wallet is shared across poker, Belote, blackjack, the retro casino hub and Quick Solo mini-games. Read Quantum Bluff News for server updates, upcoming tournaments and strategy guides from the team. Quantum Bluff is built as a social lounge first: friends list, online presence, private messaging and WebRTC voice calls integrated into the lobby and waiting rooms. Coordinate a Belote night or a blackjack session without leaving the app, talking to partners as you would at a real table. Presence notifications show who is available for a quick game; targeted invites avoid noisy public rooms. This native social layer sets Quantum Bluff apart from isolated simulators where you play alone against a cold interface. Free signup, no bank card required. Quantum Bluff brings together multiplayer poker, four-player Belote, solo and multiplayer blackjack, European roulette, vintage slots, Lucky Number, Wheel of Fortune, Crash and Mines in one virtual chip wallet. WebRTC voice, messaging and seasonal leaderboards turn every session into a social moment, whether you play ten minutes or a full friends' night — always with no real money or financial commitment. Create your free account and explore the lobby today. No download required in desktop or mobile browsers.",
+    ],
+    rulesTitle: "Wheel rules on Quantum Bluff",
+    rules: [
+      "The wheel has 12 segments with multipliers: x0, x0.5, x1, x1.5, x2, x3, x5 and JACKPOT x20.",
+      "Place your virtual chip bet (10–500, in steps of 10) before spinning.",
+      "The server picks the winning segment and calculates winnings = bet × multiplier.",
+      "Spin animation is synchronized with the server result — the client cannot influence the outcome.",
+      "An x0 segment means loss of the bet; JACKPOT x20 credits twenty times the bet.",
+      "Each spin is independent; wallet history records the result.",
+    ],
+    faqTitle: "FAQ — Wheel of Fortune on Quantum Bluff",
+    faq: [
+      {
+        q: "How many segments on the wheel?",
+        a: "Twelve segments with coefficients x0, x0.5, x1, x1.5, x2, x3, x5 and JACKPOT x20.",
+      },
+      {
+        q: "Is the game free?",
+        a: "Yes. Bets use virtual chips — no real money.",
+      },
+      {
+        q: "Is the spin rigged?",
+        a: "No. The segment is drawn and validated server-side before animation.",
+      },
+      {
+        q: "What is the maximum bet?",
+        a: "500 virtual chips, minimum 10, steps of 10.",
+      },
+      {
+        q: "Where do I access the wheel?",
+        a: "From the Quick Solo hub in the Quantum Bluff lobby.",
+      },
+      {
+        q: "What does JACKPOT x20 mean?",
+        a: "Twenty times your bet is credited if the pointer lands on JACKPOT.",
+      },
+      {
+        q: "Can I see coefficients before playing?",
+        a: "Yes. Segment legend is shown in the interface.",
+      },
+      {
+        q: "Does the wheel work on mobile?",
+        a: "Yes. Responsive UI with animation synced to server result.",
+      },
+    ],
+    ctaTitle: "Spin the wheel",
+    ctaBody: "Sign up and launch your first Wheel of Fortune spin.",
+  },
 };
-
 export function getSeoLanding(slug: SeoGameSlug, locale: string): SeoLandingContent {
   const pack = resolveMarketingLocale(locale) === "fr" ? fr : en;
   return pack[slug];

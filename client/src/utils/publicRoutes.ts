@@ -13,6 +13,9 @@ const PUBLIC_MARKETING_PATHS = [
   "/online-slots",
   "/online-crash-game",
   "/online-mines-game",
+  "/online-lucky-number",
+  "/online-wheel-of-fortune",
+  "/responsible-gaming",
 ] as const;
 
 export function isPublicMarketingPath(pathname: string): boolean {

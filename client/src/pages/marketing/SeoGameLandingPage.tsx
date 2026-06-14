@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Sparkles } from "lucide-react";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
 import { getSeoLanding, type SeoGameSlug } from "../../content/marketing/seoLandings";
+import { getOtherLandings, getSeoRelatedGuides } from "../../content/marketing/marketingInternalLinks";
 import { usePageMeta } from "../../utils/usePageMeta";
 
 type SeoGameLandingPageProps = {
@@ -12,6 +13,8 @@ type SeoGameLandingPageProps = {
 export function SeoGameLandingPage({ game }: SeoGameLandingPageProps) {
   const { i18n, t } = useTranslation();
   const content = getSeoLanding(game, i18n.language);
+  const relatedGuides = getSeoRelatedGuides(game, i18n.language);
+  const otherLandings = getOtherLandings(game, i18n.language);
 
   usePageMeta({
     title: content.metaTitle,
@@ -114,6 +117,56 @@ export function SeoGameLandingPage({ game }: SeoGameLandingPageProps) {
                 <p className="mt-3 text-sm leading-relaxed text-slate-400">{item.a}</p>
               </details>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-white/5 bg-slate-950/50">
+        <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
+          <h2 className="mb-6 text-2xl font-black text-white">{t("publicSite.learnMoreTitle")}</h2>
+          <div className="grid gap-8 md:grid-cols-2">
+            <div>
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-cyan-300/80">
+                {t("publicSite.relatedGuides")}
+              </h3>
+              <ul className="space-y-2">
+                {relatedGuides.map((link) => (
+                  <li key={link.to}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-slate-300 underline decoration-cyan-500/30 underline-offset-2 hover:text-cyan-100"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <Link
+                    to="/news"
+                    className="text-sm font-semibold text-cyan-200 hover:text-cyan-100"
+                  >
+                    {t("publicSite.ctaNews")} →
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-cyan-300/80">
+                {t("publicSite.otherGames")}
+              </h3>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {otherLandings.map((link) => (
+                  <li key={link.to}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-slate-300 underline decoration-white/10 underline-offset-2 hover:text-cyan-100"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>

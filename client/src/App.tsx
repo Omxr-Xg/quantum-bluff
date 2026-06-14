@@ -65,6 +65,7 @@ import { AdminBeloteAnalytics } from "./pages/AdminBeloteAnalytics";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 import { DiscoverPage } from "./pages/marketing/DiscoverPage";
 import { AboutPage } from "./pages/marketing/AboutPage";
+import { ResponsibleGamingPage } from "./pages/marketing/ResponsibleGamingPage";
 import { ContactPage } from "./pages/marketing/ContactPage";
 import { PrivacyPolicyPage } from "./pages/marketing/PrivacyPolicyPage";
 import { TermsOfServicePage } from "./pages/marketing/TermsOfServicePage";
@@ -143,6 +144,7 @@ function App() {
             <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/downloads" element={<DownloadsPage />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/responsible-gaming" element={<ResponsibleGamingPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms-of-service" element={<TermsOfServicePage />} />
@@ -155,6 +157,8 @@ function App() {
             <Route path="/online-slots" element={<SeoGameLandingPage game="slots" />} />
             <Route path="/online-crash-game" element={<SeoGameLandingPage game="crash" />} />
             <Route path="/online-mines-game" element={<SeoGameLandingPage game="mines" />} />
+            <Route path="/online-lucky-number" element={<SeoGameLandingPage game="luckyNumber" />} />
+            <Route path="/online-wheel-of-fortune" element={<SeoGameLandingPage game="wheel" />} />
             <Route path="/auth/google" element={<OAuthGoogleStartRedirect />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/register" element={<Register />} />

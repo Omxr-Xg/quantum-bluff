@@ -17,6 +17,7 @@ import {
 import { QuantumBluffLogo } from "../../assets/logo";
 import { PublicSiteShell } from "../../components/marketing/PublicSiteShell";
 import { getSiteContent } from "../../content/marketing/siteContent";
+import { GAME_SEO_PATHS, getAllLandings, getFeaturedGuides } from "../../content/marketing/marketingInternalLinks";
 
 const SOCIAL_ICONS = [Mic, Users, MessageCircle, Trophy, Award, UserPlus] as const;
 const WHY_ICONS = [Gift, Smartphone, Zap, TrendingUp] as const;
@@ -24,6 +25,8 @@ const WHY_ICONS = [Gift, Smartphone, Zap, TrendingUp] as const;
 export function HomePage() {
   const { i18n, t } = useTranslation();
   const home = getSiteContent(i18n.language).home;
+  const featuredGuides = getFeaturedGuides(i18n.language);
+  const allLandings = getAllLandings(i18n.language);
 
   return (
     <PublicSiteShell>
@@ -84,22 +87,39 @@ export function HomePage() {
         <div className="mx-auto w-full max-w-7xl">
         <h2 className="mb-10 text-center text-2xl font-black text-white sm:text-3xl">{home.gamesTitle}</h2>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {home.games.map((game) => (
-            <article
-              key={game.id}
-              className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-cyan-400/20"
-            >
-              <img
-                src={game.screenshot}
-                alt=""
-                className="h-44 w-full bg-slate-950/80 object-contain p-2 sm:h-52"
-              />
-              <div className="p-5">
-                <h3 className="text-lg font-bold text-cyan-100">{game.name}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-400">{game.description}</p>
-              </div>
-            </article>
-          ))}
+          {home.games.map((game) => {
+            const seoPath = GAME_SEO_PATHS[game.id];
+            const card = (
+              <>
+                <img
+                  src={game.screenshot}
+                  alt=""
+                  className="h-44 w-full bg-slate-950/80 object-contain p-2 sm:h-52"
+                />
+                <div className="p-5">
+                  <h3 className="text-lg font-bold text-cyan-100">{game.name}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-400">{game.description}</p>
+                  {seoPath ? (
+                    <p className="mt-3 text-xs font-semibold text-cyan-400/90">→ {t("publicSite.learnMoreTitle")}</p>
+                  ) : null}
+                </div>
+              </>
+            );
+            return (
+              <article
+                key={game.id}
+                className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-cyan-400/20"
+              >
+                {seoPath ? (
+                  <Link to={seoPath} className="block hover:bg-white/[0.02]">
+                    {card}
+                  </Link>
+                ) : (
+                  card
+                )}
+              </article>
+            );
+          })}
         </div>
         </div>
       </section>
@@ -168,6 +188,51 @@ export function HomePage() {
                 <p className="mt-3 text-sm leading-relaxed text-slate-400">{item.a}</p>
               </details>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section — Guides et pages jeux */}
+      <section className="w-full border-t border-white/5 bg-slate-950/55">
+        <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+          <h2 className="mb-8 text-center text-2xl font-black text-white sm:text-3xl">
+            {t("publicSite.learnMoreTitle")}
+          </h2>
+          <div className="grid gap-10 lg:grid-cols-2">
+            <div>
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-cyan-300/80">
+                {t("publicSite.featuredGuides")}
+              </h3>
+              <ul className="space-y-2">
+                {featuredGuides.map((link) => (
+                  <li key={link.to}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-slate-300 underline decoration-cyan-500/30 underline-offset-2 hover:text-cyan-100"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-cyan-300/80">
+                {t("publicSite.allGames")}
+              </h3>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {allLandings.map((link) => (
+                  <li key={link.to}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-slate-300 underline decoration-white/10 underline-offset-2 hover:text-cyan-100"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>

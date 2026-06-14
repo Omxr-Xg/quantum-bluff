@@ -14,6 +14,8 @@ import { es } from "./siteContent.es";
 import { ar } from "./siteContent.ar";
 import { uk } from "./siteContent.uk";
 import { resolveMarketingLocale } from "./resolveMarketingLocale";
+import { responsibleGamingFr, responsibleGamingEn } from "./responsibleGamingContent";
+import { frBaseNewsArticles, enBaseNewsArticles, mergeNewsArticles } from "./longGuidesContent";
 
 export type MarketingLocale = "fr" | "en" | "es" | "ar" | "uk";
 
@@ -69,6 +71,7 @@ export type SiteContent = {
     ctaBody: string;
   };
   about: { title: string; sections: { heading: string; paragraphs: string[] }[] };
+  responsibleGaming?: { title: string; lastUpdated: string; sections: { heading: string; paragraphs: string[] }[] };
   contact: {
     title: string;
     intro: string[];
@@ -383,23 +386,34 @@ const fr: SiteContent = {
         heading: "Notre mission",
         paragraphs: [
           "Quantum Bluff a été créé pour offrir une alternative sociale et élégante aux jeux de cartes en ligne fragmentés. Nous voulons un seul lieu où l'on retrouve le poker entre amis, la Belote du dimanche soir et une roulette rapide entre deux mains, sans sacrifier la qualité visuelle ni l'intégrité des résultats.",
-          "L'équipe produit et technique itère en continu sur la base des retours joueurs : nouveaux mini-jeux, amélioration du vocal, tournois communautaires et outils de modération.",
+          "Né d'un projet porté par une équipe de huit personnes et soutenu devant un jury universitaire avec félicitations, le salon est devenu public le 1er juin 2026. Depuis, l'équipe produit et technique itère en continu : nouveaux mini-jeux, amélioration du vocal WebRTC, tournois communautaires, accessibilité et outils de modération.",
+          "Notre ambition est de proposer un hub de divertissement durable — navigateur, application mobile et clients desktop — où chaque victoire commence par un bluff, mais où le fair-play et le respect des joueurs priment sur tout.",
+        ],
+      },
+      {
+        heading: "Ce que nous proposons",
+        paragraphs: [
+          "Texas Hold'em multijoueur, Belote à quatre joueurs, blackjack solo ou multijoueur, roulette européenne, machine à sous, Crash, Mines, Lucky Number et Wheel of Fortune : tous les jeux partagent le même portefeuille de jetons virtuels et la même couche sociale (amis, messagerie, invitations, appels vocaux).",
+          "Chaque tirage, chaque main et chaque round de mini-jeu est validé côté serveur avant affichage. Les jetons n'ont aucune valeur monétaire réelle : Quantum Bluff est un jeu social, pas un opérateur de jeu d'argent réglementé.",
         ],
       },
       {
         heading: "Valeurs",
         paragraphs: [
-          "Transparence sur la monnaie virtuelle, respect des joueurs, accessibilité et amusement responsable. Nous encourageons des pauses régulières et rappelons que le jeu doit rester un loisir.",
+          "Transparence sur la monnaie virtuelle, respect des joueurs, accessibilité (contraste, alertes visuelles, cinq langues d'interface) et amusement responsable. Nous encourageons des pauses régulières et rappelons que le jeu doit rester un loisir.",
+          "La communauté est modérée : signalements en partie, politique anti-triche et support réactif pour les litiges entre joueurs.",
         ],
       },
       {
-        heading: "Éditeur",
+        heading: "Éditeur et contact",
         paragraphs: [
-          "Quantum Bluff est édité par l'équipe projet Quantum Bluff. Pour toute question juridique ou partenariat presse : legal@quantum-bluff.com.",
+          "Quantum Bluff est édité par l'équipe projet Quantum Bluff. Pour toute question juridique ou partenariat presse : legal@quantum-bluff.com. Support joueurs : support@quantum-bluff.com.",
+          "Retrouvez nos guides de jeu sur Quantum Bluff News (/news), nos pages dédiées par jeu (poker, belote, blackjack, etc.) et la page Découvrir pour une présentation complète de la plateforme.",
         ],
       },
     ],
   },
+  responsibleGaming: responsibleGamingFr,
   contact: {
     title: "Contact",
     intro: [
@@ -547,196 +561,7 @@ const fr: SiteContent = {
   news: {
     title: "Quantum Bluff News",
     subtitle: "Actualités, guides et journal des mises à jour de la plateforme.",
-    articles: [
-      {
-        slug: "lancement-public-1er-juin-2026",
-        title: "1er juin 2026 : Quantum Bluff devient un projet public",
-        excerpt:
-          "Fin du cadre universitaire, soutenance devant deux membres du jury avec félicitations, et ouverture au public — une équipe de huit personnes derrière le salon.",
-        date: "2026-06-01",
-        readMinutes: 6,
-        tags: ["Annonce", "Équipe"],
-        body: [
-          "Le 1er juin 2026 marque un tournant pour Quantum Bluff : le projet quitte son statut de projet universitaire pour devenir une plateforme publique, accessible à tous via le web et l'application mobile.",
-          "La soutenance s'est tenue devant un jury composé de deux examinateurs. L'équipe a présenté l'architecture technique (client React, serveur Node, sockets temps réel, validation serveur des mini-jeux), le module social vocal WebRTC, les jeux multijoueur et la démarche d'accessibilité. Le jury a décerné les félicitations du jury, saluant la cohérence produit, la profondeur fonctionnelle et la qualité de l'expérience utilisateur.",
-          "Huit personnes ont contribué à ce projet sur la durée : développement full-stack, game design, UX/UI, tests, déploiement (Vercel, Render, Supabase) et documentation. Ce passage en public s'accompagne du site marketing (/discover), des pages légales et de ce fil d'actualités pour documenter chaque évolution.",
-          "Merci à tous les testeurs de la phase universitaire. La suite : tournois communautaires, nouveaux mini-jeux et améliorations continues du vocal et de la Belote. Rejoignez le salon — chaque victoire commence par un bluff.",
-        ],
-      },
-      {
-        slug: "changelog-mai-2026-site-public",
-        title: "Changelog — Mai 2026 (site public & accueil)",
-        excerpt:
-          "Pages Découvrir, légal, blog, liens footer sur l'écran d'accueil et correctif build Vercel PWA.",
-        date: "2026-05-29",
-        readMinutes: 5,
-        tags: ["Changelog", "Web"],
-        body: [
-          "• Page /discover : présentation complète (1000+ mots), fonctionnalités, jeux, classement, récompenses, captures et FAQ.",
-          "• Pages légales : /about, /contact, /privacy-policy, /terms-of-service.",
-          "• Blog Quantum Bluff News : /news et articles détaillés.",
-          "• Écran d'accueil / : liens Découvrir, À propos, Contact, Confidentialité et CGU sous le bouton COMMENCER.",
-          "• Correctif déploiement Vercel : limite Workbox portée à 3 Mo pour le bundle JS principal.",
-        ],
-      },
-      {
-        slug: "changelog-mai-2026-casino-retro",
-        title: "Changelog — Casino rétro & finitions lobby",
-        excerpt:
-          "Roulette thème vintage, machine à sous refonte, Lucky Number, Wheel corrigée, lobby assombri et Belote plein écran.",
-        date: "2026-05-28",
-        readMinutes: 7,
-        tags: ["Changelog", "Casino"],
-        body: [
-          "• Hub Jeux solo renommé et réorganisé : séparation hub « nouveautés » et salon casino rétro.",
-          "• Roulette européenne : thème rétro casino (retroCasino), retour vers /minigames/retro-casino.",
-          "• Machine à sous vintage : refonte visuelle SlotMachine + shell MiniGames.",
-          "• Lucky Number MVP : API POST /api/lucky-number/play, page /minigames/lucky-number, tests Jest.",
-          "• Wheel of Fortune : légende des 12 segments, correction affichage coefficients (bug x2/x0,5), wheelMath.ts.",
-          "• Lobby : fond assombri (LobbyShellBackground brightness 0,32), meilleur contraste UI.",
-          "• Belote salle d'attente : plein écran, suppression bande bleue et menu hamburger sur cette vue.",
-        ],
-      },
-      {
-        slug: "changelog-mai-2026-minijeux-solo",
-        title: "Changelog — Mini-jeux solo (Crash, Mines, Wheel)",
-        excerpt:
-          "Trois MVP serveur-authoritative, hub Quick Solo et limites de mise unifiées.",
-        date: "2026-05-22",
-        readMinutes: 6,
-        tags: ["Changelog", "Casino"],
-        body: [
-          "• Crash MVP : multiplicateur en temps réel, rounds validés serveur, route API dédiée.",
-          "• Mines MVP : grille risque/récompense, tirage serveur, payouts atomiques sur le ledger jetons.",
-          "• Wheel of Fortune MVP : roue 12 segments, animation client synchronisée sur résultat API.",
-          "• Hub Quick Solo : écrans Crash, Wheel et Mines stylisés depuis le lobby.",
-          "• Contrat commun : mise 10–500 jetons (pas de 10), anti double-clic, historique portefeuille.",
-          "• Correctifs mobile Mines : layout responsive et payout types alignés build serveur.",
-        ],
-      },
-      {
-        slug: "changelog-mai-2026-seo-visuels",
-        title: "Changelog — SEO, fonds visuels et déploiement web",
-        excerpt: "Google indexing, sitemap, meta tags, fonds BAC/BL1 et assets racine domaine.",
-        date: "2026-05-18",
-        readMinutes: 4,
-        tags: ["Changelog", "Web"],
-        body: [
-          "• Favicon public, balises SEO meta et sitemap.xml pour l'indexation Google.",
-          "• robots.txt et ads.txt servis à la racine du domaine (Vercel base path corrigé).",
-          "• Google Analytics : tag G-D1L20EJFPN intégré.",
-          "• Fonds client unifiés : BAC splash écran d'accueil et auth, BL1 lobby flouté, variantes BAC2.",
-          "• Loader : slogan et splash BAC partagés avec StartScreen.",
-        ],
-      },
-      {
-        slug: "changelog-mai-2026-admin-vocal",
-        title: "Changelog — Console admin & appels vocaux",
-        excerpt:
-          "Refonte admin BADMIN, top-up QUANTUM, stack WebRTC 1v1 et groupe, sonneries et métriques.",
-        date: "2026-05-10",
-        readMinutes: 8,
-        tags: ["Changelog", "Admin", "Vocal"],
-        body: [
-          "• Console admin : fond BADMIN, login unifié, lien retour client, suppression doublon sélecteur langue.",
-          "• Top-up jetons QUANTUM restauré dans l'interface admin.",
-          "• Appels vocaux lobby : bouton appel, modal sortant, sonnerie 15 s, timeout sans réponse.",
-          "• WebRTC : offres SDP, glare rollback, ICE/TURN, canal socket précoce, audio bidirectionnel corrigé.",
-          "• Appels 1v1 et groupe : VoiceCallManager dédié, profil ami, continuité table → salle d'attente.",
-          "• Dock vocal table : draggable, pause polling lobby pendant appel (réduction charge API).",
-          "• Présence poker waiting-room, amis en ligne priorisés, last-seen sur profils.",
-          "• Documentation architecture vocale (Docs/Architecture/voice.md).",
-        ],
-      },
-      {
-        slug: "changelog-avril-2026-belote",
-        title: "Changelog — Module Belote complet",
-        excerpt:
-          "Belote V1, quatre variantes, buy-in, spectateur, timers et salle d'attente style poker.",
-        date: "2026-04-30",
-        readMinutes: 7,
-        tags: ["Changelog", "Belote"],
-        body: [
-          "• Belote V1 : salles multijoueur, moteur serveur, sockets, client production.",
-          "• Lobby Belote calqué sur le poker : waiting room, parties avec amis, invitations.",
-          "• Quatre modes : Classique, Coinchée, Contrée et Moderne.",
-          "• Mise d'entrée configurable et cagnotte redistribuée aux gagnants.",
-          "• Spectateur actif et clôture des parties fantômes.",
-          "• Table poker Belote : présence Socket.IO, timers de tour, HUD compact, cartes jouables mises en avant.",
-          "• Correctifs enchères contrée, heroTeam snapshots, présence en ligne, avatar local non grisé.",
-        ],
-      },
-      {
-        slug: "changelog-avril-2026-poker-social",
-        title: "Changelog — Poker, tutoriels et social",
-        excerpt:
-          "Tutoriel roulette, timer serveur poker, amis, avatars NA.webp et perf chargement.",
-        date: "2026-04-15",
-        readMinutes: 6,
-        tags: ["Changelog", "Poker", "Social"],
-        body: [
-          "• Tutoriel roulette : mode guidé pas à pas (/tutorial/roulette), bouton lobby.",
-          "• Tutoriel poker : emphase visuelle cibles, polish table et smoke tests.",
-          "• Timer serveur poker amélioré, contrôles table, waiting-room : navigation séparée de la suppression de salle.",
-          "• Réseau amis : demandes, messages, invitations en direct, profil ami dédié.",
-          "• Avatar par défaut NA.webp, fallbacks adversaires alignés, perf avatars (fin chargements longs).",
-          "• Correctif perf login : musique 4,7 Mo retirée du préchargement bloquant au démarrage.",
-          "• Sécurité Supabase : RLS sur tables public, durcissement advisors.",
-        ],
-      },
-      {
-        slug: "guide-texas-holdem-debuter",
-        title: "Guide Texas Hold'em : bien débuter au salon",
-        excerpt: "Règles essentielles, ordre des mises et conseils pour vos premières tables multijoueur.",
-        date: "2026-04-20",
-        readMinutes: 8,
-        tags: ["Guide", "Poker"],
-        body: [
-          "Le Texas Hold'em distribue deux cartes privées à chaque joueur et cinq cartes communes. La meilleure main de cinq cartes remporte le pot.",
-          "Au Quantum Bluff, commencez par le mode bots pour tester les tours de mise sans pression. Passez ensuite aux salles publiques deux à cinq joueurs : respectez les blinds annoncées et le buy-in minimal.",
-          "Conseil : jouez serré en early position, élargissez légèrement sur le bouton, et utilisez l'historique de mains pour analyser vos sessions. Le tutoriel intégré du lobby vous guide pas à pas.",
-        ],
-      },
-      {
-        slug: "guide-belote-salons",
-        title: "Guide Belote : créer une salle et lancer une partie",
-        excerpt: "Variantes, buy-in, présence des quatre joueurs et déroulement d'une manche.",
-        date: "2026-04-28",
-        readMinutes: 7,
-        tags: ["Guide", "Belote"],
-        body: [
-          "La Belote Quantum Bluff se joue en salle de quatre. L'hôte définit la variante, le score cible et le buy-in en jetons avant le début.",
-          "Chaque joueur doit être présent dans la salle d'attente et prêt avant le lancement. Le pot est constitué des mises d'entrée et distribué selon les règles de la variante choisie.",
-          "Utilisez le vocal en table pour coordonner vos équipes tout en respectant le fair-play : aucune communication externe n'est autorisée en tournoi officiel.",
-        ],
-      },
-      {
-        slug: "systeme-de-rangs-explication",
-        title: "Comment fonctionne le système de rangs",
-        excerpt: "Critères de progression, lien avec le classement et récompenses associées.",
-        date: "2026-05-05",
-        readMinutes: 5,
-        tags: ["Guide", "Progression"],
-        body: [
-          "Votre rang Quantum Bluff synthétise l'expérience accumulée : parties jouées, participation aux tournois, défis quotidiens complétés et certains jalons sociaux.",
-          "Le classement affiché met en avant les meilleures performances récentes mais ne se limite pas au rang : un joueur actif peut grimper même après une série de parties modestes.",
-          "Les récompenses de rang sont cosmétiques ou en jetons bonus selon les saisons. Aucun rang ne garantit un avantage compétitif injuste sur les tables équitables.",
-        ],
-      },
-      {
-        slug: "bienvenue-quantum-bluff-news",
-        title: "Bienvenue sur Quantum Bluff News",
-        excerpt: "Le fil d'actualité officiel : changelog, guides et calendrier des événements.",
-        date: "2026-05-01",
-        readMinutes: 3,
-        tags: ["Annonce"],
-        body: [
-          "Quantum Bluff News centralise toutes les mises à jour du salon : changelog détaillé par mois, guides de jeu et annonces majeures.",
-          "Consultez les articles les plus récents pour le lancement public du 1er juin 2026, les mini-jeux casino, la Belote, le vocal WebRTC et les évolutions du lobby.",
-          "Cette page est mise à jour à chaque déploiement significatif sur develop → production Vercel.",
-        ],
-      },
-    ],
+    articles: mergeNewsArticles(frBaseNewsArticles, "fr"),
   },
 };
 
@@ -829,23 +654,34 @@ const en: SiteContent = {
         heading: "Our mission",
         paragraphs: [
           "Quantum Bluff was created to offer a social, elegant alternative to fragmented online card games. We want one place to enjoy poker with friends, Sunday Belote and a quick roulette spin between hands — without sacrificing visual quality or result integrity.",
-          "The product and engineering team iterates continuously from player feedback: new mini-games, voice improvements, community tournaments and moderation tools.",
+          "Born from an eight-person team project defended before a university jury with honours, the lounge opened to the public on June 1, 2026. The product and engineering team iterates continuously: new mini-games, WebRTC voice, community tournaments, accessibility and moderation tools.",
+          "Our ambition is a lasting entertainment hub — browser, mobile app and desktop clients — where every win starts with a bluff, but fair play and respect for players come first.",
+        ],
+      },
+      {
+        heading: "What we offer",
+        paragraphs: [
+          "Multiplayer Texas Hold'em, four-player Belote, solo or multiplayer blackjack, European roulette, slot machine, Crash, Mines, Lucky Number and Wheel of Fortune: all games share the same virtual chip wallet and social layer (friends, messaging, invites, voice calls).",
+          "Every draw, hand and mini-game round is server-validated before display. Chips have no real monetary value: Quantum Bluff is social gaming, not a regulated real-money gambling operator.",
         ],
       },
       {
         heading: "Values",
         paragraphs: [
-          "Transparency on virtual currency, respect for players, accessibility and responsible fun. We encourage regular breaks and remind everyone that gaming should stay a leisure activity.",
+          "Transparency on virtual currency, respect for players, accessibility (contrast, visual alerts, five UI languages) and responsible fun. We encourage regular breaks and remind everyone that gaming should stay a leisure activity.",
+          "The community is moderated: in-game reporting, anti-cheat policy and responsive support for player disputes.",
         ],
       },
       {
-        heading: "Publisher",
+        heading: "Publisher and contact",
         paragraphs: [
-          "Quantum Bluff is published by the Quantum Bluff project team. For legal or press enquiries: legal@quantum-bluff.com.",
+          "Quantum Bluff is published by the Quantum Bluff project team. Legal or press enquiries: legal@quantum-bluff.com. Player support: support@quantum-bluff.com.",
+          "Find game guides on Quantum Bluff News (/news), dedicated pages per game (poker, belote, blackjack, etc.) and the Discover page for a full platform overview.",
         ],
       },
     ],
   },
+  responsibleGaming: responsibleGamingEn,
   contact: {
     title: "Contact",
     intro: [
@@ -1076,185 +912,8 @@ en.discover.screenshots = [
     caption: "Balance, rank, stats and daily rewards from the main menu.",
   },
 ];
-en.news.articles = [
-  {
-    slug: "lancement-public-1er-juin-2026",
-    title: "June 1, 2026: Quantum Bluff goes public",
-    excerpt:
-      "End of the university framework, defense before two jury members with honours, and public launch — an eight-person team behind the lounge.",
-    date: "2026-06-01",
-    readMinutes: 6,
-    tags: ["Announcement", "Team"],
-    body: [
-      "On June 1, 2026 Quantum Bluff leaves its university project status to become a public platform on web and mobile.",
-      "The defense was held before a jury of two examiners. The team presented the technical architecture (React client, Node server, real-time sockets, server-validated mini-games), WebRTC voice, multiplayer games and accessibility. The jury awarded honours (félicitations du jury), praising product coherence, functional depth and UX quality.",
-      "Eight people contributed over the project lifetime: full-stack development, game design, UX/UI, testing, deployment (Vercel, Render, Supabase) and documentation. Going public comes with the marketing site (/discover), legal pages and this news feed.",
-      "Thank you to all university-phase testers. Next up: community tournaments, new mini-games and ongoing voice and Belote improvements.",
-    ],
-  },
-  {
-    slug: "changelog-mai-2026-site-public",
-    title: "Changelog — May 2026 (public site & home)",
-    excerpt: "Discover page, legal pages, blog, home footer links and Vercel PWA build fix.",
-    date: "2026-05-29",
-    readMinutes: 5,
-    tags: ["Changelog", "Web"],
-    body: [
-      "• /discover: full presentation, features, games, leaderboard, rewards, screenshots and FAQ.",
-      "• Legal: /about, /contact, /privacy-policy, /terms-of-service.",
-      "• Quantum Bluff News blog at /news.",
-      "• Home / footer links to Discover, About, Contact, Privacy and Terms.",
-      "• Vercel deploy fix: Workbox limit raised to 3 MB for the main JS bundle.",
-    ],
-  },
-  {
-    slug: "changelog-mai-2026-casino-retro",
-    title: "Changelog — Retro casino & lobby polish",
-    excerpt: "Vintage roulette, slot redesign, Lucky Number, Wheel fixes, darker lobby and full-screen Belote waiting room.",
-    date: "2026-05-28",
-    readMinutes: 7,
-    tags: ["Changelog", "Casino"],
-    body: [
-      "• Solo games hub reorganised: news hub vs retro casino lounge.",
-      "• European roulette: retroCasino theme, back navigation to /minigames/retro-casino.",
-      "• Vintage slot machine visual redesign.",
-      "• Lucky Number MVP with server API and Jest tests.",
-      "• Wheel of Fortune: 12-segment legend, coefficient display fix.",
-      "• Darker lobby background for better UI contrast.",
-      "• Belote waiting room: full screen, no hamburger on that view.",
-    ],
-  },
-  {
-    slug: "changelog-mai-2026-minijeux-solo",
-    title: "Changelog — Solo mini-games (Crash, Mines, Wheel)",
-    excerpt: "Three server-authoritative MVPs, Quick Solo hub and unified bet limits.",
-    date: "2026-05-22",
-    readMinutes: 6,
-    tags: ["Changelog", "Casino"],
-    body: [
-      "• Crash MVP: real-time multiplier, server-validated rounds.",
-      "• Mines MVP: risk/reward grid, server draw, atomic chip ledger.",
-      "• Wheel of Fortune MVP: 12 segments, client animation synced to API result.",
-      "• Quick Solo hub from the lobby.",
-      "• Shared contract: 10–500 chip bets, anti double-click, wallet history.",
-    ],
-  },
-  {
-    slug: "changelog-mai-2026-seo-visuels",
-    title: "Changelog — SEO, visuals and web deploy",
-    excerpt: "Google indexing, sitemap, meta tags, BAC/BL1 backgrounds and root-domain assets.",
-    date: "2026-05-18",
-    readMinutes: 4,
-    tags: ["Changelog", "Web"],
-    body: [
-      "• Public favicon, SEO meta tags and sitemap.xml.",
-      "• robots.txt and ads.txt at domain root.",
-      "• Google Analytics tag G-D1L20EJFPN.",
-      "• Unified BAC splash (home/auth) and blurred BL1 lobby backgrounds.",
-    ],
-  },
-  {
-    slug: "changelog-mai-2026-admin-vocal",
-    title: "Changelog — Admin console & voice calls",
-    excerpt: "BADMIN admin shell, QUANTUM top-up, WebRTC 1v1 and group calls, ringtones and metrics.",
-    date: "2026-05-10",
-    readMinutes: 8,
-    tags: ["Changelog", "Admin", "Voice"],
-    body: [
-      "• Admin console: BADMIN background, unified login, back-to-client link.",
-      "• QUANTUM chip top-up restored in admin.",
-      "• Lobby voice calls: outgoing modal, 15s ringtone, no-answer timeout.",
-      "• WebRTC: SDP offers, ICE/TURN, bidirectional audio fixes.",
-      "• 1v1 and group calls via dedicated VoiceCallManager.",
-      "• Draggable table voice dock; lobby polling paused during calls.",
-      "• Voice architecture documentation.",
-    ],
-  },
-  {
-    slug: "changelog-avril-2026-belote",
-    title: "Changelog — Full Belote module",
-    excerpt: "Belote V1, four variants, buy-in, spectator mode and poker-style waiting room.",
-    date: "2026-04-30",
-    readMinutes: 7,
-    tags: ["Changelog", "Belote"],
-    body: [
-      "• Belote V1: multiplayer rooms, server engine, sockets, production client.",
-      "• Poker-style lobby: waiting room, friend games, invitations.",
-      "• Four modes: Classic, Coinched, Contrée and Modern.",
-      "• Configurable buy-in and winner pot.",
-      "• Active spectator and ghost game cleanup.",
-      "• Socket.IO presence, turn timers, compact HUD.",
-    ],
-  },
-  {
-    slug: "changelog-avril-2026-poker-social",
-    title: "Changelog — Poker, tutorials and social",
-    excerpt: "Roulette tutorial, server poker timer, friends, NA.webp avatars and load perf.",
-    date: "2026-04-15",
-    readMinutes: 6,
-    tags: ["Changelog", "Poker", "Social"],
-    body: [
-      "• Step-by-step roulette tutorial from the lobby.",
-      "• Poker tutorial visual emphasis and table polish.",
-      "• Improved server game timer and waiting-room navigation.",
-      "• Friends network: requests, messages, live invites.",
-      "• Default NA.webp avatar and load performance fixes.",
-      "• Supabase RLS hardening.",
-    ],
-  },
-  {
-    slug: "guide-texas-holdem-debuter",
-    title: "Texas Hold'em guide: getting started",
-    excerpt: "Essential rules, betting order and tips for your first multiplayer tables.",
-    date: "2026-04-20",
-    readMinutes: 8,
-    tags: ["Guide", "Poker"],
-    body: [
-      "Texas Hold'em deals two private cards and five community cards. The best five-card hand wins the pot.",
-      "Start with bot tables, then join public 2–5 player rooms respecting blinds and buy-in.",
-      "Tip: play tight in early position, widen slightly on the button, and review hand history after sessions.",
-    ],
-  },
-  {
-    slug: "guide-belote-salons",
-    title: "Belote guide: create a room and start a game",
-    excerpt: "Variants, buy-in, four-player presence and round flow.",
-    date: "2026-04-28",
-    readMinutes: 7,
-    tags: ["Guide", "Belote"],
-    body: [
-      "Belote is played in four-player rooms. The host sets variant, target score and chip buy-in.",
-      "Everyone must be present and ready in the waiting room before launch.",
-      "Use table voice chat fairly — no external communication in official tournaments.",
-    ],
-  },
-  {
-    slug: "systeme-de-rangs-explication",
-    title: "How the rank system works",
-    excerpt: "Progression criteria, leaderboard link and associated rewards.",
-    date: "2026-05-05",
-    readMinutes: 5,
-    tags: ["Guide", "Progression"],
-    body: [
-      "Your Quantum Bluff rank reflects matches played, tournaments, daily challenges and social milestones.",
-      "The leaderboard highlights recent performance but rewards consistency over one lucky hand.",
-      "Rank rewards are cosmetic or bonus chips — no unfair competitive advantage on fair tables.",
-    ],
-  },
-  {
-    slug: "bienvenue-quantum-bluff-news",
-    title: "Welcome to Quantum Bluff News",
-    excerpt: "Official feed: changelog, guides and event calendar.",
-    date: "2026-05-01",
-    readMinutes: 3,
-    tags: ["Announcement"],
-    body: [
-      "Quantum Bluff News centralises lounge updates: monthly changelogs, game guides and major announcements.",
-      "See the June 1 public launch article, casino mini-games, Belote, WebRTC voice and lobby evolution.",
-      "This page is updated on each significant develop → Vercel production deploy.",
-    ],
-  },
-];
+en.news.articles = mergeNewsArticles(enBaseNewsArticles, "en");
+
 
 en.discover.faq = [
   { q: "Is Quantum Bluff a real-money casino?", a: "No. Chips are virtual. Any payment or withdrawal screens are educational simulations with no real monetary value." },
@@ -1276,7 +935,12 @@ const contentByLocale: Record<MarketingLocale, SiteContent> = {
 };
 
 export function getSiteContent(locale: string): SiteContent {
-  return contentByLocale[resolveMarketingLocale(locale)];
+  const loc = resolveMarketingLocale(locale);
+  const content = contentByLocale[loc];
+  return {
+    ...content,
+    responsibleGaming: content.responsibleGaming ?? (loc === "fr" ? responsibleGamingFr : responsibleGamingEn),
+  };
 }
 
 export function getNewsArticle(slug: string, locale: string): NewsArticle | undefined {
