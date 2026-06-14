@@ -60,6 +60,8 @@ Statut normal sur un domaine récent : Google connaît l'URL (sitemap, liens int
 
 **Signaux techniques livrés :** prerender post-build (`scripts/prerender-marketing.mjs`), `usePageMeta` + JSON-LD Article sur toutes les pages publiques.
 
+**Build Vercel (depuis juin 2026) :** `generate-static-seo-html.mjs` génère un `index.html` par route du sitemap avec titre, meta, canonical et texte visible — sans Playwright. Vérifier en prod : `curl -sL https://www.quantum-bluff.com/contact | grep '<title>'` doit afficher `Contact — Quantum Bluff`, pas le titre générique.
+
 ## 7. « Page with redirect » — HTTP / variante de domaine
 
 Exemples GSC : `http://quantum-bluff.com/`, `http://www.quantum-bluff.com/`.

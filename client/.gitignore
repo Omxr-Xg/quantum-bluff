@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+scripts/seo-manifest.json
 *.local
 .env.web
 .env.electron

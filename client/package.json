@@ -6,9 +6,10 @@
   "main": "electron.cjs",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prerender-marketing.mjs",
-    "build:web": "vite build && node scripts/prerender-marketing.mjs",
-    "vercel-build": "vite build && npx playwright install chromium && node scripts/prerender-marketing.mjs",
+    "build": "vite build && node scripts/build-seo-manifest.mjs && node scripts/generate-static-seo-html.mjs",
+    "build:web": "vite build && node scripts/build-seo-manifest.mjs && node scripts/generate-static-seo-html.mjs",
+    "vercel-build": "npm run build",
+    "build:prerender": "npm run build && node scripts/prerender-marketing.mjs",
     "convert:webp": "node scripts/convert-images-webp.mjs",
     "build:web:root": "VITE_BASE_PATH=/ vite build",
     "build:cap": "vite build --mode capacitor",

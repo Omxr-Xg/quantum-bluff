@@ -88,6 +88,7 @@ async function main() {
         "[prerender] skipped — Chromium unavailable:",
         err instanceof Error ? err.message : err,
       );
+      console.warn("[prerender] static SEO HTML from generate-static-seo-html.mjs is used instead.");
       return;
     }
     const context = await browser.newContext({
